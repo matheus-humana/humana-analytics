@@ -1,27 +1,24 @@
-import { drizzle } from 'drizzle-orm/postgres-js';
-import postgres from 'postgres';
+import { drizzle, type PostgresJsDatabase } from "drizzle-orm/postgres-js";
+import postgres, { type Sql } from "postgres";
 
-import * as schema from './schema';
+import { requireDatabaseUrl } from "@/lib/env";
+
+import * as schema from "./schema";
 
 /**
  * Server-side PostgreSQL + Drizzle client for the `analytics` schema.
  * Uses DATABASE_URL from the environment — never hardcode credentials.
  */
 
-type AnalyticsDatabase = ReturnType<typeof drizzle<typeof schema>>;
+export type Database = PostgresJsDatabase<typeof schema>;
 
-let client: ReturnType<typeof postgres> | null = null;
-let dbInstance: AnalyticsDatabase | null = null;
+let client: Sql | null = null;
+let dbInstance: Database | null = null;
 
-function getPostgresClient(): ReturnType<typeof postgres> {
+function getPostgresClient(): Sql {
   if (!client) {
-    const connectionString = process.env.DATABASE_URL;
-    if (!connectionString) {
-      throw new Error('DATABASE_URL environment variable is required');
-    }
-
-    client = postgres(connectionString, {
-      max: 1,
+    client = postgres(requireDatabaseUrl(), {
+      max: 4,
       idle_timeout: 0,
       connect_timeout: 10,
     });
@@ -30,7 +27,7 @@ function getPostgresClient(): ReturnType<typeof postgres> {
   return client;
 }
 
-function getDatabase(): AnalyticsDatabase {
+export function getDb(): Database {
   if (!dbInstance) {
     dbInstance = drizzle(getPostgresClient(), { schema });
   }
@@ -38,13 +35,21 @@ function getDatabase(): AnalyticsDatabase {
   return dbInstance;
 }
 
+export async function closeDb(): Promise<void> {
+  if (client) {
+    await client.end();
+    client = null;
+    dbInstance = null;
+  }
+}
+
 /** Lazy proxy so importing this module does not open a DB connection. */
-export const db = new Proxy({} as AnalyticsDatabase, {
+export const db = new Proxy({} as Database, {
   get(_target, prop) {
-    const database = getDatabase();
-    return database[prop as keyof AnalyticsDatabase];
+    const database = getDb();
+    return database[prop as keyof Database];
   },
 });
 
 export { schema };
-export type { NewProject, Project } from './schema';
+export type { NewProject, Project } from "./schema";

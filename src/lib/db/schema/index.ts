@@ -18,3 +18,11 @@ export {
   type DataSourceCredential,
   type NewDataSourceCredential,
 } from './data-source-credentials';
+
+export {
+  analyticsDaily,
+  analyticsEvents,
+  analyticsPages,
+  analyticsSyncRuns,
+  analyticsTrafficSources,
+} from './ga4-reports';

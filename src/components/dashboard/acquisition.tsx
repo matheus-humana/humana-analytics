@@ -1,6 +1,11 @@
-import { acquisitionSources } from "@/data/mock/dashboard";
+import { acquisitionSources as mockAcquisitionSources } from "@/data/mock/dashboard";
+import type { AcquisitionSource } from "@/data/mock/dashboard";
 
-export function Acquisition() {
+export function Acquisition({
+  sources = mockAcquisitionSources,
+}: {
+  sources?: AcquisitionSource[];
+}) {
   return (
     <section className="rounded-xl border border-border bg-surface p-5 shadow-sm shadow-black/5">
       <h2 className="font-display text-base font-semibold text-foreground">
@@ -9,7 +14,7 @@ export function Acquisition() {
       <p className="mt-1 text-sm text-muted">Where visitors came from</p>
 
       <ul className="mt-5 space-y-4">
-        {acquisitionSources.map((item) => {
+        {sources.map((item) => {
           const width = Number.parseInt(item.share, 10);
 
           return (

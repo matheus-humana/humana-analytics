@@ -7,12 +7,18 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
+    "test": "tsx --test src/lib/analytics/dates.test.ts src/lib/analytics/ga4/map-report.test.ts src/lib/analytics/sync-auth.test.ts",
     "db:analytics:generate": "drizzle-kit generate --config=drizzle.analytics.config.ts",
     "db:analytics:migrate": "drizzle-kit migrate --config=drizzle.analytics.config.ts",
-    "db:analytics:studio": "drizzle-kit studio --config=drizzle.analytics.config.ts"
+    "db:analytics:studio": "drizzle-kit studio --config=drizzle.analytics.config.ts",
+    "db:migrate": "tsx scripts/migrate.ts",
+    "db:studio": "drizzle-kit studio --config=drizzle.analytics.config.ts",
+    "ga4:sync": "tsx scripts/sync-ga4.ts",
+    "ga4:validate": "tsx scripts/sync-ga4.ts --validate"
   },
   "dependencies": {
     "drizzle-orm": "^0.45.2",
+    "google-auth-library": "^11.1.0",
     "next": "16.3.5",
     "postgres": "^3.4.9",
     "react": "19.2.8",
@@ -23,10 +29,12 @@
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "dotenv": "^18.0.1",
     "drizzle-kit": "^0.31.10",
     "eslint": "^9",
     "eslint-config-next": "16.3.5",
     "tailwindcss": "^4",
+    "tsx": "^4.23.15",
     "typescript": "^5"
   },
   "packageManager": "pnpm@11.13.0"

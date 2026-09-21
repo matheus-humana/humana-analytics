@@ -131,17 +131,17 @@ conversations
 messages
 ```
 
-Analytics-specific tables will be introduced when historical data persistence becomes part of the product.
-
-Potential future structures:
+GA4 historical persistence is now part of the local collector:
 
 ```text
 analytics_daily
 analytics_pages
 analytics_events
 analytics_traffic_sources
-clarity_metrics
+analytics_sync_runs
 ```
+
+`clarity_metrics` remains future work.
 
 The database should store only data required by product functionality rather than attempting to replicate an external analytics platform.
 
@@ -350,23 +350,30 @@ The response should include the relevant period and, where useful, the source.
 
 ## 12. Data Collection
 
-The initial MVP may query GA4 directly.
-
-Later, scheduled collectors will persist selected data:
+GA4 now has an incremental collector. `pnpm ga4:sync` (or `POST /api/sync/ga4`)
+pulls core reports and upserts them into PostgreSQL.
 
 ```text
-Scheduler
+CLI / HTTP
     ↓
 Collector
     ↓
-Provider API
+GA4 Adapter
+    ↓
+Google Analytics Data API
     ↓
 Normalization
     ↓
 PostgreSQL
 ```
 
-This becomes particularly important for Microsoft Clarity because its API has limited historical access and request volume.
+The agent repository reads persisted tables (`getOverview`, `getTrafficSources`,
+`getTopPages`, `getEvents`, `comparePeriods`). Live GA4 remains available behind
+the adapter for validation and future on-demand queries.
+
+Scheduled collectors and Microsoft Clarity persistence remain later work. Clarity
+needs particular attention because its API has limited historical access and
+request volume.
 
 ## 13. Security Boundaries
 
@@ -442,7 +449,7 @@ Prepare the domain for multiple organizations without implementing unnecessary S
 
 ```text
 M1
-GA4 → Agent → Chat
+GA4 collector → PostgreSQL → Agent → Chat
 
 M2
 Clarity → Collector → PostgreSQL → Agent
