@@ -4,6 +4,27 @@ Analytics AI is an AI-powered analytics environment that allows users to connect
 
 The initial version focuses on Google Analytics 4, with Microsoft Clarity and Vercel Analytics planned as additional data sources.
 
+## Local setup
+
+The first working slice persists core GA4 reports in PostgreSQL. Full credential
+and property setup is in [docs/GA4.md](docs/GA4.md).
+
+```bash
+pnpm install
+cp .env.example .env.local
+# set DATABASE_URL, GA4_PROPERTY_ID, and one GA4 credential option
+pnpm db:migrate
+pnpm ga4:validate
+pnpm ga4:sync
+pnpm dev
+```
+
+If Google credentials are not ready yet, verify the database path with sample data:
+
+```bash
+pnpm ga4:sync --fixture
+```
+
 ## Objective
 
 Instead of requiring users to navigate multiple analytics platforms and manually combine information, Analytics AI provides a conversational interface where users can ask questions about their website data.
@@ -145,9 +166,10 @@ comparePeriods
 
 ## Data Strategy
 
-The initial GA4 MVP can query the GA4 Data API directly.
+The local collector already persists selected GA4 reports in PostgreSQL. The
+chat agent can later read those tables instead of calling GA4 on every question.
 
-As the product evolves, selected analytics data will be collected and persisted in PostgreSQL to provide:
+As the product evolves, this persisted data supports:
 
 * Historical analysis
 * Cross-source analysis
