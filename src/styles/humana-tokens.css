@@ -1,0 +1,38 @@
+/**
+ * Humana Artificial Intelligence — Design Tokens
+ * Fonte: reference/brand-identity-sheet.png
+ *
+ * Use estas variáveis em novos componentes e superfícies de marca.
+ * Não altere hex codes sem atualizar também o README.md.
+ */
+
+:root {
+  /* ——— Neutros ——— */
+  --humana-black: #000000;
+  --humana-ink: #151515;
+  --humana-white: #ffffff;
+  --humana-surface: #f1f1f1;
+  --humana-silver: #cccccc;
+  --humana-gray: #5f5f5f;
+
+  /* ——— Marca (azuis) ——— */
+  --humana-blue: #6074c8;
+  --humana-blue-soft: #8e9bd6;
+  --humana-navy: #1c2331;
+
+  /* Aliases semânticos */
+  --humana-color-primary: var(--humana-blue);
+  --humana-color-primary-soft: var(--humana-blue-soft);
+  --humana-color-on-dark: var(--humana-white);
+  --humana-color-on-light: var(--humana-black);
+  --humana-color-bg-dark: var(--humana-black);
+  --humana-color-bg-light: var(--humana-white);
+  --humana-color-bg-muted: var(--humana-surface);
+  --humana-color-text-muted: var(--humana-gray);
+  --humana-color-border: var(--humana-silver);
+  --humana-color-navy: var(--humana-navy);
+
+  /* Tipografia (stacks) */
+  --humana-font-display: 'Poppins', ui-sans-serif, system-ui, sans-serif;
+  --humana-font-body: 'Montserrat', ui-sans-serif, system-ui, sans-serif;
+}

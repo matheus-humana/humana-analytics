@@ -1,0 +1,1 @@
+ALTER TABLE "analytics"."data_sources" ADD COLUMN "external_id" text;
