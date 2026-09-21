@@ -45,8 +45,8 @@ export function SyncButton({ fixtureEnabled }: SyncButtonProps) {
   }
 
   return (
-    <div className="flex flex-col gap-3">
-      <div className="flex flex-wrap gap-3">
+    <div className="flex flex-col items-start gap-3 md:items-end">
+      <div className="flex flex-wrap justify-end gap-3">
         <button
           type="button"
           disabled={pending}
