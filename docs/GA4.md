@@ -3,8 +3,10 @@
 This is the local path to connect Google Analytics 4, persist core reports in
 PostgreSQL, and query them later from the analytics agent.
 
-Credentials stay in environment variables. The database stores only a reference
-to the env source and the service-account email (not the private key).
+Credentials stay in environment variables. Domain tables live in the isolated
+PostgreSQL schema `analytics` (projects, data sources, OAuth credentials).
+GA4 report tables are added next to them. Service-account secrets are never
+written to `data_source_credentials`.
 
 ## What gets synced
 
@@ -45,20 +47,21 @@ If you prefer a disposable local instance:
 docker compose up -d postgres
 ```
 
-Apply the schema:
+Apply the schema (creates `analytics` plus GA4 report tables):
 
 ```bash
 pnpm db:migrate
+# or: pnpm db:analytics:migrate
 ```
 
-Tables created:
+Tables in schema `analytics`:
 
-- Domain: `organizations`, `projects`, `data_sources`, `data_source_credentials`
+- Domain: `projects`, `data_sources`, `data_source_credentials`
 - Metrics: `analytics_daily`, `analytics_pages`, `analytics_events`, `analytics_traffic_sources`
 - Ops: `analytics_sync_runs`
 
-The first successful sync bootstraps a local organization/project/data source
-from `ORGANIZATION_NAME`, `PROJECT_NAME`, and `GA4_PROPERTY_ID`.
+The first successful sync bootstraps a local project/data source from
+`PROJECT_NAME` and `GA4_PROPERTY_ID`.
 
 ## 2. Google Cloud and GA4 credentials
 

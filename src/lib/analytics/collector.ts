@@ -64,7 +64,7 @@ export async function syncGa4Reports(
     const reports = await adapter.fetchReports(range);
     const counts = await persistReports(db, context.dataSourceId, reports);
     await finishSyncRun(db, run.id, { status: "success", counts });
-    await markDataSourceStatus(db, context.dataSourceId, "connected");
+    await markDataSourceStatus(db, context.dataSourceId, "active");
 
     return {
       propertyId,

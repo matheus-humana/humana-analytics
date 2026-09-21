@@ -5,10 +5,17 @@ config({ path: ".env.local" });
 config({ path: ".env" });
 
 export default defineConfig({
-  out: "./drizzle",
-  schema: "./src/lib/db/schema.ts",
   dialect: "postgresql",
+  schema: "./src/lib/db/schema/index.ts",
+  out: "./src/lib/db/migrations",
+  schemaFilter: ["analytics"],
   dbCredentials: {
-    url: process.env.DATABASE_URL!,
+    url: process.env.DATABASE_URL ?? "",
   },
+  migrations: {
+    table: "__drizzle_migrations_analytics",
+    schema: "drizzle",
+  },
+  strict: true,
+  verbose: true,
 });

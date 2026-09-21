@@ -17,6 +17,7 @@ pnpm db:migrate
 pnpm ga4:validate
 pnpm ga4:sync
 pnpm dev
+# open /dashboard and /data-sources
 ```
 
 If Google credentials are not ready yet, verify the database path with sample data:

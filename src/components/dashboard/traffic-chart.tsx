@@ -1,7 +1,13 @@
-import { trafficSeries } from "@/data/mock/dashboard";
+import { trafficSeries as mockTrafficSeries } from "@/data/mock/dashboard";
+import type { TrafficPoint } from "@/data/mock/dashboard";
 
-export function TrafficChart() {
-  const maxUsers = Math.max(...trafficSeries.map((point) => point.users));
+export function TrafficChart({
+  series = mockTrafficSeries,
+}: {
+  series?: TrafficPoint[];
+}) {
+  const trafficSeries = series.length > 0 ? series : mockTrafficSeries;
+  const maxUsers = Math.max(...trafficSeries.map((point) => point.users), 1);
   const chartHeight = 180;
   const chartWidth = 560;
   const paddingX = 28;

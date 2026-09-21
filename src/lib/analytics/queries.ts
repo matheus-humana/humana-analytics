@@ -15,7 +15,7 @@ import {
 import type { DateRange } from "./types";
 
 export async function findGa4DataSource(db: Database, propertyId?: string) {
-  const filters = [eq(dataSources.provider, "google_analytics")];
+  const filters = [eq(dataSources.provider, "ga4")];
   if (propertyId) {
     filters.push(eq(dataSources.externalId, propertyId));
   }

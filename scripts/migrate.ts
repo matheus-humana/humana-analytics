@@ -7,13 +7,13 @@ import { requireDatabaseUrl } from "../src/lib/env";
 async function migrate() {
   const databaseUrl = requireDatabaseUrl();
   const sql = postgres(databaseUrl, { max: 1 });
-  const migrationsDir = join(process.cwd(), "drizzle");
+  const migrationsDir = join(process.cwd(), "src/lib/db/migrations");
   const files = readdirSync(migrationsDir)
     .filter((file) => file.endsWith(".sql"))
     .sort();
 
   if (files.length === 0) {
-    throw new Error("No SQL migrations found in drizzle/.");
+    throw new Error("No SQL migrations found in src/lib/db/migrations/.");
   }
 
   try {

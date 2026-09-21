@@ -1,4 +1,5 @@
 import { and, desc, eq, gte, lte, sql } from "drizzle-orm";
+import { randomUUID } from "node:crypto";
 import type { Database } from "@/lib/db";
 import {
   analyticsDaily,
@@ -36,6 +37,7 @@ export async function startSyncRun(
   const [run] = await db
     .insert(analyticsSyncRuns)
     .values({
+      id: randomUUID(),
       dataSourceId,
       status: "running",
       startDate: range.startDate,
@@ -74,6 +76,7 @@ export async function persistReports(
         .insert(analyticsDaily)
         .values(
           reports.daily.map((row) => ({
+            id: randomUUID(),
             dataSourceId,
             date: row.date,
             activeUsers: row.activeUsers,
@@ -106,6 +109,7 @@ export async function persistReports(
         .insert(analyticsPages)
         .values(
           reports.pages.map((row) => ({
+            id: randomUUID(),
             dataSourceId,
             date: row.date,
             pagePath: row.pagePath,
@@ -137,6 +141,7 @@ export async function persistReports(
         .insert(analyticsEvents)
         .values(
           reports.events.map((row) => ({
+            id: randomUUID(),
             dataSourceId,
             date: row.date,
             eventName: row.eventName,
@@ -166,6 +171,7 @@ export async function persistReports(
         .insert(analyticsTrafficSources)
         .values(
           reports.trafficSources.map((row) => ({
+            id: randomUUID(),
             dataSourceId,
             date: row.date,
             source: row.source,
