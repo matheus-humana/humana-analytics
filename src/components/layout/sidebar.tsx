@@ -15,7 +15,7 @@ const navItems = [
   },
   {
     href: "/ask-ai",
-    label: "Ask AI",
+    label: "Humana Analytics",
     iconSrc: "/icons/black-icons/ai.png",
   },
   {
@@ -27,7 +27,13 @@ const navItems = [
 
 const STORAGE_KEY = "ha-sidebar-collapsed";
 
-export function Sidebar() {
+export function Sidebar({
+  userName,
+  signOut,
+}: {
+  userName: string;
+  signOut: React.ReactNode;
+}) {
   const pathname = usePathname();
   const [mobileOpen, setMobileOpen] = useState(false);
   const [collapsed, setCollapsed] = useState(false);
@@ -213,6 +219,17 @@ export function Sidebar() {
             )}
           </button>
         </nav>
+
+        <div className="border-t border-border px-2 py-3">
+          {!collapsed ? (
+            <p className="truncate px-3 pb-2 text-xs text-muted" title={userName}>
+              {userName}
+            </p>
+          ) : (
+            <p className="sr-only">{userName}</p>
+          )}
+          {signOut}
+        </div>
       </aside>
 
       <SettingsPanel

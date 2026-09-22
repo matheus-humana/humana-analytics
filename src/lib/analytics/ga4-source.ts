@@ -2,12 +2,9 @@ import { randomBytes } from "node:crypto";
 
 import { eq } from "drizzle-orm";
 
+import { ensureDefaultProject } from "@/lib/analytics/default-scope";
 import { db } from "@/lib/db";
-import {
-  dataSourceCredentials,
-  dataSources,
-  projects,
-} from "@/lib/db/schema";
+import { dataSourceCredentials, dataSources } from "@/lib/db/schema";
 import {
   getServiceAccountEmail,
   hasGoogleServiceAccount,
@@ -47,22 +44,7 @@ export async function ensureGa4DataSource() {
     return source;
   }
 
-  let project = (
-    await db.select().from(projects).limit(1)
-  )[0];
-
-  if (!project) {
-    const projectId = newId();
-    const [created] = await db
-      .insert(projects)
-      .values({
-        id: projectId,
-        name: "Humana Website",
-        slug: "humana-website",
-      })
-      .returning();
-    project = created;
-  }
+  const project = await ensureDefaultProject();
 
   const sourceId = newId();
   const [createdSource] = await db

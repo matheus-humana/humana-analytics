@@ -170,6 +170,21 @@ function namedCounts(
   }));
 }
 
+async function openGa4Report(periodInput?: string | null) {
+  const period = resolveAnalyticsPeriod(periodInput);
+  const source = await ensureGa4DataSource();
+
+  if (!source.externalId) {
+    throw new Error(
+      "GA4 data source is missing external_id (property id). Set GA4_PROPERTY_ID."
+    );
+  }
+
+  const { accessToken } = await resolveAccessToken();
+  const propertyId = source.externalId.replace(/^properties\//, "");
+  return { period, accessToken, propertyId };
+}
+
 export async function fetchGa4Last7Days() {
   const source = await ensureGa4DataSource();
 
@@ -376,5 +391,73 @@ export async function fetchGa4Dashboard(
     operatingSystems: namedCounts(operatingSystems.rows),
     platforms: namedCounts(platforms.rows),
     screenResolutions: namedCounts(screenResolutions.rows),
+  };
+}
+
+export async function fetchGa4TrafficSources(periodInput?: string | null) {
+  const { period, accessToken, propertyId } = await openGa4Report(periodInput);
+  const report = await runGa4Report(propertyId, accessToken, {
+    dateRanges: [period.ga4],
+    dimensions: [{ name: "sessionSource" }, { name: "sessionMedium" }],
+    metrics: [{ name: "activeUsers" }, { name: "sessions" }],
+    orderBys: [{ metric: { metricName: "sessions" }, desc: true }],
+    limit: 12,
+  });
+
+  return {
+    source: "Google Analytics 4" as const,
+    period: period.label,
+    channels: (report.rows ?? []).map((row) => ({
+      source: row.dimensionValues?.[0]?.value || "(not set)",
+      medium: row.dimensionValues?.[1]?.value || "(not set)",
+      activeUsers: Number(row.metricValues?.[0]?.value ?? 0),
+      sessions: Number(row.metricValues?.[1]?.value ?? 0),
+    })),
+  };
+}
+
+export async function fetchGa4Events(periodInput?: string | null) {
+  const { period, accessToken, propertyId } = await openGa4Report(periodInput);
+  const [topEvents, conversionEvents] = await Promise.all([
+    runGa4Report(propertyId, accessToken, {
+      dateRanges: [period.ga4],
+      dimensions: [{ name: "eventName" }],
+      metrics: [{ name: "eventCount" }, { name: "activeUsers" }],
+      orderBys: [{ metric: { metricName: "eventCount" }, desc: true }],
+      limit: 15,
+    }),
+    runGa4Report(propertyId, accessToken, {
+      dateRanges: [period.ga4],
+      dimensions: [{ name: "eventName" }],
+      metrics: [{ name: "eventCount" }],
+      dimensionFilter: {
+        filter: {
+          fieldName: "eventName",
+          inListFilter: {
+            values: GA4_CONVERSION_EVENTS.map((event) => event.eventName),
+          },
+        },
+      },
+      limit: 20,
+    }),
+  ]);
+
+  const countsByEvent = new Map(
+    namedCounts(conversionEvents.rows).map((row) => [row.name, row.value])
+  );
+
+  return {
+    source: "Google Analytics 4" as const,
+    period: period.label,
+    events: (topEvents.rows ?? []).map((row) => ({
+      eventName: row.dimensionValues?.[0]?.value || "(not set)",
+      eventCount: Number(row.metricValues?.[0]?.value ?? 0),
+      activeUsers: Number(row.metricValues?.[1]?.value ?? 0),
+    })),
+    conversions: GA4_CONVERSION_EVENTS.map((event) => ({
+      eventName: event.eventName,
+      label: event.label,
+      count: countsByEvent.get(event.eventName) ?? 0,
+    })),
   };
 }

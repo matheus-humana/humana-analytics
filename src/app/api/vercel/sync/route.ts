@@ -1,8 +1,14 @@
 import { NextResponse } from "next/server";
 
+import { requireSessionUser } from "@/lib/auth/require-user";
 import { fetchVercelSyncPreview } from "@/lib/vercel/fetch-report";
 
+export const dynamic = "force-dynamic";
+
 export async function POST() {
+  const authResult = await requireSessionUser();
+  if (!authResult.user) return authResult.response;
+
   try {
     const report = await fetchVercelSyncPreview();
     return NextResponse.json({

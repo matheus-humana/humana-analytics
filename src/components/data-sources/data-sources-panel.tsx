@@ -194,7 +194,7 @@ export function DataSourcesPanel({
           Data Sources
         </h1>
         <p className="mt-2 max-w-2xl text-sm text-muted sm:text-base">
-          Connect analytics platforms to power dashboards and Ask AI.
+          Connect analytics platforms to power dashboards and Humana Analytics.
         </p>
       </div>
 

@@ -3,11 +3,19 @@ import { randomBytes } from "node:crypto";
 import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
 
+import { getSessionUser } from "@/lib/auth/require-user";
 import { buildGoogleAuthorizationUrl } from "@/lib/oauth/google";
 
 const OAUTH_STATE_COOKIE = "ha_google_oauth_state";
 
 export async function GET() {
+  const user = await getSessionUser();
+  if (!user) {
+    return NextResponse.redirect(
+      new URL("/login", process.env.APP_URL ?? "http://localhost:3000")
+    );
+  }
+
   try {
     const state = randomBytes(24).toString("base64url");
     const cookieStore = await cookies();

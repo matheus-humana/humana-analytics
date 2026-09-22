@@ -1,6 +1,6 @@
 /**
  * Shared analytics period presets.
- * Used by GA4 now; Clarity / Vercel / Ask AI should reuse the same ids via URL `?period=`.
+ * Shared by GA4, Clarity, Vercel, and Humana Analytics via URL `?period=`.
  */
 
 export const ANALYTICS_PERIOD_IDS = [

@@ -1,20 +1,20 @@
-import { pgSchema, text, timestamp } from 'drizzle-orm/pg-core';
+import { text } from 'drizzle-orm/pg-core';
 
-/**
- * Isolated PostgreSQL schema for Humana Analytics.
- * Must not use the public schema or other product schemas.
- */
-export const analyticsSchema = pgSchema('analytics');
+import { analyticsSchema, timestamptz } from './analytics-schema';
+import { organizations } from './organizations';
 
-const timestamptz = (name: string) =>
-  timestamp(name, { withTimezone: true, mode: 'date' });
+export { analyticsSchema } from './analytics-schema';
 
 /**
  * Analytics project (MVP).
  * Represents a website/property tracked by Humana Analytics.
+ * Belongs to an organization so additional projects can be added later.
  */
 export const projects = analyticsSchema.table('projects', {
   id: text('id').primaryKey(),
+  organizationId: text('organization_id')
+    .notNull()
+    .references(() => organizations.id, { onDelete: 'restrict' }),
   name: text('name').notNull(),
   slug: text('slug').notNull().unique(),
   createdAt: timestamptz('created_at').defaultNow().notNull(),

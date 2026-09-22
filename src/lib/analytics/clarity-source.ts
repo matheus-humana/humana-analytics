@@ -2,8 +2,9 @@ import { randomBytes } from "node:crypto";
 
 import { eq } from "drizzle-orm";
 
+import { ensureDefaultProject } from "@/lib/analytics/default-scope";
 import { db } from "@/lib/db";
-import { dataSources, projects } from "@/lib/db/schema";
+import { dataSources } from "@/lib/db/schema";
 
 function newId(): string {
   return randomBytes(9).toString("base64url");
@@ -63,20 +64,7 @@ export async function ensureClarityDataSource() {
     return source;
   }
 
-  let project = (await db.select().from(projects).limit(1))[0];
-
-  if (!project) {
-    const id = newId();
-    const [created] = await db
-      .insert(projects)
-      .values({
-        id,
-        name: "Humana Website",
-        slug: "humana-website",
-      })
-      .returning();
-    project = created;
-  }
+  const project = await ensureDefaultProject();
 
   const sourceId = newId();
   const [createdSource] = await db

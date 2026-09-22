@@ -4,19 +4,26 @@ import type {
   ChatCompletionTool,
 } from "openai/resources/chat/completions";
 
+import { getClarityConnectionStatus } from "@/lib/analytics/clarity-source";
+import { getGa4ConnectionStatus } from "@/lib/analytics/ga4-source";
+import { resolveAnalyticsPeriod } from "@/lib/analytics/period";
+import { getVercelConnectionStatus } from "@/lib/analytics/vercel-source";
+
+import type { StoredTurn } from "./conversations";
+import { buildHumanaAnalyticsPrompt } from "./prompts";
 import {
-  askAiToolDefinitions,
-  executeAskAiTool,
-} from "@/lib/ai/tools/ga4-tools";
+  analyticsToolDefinitions,
+  executeAnalyticsTool,
+} from "./tools";
 import {
   addUsage,
   emptyUsage,
   getOpenAiModel,
+  logUsage,
   summarizeUsage,
   type TokenUsage,
   type UsageSummary,
-} from "@/lib/ai/usage";
-import { resolveAnalyticsPeriod } from "@/lib/analytics/period";
+} from "./usage";
 
 const MAX_TOOL_ROUNDS = 4;
 const MAX_OUTPUT_TOKENS = 700;
@@ -29,16 +36,6 @@ function getClient() {
     );
   }
   return new OpenAI({ apiKey });
-}
-
-function systemPrompt(periodLabel: string): string {
-  return `Você é o analista de website da Humana Analytics.
-Responda em português do Brasil, de forma clara e objetiva.
-Use APENAS dados retornados pelas tools (GA4). Não invente métricas.
-Se faltar dado, diga o que falta.
-Período padrão da interface: ${periodLabel}.
-Quando a pergunta não especificar outro intervalo, use esse período nas tools.
-Inclua números concretos na resposta.`;
 }
 
 function usageFromResponse(response: {
@@ -55,6 +52,20 @@ function usageFromResponse(response: {
   };
 }
 
+async function connectedSources() {
+  const [ga4, clarity, vercel] = await Promise.all([
+    getGa4ConnectionStatus().catch(() => ({ connected: false })),
+    getClarityConnectionStatus().catch(() => ({ connected: false })),
+    getVercelConnectionStatus().catch(() => ({ connected: false })),
+  ]);
+
+  return {
+    ga4: ga4.connected,
+    clarity: clarity.connected,
+    vercel: vercel.connected,
+  };
+}
+
 export type AskAiResult = {
   answer: string;
   toolsUsed: string[];
@@ -64,14 +75,26 @@ export type AskAiResult = {
 export async function runAskAiAgent(input: {
   question: string;
   period?: string | null;
+  history?: StoredTurn[];
 }): Promise<AskAiResult> {
   const period = resolveAnalyticsPeriod(input.period);
   const client = getClient();
   const model = getOpenAiModel();
-  const tools = askAiToolDefinitions as unknown as ChatCompletionTool[];
+  const tools = analyticsToolDefinitions as unknown as ChatCompletionTool[];
+  const sources = await connectedSources();
 
   const messages: ChatCompletionMessageParam[] = [
-    { role: "system", content: systemPrompt(period.label) },
+    {
+      role: "system",
+      content: buildHumanaAnalyticsPrompt({
+        periodLabel: period.label,
+        sources,
+      }),
+    },
+    ...(input.history ?? []).map((turn) => ({
+      role: turn.role,
+      content: turn.content,
+    })),
     { role: "user", content: input.question.trim() },
   ];
 
@@ -102,17 +125,19 @@ export async function runAskAiAgent(input: {
       if (!answer) {
         throw new Error("OpenAI retornou resposta vazia.");
       }
+      const summary = summarizeUsage(model, usage);
+      logUsage(summary, toolsUsed.length);
       return {
         answer,
         toolsUsed,
-        usage: summarizeUsage(model, usage),
+        usage: summary,
       };
     }
 
     for (const call of toolCalls) {
       if (call.type !== "function") continue;
       toolsUsed.push(call.function.name);
-      const result = await executeAskAiTool(
+      const result = await executeAnalyticsTool(
         call.function.name,
         call.function.arguments,
         period.id
@@ -125,10 +150,12 @@ export async function runAskAiAgent(input: {
     }
   }
 
+  const summary = summarizeUsage(model, usage);
+  logUsage(summary, toolsUsed.length);
   return {
     answer:
       "Atingi o limite de consultas internas. Reformule a pergunta de forma mais específica.",
     toolsUsed,
-    usage: summarizeUsage(model, usage),
+    usage: summary,
   };
 }

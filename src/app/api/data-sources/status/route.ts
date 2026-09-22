@@ -3,6 +3,9 @@ import { NextResponse } from "next/server";
 import { getClarityConnectionStatus } from "@/lib/analytics/clarity-source";
 import { getGa4ConnectionStatus } from "@/lib/analytics/ga4-source";
 import { getVercelConnectionStatus } from "@/lib/analytics/vercel-source";
+import { requireSessionUser } from "@/lib/auth/require-user";
+
+export const dynamic = "force-dynamic";
 
 function publicGa4(
   status: Awaited<ReturnType<typeof getGa4ConnectionStatus>>
@@ -22,6 +25,9 @@ function publicSource(status: { connected: boolean; status: string }) {
 }
 
 export async function GET() {
+  const authResult = await requireSessionUser();
+  if (!authResult.user) return authResult.response;
+
   try {
     const [ga4Raw, clarityRaw, vercelRaw] = await Promise.all([
       getGa4ConnectionStatus(),

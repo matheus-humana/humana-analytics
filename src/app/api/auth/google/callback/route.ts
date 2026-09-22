@@ -5,6 +5,8 @@ import {
   ensureGa4DataSource,
   upsertGa4Credentials,
 } from "@/lib/analytics/ga4-source";
+import { getSessionUser } from "@/lib/auth/require-user";
+import { redactSensitive } from "@/lib/ai/redact";
 import { encryptSecret } from "@/lib/crypto/token-encryption";
 import {
   exchangeCodeForTokens,
@@ -45,6 +47,11 @@ export async function GET(request: NextRequest) {
       return redirectWith({ error: "Invalid OAuth state" });
     }
 
+    const user = await getSessionUser();
+    if (!user) {
+      return NextResponse.redirect(new URL("/login", APP_URL));
+    }
+
     const tokens = await exchangeCodeForTokens(code);
 
     if (!tokens.refresh_token) {
@@ -70,7 +77,6 @@ export async function GET(request: NextRequest) {
   } catch (error) {
     const message =
       error instanceof Error ? error.message : "OAuth callback failed";
-    const safe = message.replace(/ya29\.[^\s]+/g, "[redacted]");
-    return redirectWith({ error: safe });
+    return redirectWith({ error: redactSensitive(message) });
   }
 }
