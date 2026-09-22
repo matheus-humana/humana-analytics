@@ -2,7 +2,7 @@
 
 Analytics AI is an AI-powered analytics environment that allows users to connect analytics platforms and interact with their data through natural language.
 
-The initial version focuses on Google Analytics 4, with Microsoft Clarity and Vercel Analytics planned as additional data sources.
+The current version covers Google Analytics 4, Microsoft Clarity, and Vercel Analytics. Humana Analytics is the grounded chat agent: it answers in the user's language (PT-BR or EN) using only tool data from connected sources. Google sign-in is required before the dashboard and chat.
 
 ## Objective
 
@@ -64,11 +64,13 @@ The MVP should support questions such as:
 
 ## Planned Integrations
 
-| Provider           | Purpose                                  | Status  |
-| ------------------ | ---------------------------------------- | ------- |
-| Google Analytics 4 | Analytics, acquisition, events and pages | MVP     |
-| Microsoft Clarity  | User behavior and interaction signals    | Planned |
-| Vercel Analytics   | Web analytics and events                 | Planned |
+| Provider           | Purpose                                  | Status |
+| ------------------ | ---------------------------------------- | ------ |
+| Google Analytics 4 | Analytics, acquisition, events and pages | Live   |
+| Microsoft Clarity  | User behavior and interaction signals    | Live   |
+| Vercel Analytics   | Web analytics and traffic sources        | Live   |
+
+Dashboards and the Humana Analytics agent query these sources when credentials are configured. A disconnected source returns connect guidance instead of mock metrics. Apply `pnpm db:analytics:migrate` before the first sign-in. Moving the Google OAuth client and GA4 service account to the company GCP project is documented in [docs/gcp-oauth-migration.md](docs/gcp-oauth-migration.md).
 
 ## Architecture
 

@@ -57,3 +57,18 @@ export function summarizeUsage(
     estimatedCostUsd: estimateCostUsd(model, usage),
   };
 }
+
+/** Server log of token cost. Omits questions, emails, and user ids. */
+export function logUsage(summary: UsageSummary, toolCount: number) {
+  console.info(
+    "[humana-analytics] usage",
+    JSON.stringify({
+      model: summary.model,
+      promptTokens: summary.promptTokens,
+      completionTokens: summary.completionTokens,
+      totalTokens: summary.totalTokens,
+      estimatedCostUsd: summary.estimatedCostUsd,
+      toolCount,
+    })
+  );
+}
