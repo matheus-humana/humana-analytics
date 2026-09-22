@@ -62,9 +62,15 @@ export default async function DataSourcesPage() {
     initialVercel = publicSourceStatus(await getVercelConnectionStatus());
   } catch {
     const token =
+      process.env.WEB_ANALYTICS_TOKEN?.trim() ||
       process.env.VERCEL_ACCESS_TOKEN?.trim() ||
       process.env.VERCEL_API_TOKEN?.trim();
-    const projectId = process.env.VERCEL_PROJECT_ID?.trim();
+    const projectId =
+      process.env.WEB_ANALYTICS_PROJECT_ID?.trim() ||
+      process.env.HUMANA_SITE_VERCEL_PROJECT_ID?.trim() ||
+      (!process.env.VERCEL
+        ? process.env.VERCEL_PROJECT_ID?.trim()
+        : undefined);
     if (token && projectId) {
       initialVercel = { connected: true, status: "active" };
     }

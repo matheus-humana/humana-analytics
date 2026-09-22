@@ -71,7 +71,7 @@ async function vercelGet(
   const projectId = getVercelProjectId();
   if (!token || !projectId) {
     throw new Error(
-      "Vercel is not configured. Set VERCEL_ACCESS_TOKEN and VERCEL_PROJECT_ID."
+      "Vercel is not configured. Set WEB_ANALYTICS_TOKEN (or VERCEL_ACCESS_TOKEN) and WEB_ANALYTICS_PROJECT_ID."
     );
   }
 
@@ -146,7 +146,7 @@ export async function fetchVercelDashboard(input?: {
 }): Promise<VercelDashboardData> {
   if (!hasVercelCredentials()) {
     throw new Error(
-      "Vercel is not configured. Set VERCEL_ACCESS_TOKEN and VERCEL_PROJECT_ID."
+      "Vercel is not configured. Set WEB_ANALYTICS_TOKEN (or VERCEL_ACCESS_TOKEN) and WEB_ANALYTICS_PROJECT_ID."
     );
   }
 

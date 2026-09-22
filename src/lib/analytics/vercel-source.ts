@@ -12,18 +12,39 @@ function newId(): string {
 
 export function getVercelAccessToken(): string | null {
   return (
+    process.env.WEB_ANALYTICS_TOKEN?.trim() ||
     process.env.VERCEL_ACCESS_TOKEN?.trim() ||
     process.env.VERCEL_API_TOKEN?.trim() ||
     null
   );
 }
 
+/**
+ * Project that owns the Humana website Web Analytics.
+ * Do not use VERCEL_PROJECT_ID on Vercel deployments — that system env
+ * points at this app (humana-analytics), not the website.
+ */
 export function getVercelProjectId(): string | null {
-  return process.env.VERCEL_PROJECT_ID?.trim() || null;
+  const dedicated =
+    process.env.WEB_ANALYTICS_PROJECT_ID?.trim() ||
+    process.env.HUMANA_SITE_VERCEL_PROJECT_ID?.trim() ||
+    null;
+  if (dedicated) return dedicated;
+
+  // Local/dev only: allow legacy VERCEL_PROJECT_ID when not running on Vercel.
+  if (!process.env.VERCEL) {
+    return process.env.VERCEL_PROJECT_ID?.trim() || null;
+  }
+
+  return null;
 }
 
 export function getVercelTeamId(): string | null {
-  return process.env.VERCEL_TEAM_ID?.trim() || null;
+  return (
+    process.env.WEB_ANALYTICS_TEAM_ID?.trim() ||
+    process.env.VERCEL_TEAM_ID?.trim() ||
+    null
+  );
 }
 
 export function hasVercelCredentials(): boolean {

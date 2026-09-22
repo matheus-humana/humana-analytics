@@ -1,3 +1,5 @@
+import { unstable_cache } from "next/cache";
+
 import {
   ensureClarityDataSource,
   getClarityApiToken,
@@ -11,6 +13,9 @@ import {
 
 const CLARITY_EXPORT_URL =
   "https://www.clarity.ms/export-data/api/v1/project-live-insights";
+
+/** Clarity allows 10 requests/project/day — cache aggressively. */
+const CLARITY_CACHE_SECONDS = 6 * 60 * 60;
 
 type ClarityInfoRow = Record<string, string | number | undefined | null>;
 
@@ -170,7 +175,7 @@ async function callClarityExport(params: URLSearchParams, token: string) {
     }
     if (response.status === 429) {
       throw new Error(
-        "Clarity daily API limit exceeded (max 10 requests/project/day)."
+        "Clarity: limite diário da API atingido (máx. 10/projeto/dia). Volta amanhã; usamos cache de 6h para não gastar a cota."
       );
     }
     throw new Error(
@@ -191,12 +196,27 @@ export async function fetchClarityLiveInsights(input?: {
     );
   }
 
-  const token = getClarityApiToken()!;
-  const projectId = getClarityProjectId()!;
   const period = resolveAnalyticsPeriod(input?.period);
   const numOfDays = clarityNumOfDaysForPeriod(period.id);
   const periodClamped =
     period.id === "7d" || period.id === "28d" || period.id === "90d";
+  const projectId = getClarityProjectId()!;
+
+  const load = unstable_cache(
+    async () => fetchClarityLiveInsightsUncached(numOfDays, periodClamped),
+    ["clarity-live-insights", projectId, String(numOfDays)],
+    { revalidate: CLARITY_CACHE_SECONDS }
+  );
+
+  return load();
+}
+
+async function fetchClarityLiveInsightsUncached(
+  numOfDays: 1 | 2 | 3,
+  periodClamped: boolean
+): Promise<ClarityDashboardData> {
+  const token = getClarityApiToken()!;
+  const projectId = getClarityProjectId()!;
 
   try {
     await ensureClarityDataSource();
