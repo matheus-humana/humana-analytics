@@ -1,6 +1,10 @@
-import { acquisitionSources } from "@/data/mock/dashboard";
+import type { AcquisitionSource } from "@/data/mock/dashboard";
 
-export function Acquisition() {
+type Props = {
+  sources: AcquisitionSource[];
+};
+
+export function Acquisition({ sources }: Props) {
   return (
     <section className="rounded-xl border border-border bg-surface p-5 shadow-sm shadow-black/5">
       <h2 className="font-display text-base font-semibold text-foreground">
@@ -9,7 +13,7 @@ export function Acquisition() {
       <p className="mt-1 text-sm text-muted">Where visitors came from</p>
 
       <ul className="mt-5 space-y-4">
-        {acquisitionSources.map((item) => {
+        {sources.map((item) => {
           const width = Number.parseInt(item.share, 10);
 
           return (
@@ -21,7 +25,7 @@ export function Acquisition() {
               <div className="h-2 overflow-hidden rounded-full bg-[#f1f1f1]">
                 <div
                   className="h-full rounded-full bg-accent"
-                  style={{ width: `${width}%` }}
+                  style={{ width: `${Number.isFinite(width) ? width : 0}%` }}
                 />
               </div>
             </li>

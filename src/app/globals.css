@@ -8,8 +8,34 @@
   --border: var(--humana-silver);
   --muted: var(--humana-gray);
   --accent: var(--humana-blue);
-  --accent-soft: color-mix(in srgb, var(--humana-blue) 16%, white);
+  --accent-soft: color-mix(in srgb, var(--accent) 16%, white);
   --navy: var(--humana-navy);
+}
+
+/*
+ * Accent presets (Settings → Aparência): `data-accent` no <html>
+ * (ver src/lib/ui/accent-preset.ts). Padrão = marca Humana (sem atributo).
+ */
+html[data-accent="blue"] {
+  --accent: #2563eb;
+}
+html[data-accent="indigo"] {
+  --accent: #4f46e5;
+}
+html[data-accent="violet"] {
+  --accent: #9333ea;
+}
+html[data-accent="emerald"] {
+  --accent: #059669;
+}
+html[data-accent="rose"] {
+  --accent: #e11d48;
+}
+html[data-accent="amber"] {
+  --accent: #d97706;
+}
+html[data-accent="orange"] {
+  --accent: #ea580c;
 }
 
 @theme inline {

@@ -1,43 +1,81 @@
-import {
-  dashboardPeriodLabel,
-  metricCards,
-} from "@/data/mock/dashboard";
 import type { MetricCard } from "@/data/mock/dashboard";
 
-export function DashboardHeader() {
+type HeaderProps = {
+  live?: boolean;
+  periodLabel?: string;
+  error?: string | null;
+};
+
+export function DashboardHeader({
+  live = false,
+  periodLabel = "Last 7 days",
+  error,
+}: HeaderProps) {
   return (
-    <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-      <div>
-        <div className="mb-2 inline-flex items-center rounded-full border border-border bg-surface px-2.5 py-1 text-xs text-muted">
-          Demo data
+    <div className="space-y-3">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+        <div>
+          <div
+            className={`mb-2 inline-flex items-center rounded-full border px-2.5 py-1 text-xs ${
+              live
+                ? "border-accent bg-accent-soft text-accent"
+                : "border-border bg-surface text-muted"
+            }`}
+          >
+            {live ? "Live GA4 data" : "Demo data"}
+          </div>
+          <h1 className="font-display text-2xl font-semibold tracking-tight text-foreground sm:text-3xl">
+            Website Overview
+          </h1>
+          <p className="mt-2 max-w-xl text-sm text-muted sm:text-base">
+            Understand what&apos;s happening across your website.
+          </p>
         </div>
-        <h1 className="font-display text-2xl font-semibold tracking-tight text-foreground sm:text-3xl">
-          Website Overview
-        </h1>
-        <p className="mt-2 max-w-xl text-sm text-muted sm:text-base">
-          Understand what&apos;s happening across your website.
-        </p>
+
+        <div className="inline-flex items-center gap-2 self-start rounded-lg border border-border bg-surface px-3 py-2 text-sm text-foreground">
+          <span className="text-muted">Period</span>
+          <span className="font-medium">{periodLabel}</span>
+        </div>
       </div>
 
-      <div className="inline-flex items-center gap-2 self-start rounded-lg border border-border bg-surface px-3 py-2 text-sm text-foreground">
-        <span className="text-muted">Period</span>
-        <span className="font-medium">{dashboardPeriodLabel}</span>
-      </div>
+      {error ? (
+        <div className="rounded-lg border border-[#cccccc] bg-[#f1f1f1] px-4 py-3 text-sm text-[#151515]">
+          Could not load live GA4 data: {error}
+        </div>
+      ) : null}
     </div>
   );
 }
 
-export function MetricCards() {
+type MetricCardsProps = {
+  cards: MetricCard[];
+  showComparison?: boolean;
+};
+
+export function MetricCards({
+  cards,
+  showComparison = true,
+}: MetricCardsProps) {
   return (
     <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-      {metricCards.map((card) => (
-        <MetricCardItem key={card.id} card={card} />
+      {cards.map((card) => (
+        <MetricCardItem
+          key={card.id}
+          card={card}
+          showComparison={showComparison}
+        />
       ))}
     </section>
   );
 }
 
-function MetricCardItem({ card }: { card: MetricCard }) {
+function MetricCardItem({
+  card,
+  showComparison,
+}: {
+  card: MetricCard;
+  showComparison: boolean;
+}) {
   const positive = card.trend === "up";
 
   return (
@@ -46,14 +84,18 @@ function MetricCardItem({ card }: { card: MetricCard }) {
       <p className="mt-3 text-2xl font-semibold tracking-tight text-foreground">
         {card.value}
       </p>
-      <p
-        className={`mt-2 text-sm ${
-          positive ? "text-[#6074c8]" : "text-[#5f5f5f]"
-        }`}
-      >
-        {card.change}{" "}
-        <span className="text-muted">vs previous period</span>
-      </p>
+      {showComparison ? (
+        <p
+          className={`mt-2 text-sm ${
+            positive ? "text-[#6074c8]" : "text-[#5f5f5f]"
+          }`}
+        >
+          {card.change}{" "}
+          <span className="text-muted">vs previous period</span>
+        </p>
+      ) : (
+        <p className="mt-2 text-sm text-muted">From Google Analytics</p>
+      )}
     </article>
   );
 }

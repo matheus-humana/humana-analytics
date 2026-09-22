@@ -1,7 +1,11 @@
-import { trafficSeries } from "@/data/mock/dashboard";
+import type { TrafficPoint } from "@/data/mock/dashboard";
 
-export function TrafficChart() {
-  const maxUsers = Math.max(...trafficSeries.map((point) => point.users));
+type Props = {
+  series: TrafficPoint[];
+};
+
+export function TrafficChart({ series }: Props) {
+  const maxUsers = Math.max(1, ...series.map((point) => point.users));
   const chartHeight = 180;
   const chartWidth = 560;
   const paddingX = 28;
@@ -9,16 +13,27 @@ export function TrafficChart() {
   const plotWidth = chartWidth - paddingX * 2;
   const plotHeight = chartHeight - paddingY * 2;
 
-  const points = trafficSeries.map((point, index) => {
+  const points = series.map((point, index) => {
     const x =
       paddingX +
-      (trafficSeries.length === 1
+      (series.length <= 1
         ? plotWidth / 2
-        : (index / (trafficSeries.length - 1)) * plotWidth);
+        : (index / (series.length - 1)) * plotWidth);
     const y =
       paddingY + plotHeight - (point.users / maxUsers) * plotHeight;
     return { ...point, x, y };
   });
+
+  if (points.length === 0) {
+    return (
+      <section className="rounded-xl border border-border bg-surface p-5 shadow-sm shadow-black/5">
+        <h2 className="font-display text-base font-semibold text-foreground">
+          Traffic
+        </h2>
+        <p className="mt-3 text-sm text-muted">No traffic data for this period.</p>
+      </section>
+    );
+  }
 
   const linePath = points
     .map((point, index) => `${index === 0 ? "M" : "L"} ${point.x} ${point.y}`)
@@ -32,10 +47,10 @@ export function TrafficChart() {
     <section className="rounded-xl border border-border bg-surface p-5 shadow-sm shadow-black/5">
       <div className="mb-5">
         <h2 className="font-display text-base font-semibold text-foreground">
-          Traffic
+          Tráfego
         </h2>
         <p className="mt-1 text-sm text-muted">
-          Users over the last 7 days
+          Usuários ativos no período selecionado
         </p>
       </div>
 
@@ -78,8 +93,8 @@ export function TrafficChart() {
             strokeLinejoin="round"
           />
 
-          {points.map((point) => (
-            <g key={point.day}>
+          {points.map((point, index) => (
+            <g key={`${point.day}-${index}`}>
               <circle cx={point.x} cy={point.y} r="3.5" fill="#6074c8" />
               <text
                 x={point.x}

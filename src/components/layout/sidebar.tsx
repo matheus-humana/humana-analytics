@@ -3,199 +3,245 @@
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
+
+import { SettingsPanel } from "@/components/settings/settings-panel";
 
 const navItems = [
-  { href: "/dashboard", label: "Dashboard", icon: DashboardIcon },
-  { href: "/ask-ai", label: "Ask AI", icon: AskAiIcon },
-  { href: "/data-sources", label: "Data Sources", icon: DataSourcesIcon },
-  { href: "/settings", label: "Settings", icon: SettingsIcon },
+  {
+    href: "/dashboard",
+    label: "Dashboard",
+    iconSrc: "/icons/black-icons/bar-chart.png",
+  },
+  {
+    href: "/ask-ai",
+    label: "Ask AI",
+    iconSrc: "/icons/black-icons/ai.png",
+  },
+  {
+    href: "/data-sources",
+    label: "Data Sources",
+    iconSrc: "/icons/black-icons/layer.png",
+  },
 ] as const;
+
+const STORAGE_KEY = "ha-sidebar-collapsed";
 
 export function Sidebar() {
   const pathname = usePathname();
-  const [open, setOpen] = useState(false);
+  const [mobileOpen, setMobileOpen] = useState(false);
+  const [collapsed, setCollapsed] = useState(false);
+  const [ready, setReady] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState(false);
+
+  useEffect(() => {
+    try {
+      setCollapsed(localStorage.getItem(STORAGE_KEY) === "1");
+    } catch {
+      // ignore
+    }
+    setReady(true);
+  }, []);
+
+  function persistCollapsed(next: boolean) {
+    try {
+      localStorage.setItem(STORAGE_KEY, next ? "1" : "0");
+    } catch {
+      // ignore
+    }
+  }
+
+  function toggleCollapsed() {
+    setCollapsed((value) => {
+      const next = !value;
+      persistCollapsed(next);
+      return next;
+    });
+  }
+
+  function handleSidebarAreaClick(event: React.MouseEvent<HTMLElement>) {
+    const target = event.target as HTMLElement;
+    if (
+      target.closest(
+        "button, a, input, select, textarea, [role='dialog'], [data-no-collapse-toggle]"
+      )
+    ) {
+      return;
+    }
+    toggleCollapsed();
+  }
+
+  const settingsActive = settingsOpen;
 
   return (
     <>
       <div className="flex items-center justify-between border-b border-border bg-surface px-4 py-3 lg:hidden">
-        <div className="flex items-center gap-3">
-          <Image
-            src="/brand/simbolo-preto-humana.png"
-            alt="Humana AI"
-            width={28}
-            height={28}
-            className="h-7 w-auto"
-            priority
-          />
-          <div>
-            <p className="font-display text-sm font-semibold tracking-tight text-foreground">
-              Humana Analytics
-            </p>
-            <p className="text-xs text-muted">Demo</p>
-          </div>
-        </div>
+        <Image
+          src="/brand/logo-preto-humana.png"
+          alt="Humana Artificial Intelligence"
+          width={140}
+          height={36}
+          className="h-8 w-auto"
+          priority
+        />
         <button
           type="button"
-          onClick={() => setOpen((value) => !value)}
+          onClick={() => setMobileOpen((value) => !value)}
           className="rounded-md border border-border px-3 py-1.5 text-sm text-foreground"
-          aria-expanded={open}
-          aria-label="Toggle navigation"
+          aria-expanded={mobileOpen}
+          aria-label="Abrir navegação"
         >
           Menu
         </button>
       </div>
 
-      {open ? (
+      {mobileOpen ? (
         <button
           type="button"
           className="fixed inset-0 z-30 bg-black/20 lg:hidden"
-          aria-label="Close navigation"
-          onClick={() => setOpen(false)}
+          aria-label="Fechar navegação"
+          onClick={() => setMobileOpen(false)}
         />
       ) : null}
 
       <aside
-        className={`fixed inset-y-0 left-0 z-40 flex w-64 flex-col border-r border-border bg-surface transition-transform lg:static lg:translate-x-0 ${
-          open ? "translate-x-0" : "-translate-x-full"
+        onClick={handleSidebarAreaClick}
+        className={`fixed inset-y-0 left-0 z-40 flex h-dvh flex-col border-r border-border bg-surface transition-[width,transform] duration-200 ease-out lg:sticky lg:top-0 lg:translate-x-0 ${
+          mobileOpen ? "translate-x-0" : "-translate-x-full"
+        } ${collapsed ? "w-[4.5rem]" : "w-64"} ${
+          ready ? "" : "lg:w-64"
         }`}
       >
-        <div className="hidden border-b border-border px-5 py-5 lg:block">
-          <Image
-            src="/brand/logo-preto-humana.png"
-            alt="Humana Artificial Intelligence"
-            width={160}
-            height={42}
-            className="h-9 w-auto"
-            priority
-          />
-          <p className="mt-3 font-display text-sm font-semibold text-foreground">
-            Humana Analytics
-          </p>
-          <p className="mt-1 text-sm text-muted">
-            Website analytics with AI
-          </p>
+        <div
+          className={`flex border-b border-border py-3 ${
+            collapsed
+              ? "flex-col items-center gap-2 px-2"
+              : "items-center px-4"
+          }`}
+        >
+          <button
+            type="button"
+            onClick={toggleCollapsed}
+            className={`rounded-md transition-colors hover:bg-[#f1f1f1] ${
+              collapsed ? "p-1.5" : "p-1"
+            }`}
+            aria-label={collapsed ? "Expandir menu" : "Recolher menu"}
+            title={collapsed ? "Expandir menu" : "Recolher menu"}
+          >
+            {collapsed ? (
+              <Image
+                src="/brand/simbolo-preto-humana.png"
+                alt="Humana"
+                width={28}
+                height={28}
+                className="h-7 w-auto"
+                priority
+              />
+            ) : (
+              <Image
+                src="/brand/logo-preto-humana.png"
+                alt="Humana Artificial Intelligence"
+                width={150}
+                height={40}
+                className="h-8 w-auto"
+                priority
+              />
+            )}
+          </button>
         </div>
 
-        <nav className="flex flex-1 flex-col gap-1 px-3 py-4">
+        <nav className="flex min-h-0 flex-1 flex-col gap-1 overflow-y-auto px-2 py-4">
           {navItems.map((item) => {
             const active =
               pathname === item.href || pathname.startsWith(`${item.href}/`);
-            const Icon = item.icon;
 
             return (
               <Link
                 key={item.href}
                 href={item.href}
-                onClick={() => setOpen(false)}
-                className={`flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm transition-colors ${
+                title={item.label}
+                onClick={() => {
+                  setSettingsOpen(false);
+                  setMobileOpen(false);
+                }}
+                className={`flex items-center rounded-lg py-2.5 text-sm transition-colors ${
+                  collapsed ? "justify-center px-2" : "gap-3 px-3"
+                } ${
                   active
                     ? "bg-accent-soft font-medium text-accent"
-                    : "text-muted hover:bg-[#f1f1f1] hover:text-foreground"
+                    : "text-foreground/80 hover:bg-[#f1f1f1] hover:text-foreground"
                 }`}
               >
-                <Icon active={active} />
-                <span className={active ? "font-display" : undefined}>
-                  {item.label}
-                </span>
+                <NavIcon src={item.iconSrc} active={active} />
+                {!collapsed ? (
+                  <span className={active ? "font-display" : undefined}>
+                    {item.label}
+                  </span>
+                ) : (
+                  <span className="sr-only">{item.label}</span>
+                )}
               </Link>
             );
           })}
-        </nav>
 
-        <div className="border-t border-border bg-navy px-5 py-4 text-white">
-          <div className="flex items-center gap-3">
-            <Image
-              src="/brand/icone-branco-humana.png"
-              alt=""
-              width={24}
-              height={24}
-              className="h-6 w-auto"
+          <button
+            type="button"
+            title="Settings"
+            data-no-collapse-toggle
+            onClick={() => {
+              setSettingsOpen((value) => !value);
+              setMobileOpen(false);
+            }}
+            className={`flex items-center rounded-lg py-2.5 text-sm transition-colors ${
+              collapsed ? "justify-center px-2" : "gap-3 px-3"
+            } ${
+              settingsActive
+                ? "bg-accent-soft font-medium text-accent"
+                : "text-foreground/80 hover:bg-[#f1f1f1] hover:text-foreground"
+            }`}
+          >
+            <NavIcon
+              src="/icons/black-icons/cogwheel.png"
+              active={settingsActive}
             />
-            <div>
-              <p className="font-display text-sm font-medium">Humana AI</p>
-              <div className="mt-1 inline-flex items-center rounded-full border border-white/20 px-2.5 py-0.5 text-xs text-white/80">
-                Demo
-              </div>
-            </div>
-          </div>
-        </div>
+            {!collapsed ? (
+              <span className={settingsActive ? "font-display" : undefined}>
+                Settings
+              </span>
+            ) : (
+              <span className="sr-only">Settings</span>
+            )}
+          </button>
+        </nav>
       </aside>
+
+      <SettingsPanel
+        open={settingsOpen}
+        onClose={() => setSettingsOpen(false)}
+        sidebarCollapsed={collapsed}
+      />
     </>
   );
 }
 
-function DashboardIcon({ active }: { active: boolean }) {
+/** PNG como máscara para herdar cor ativa (accent) / corrente. */
+function NavIcon({ src, active }: { src: string; active: boolean }) {
   return (
-    <svg
-      viewBox="0 0 20 20"
-      fill="none"
-      className={`h-4 w-4 ${active ? "stroke-accent" : "stroke-current"}`}
+    <span
       aria-hidden
-    >
-      <rect x="2.5" y="2.5" width="6" height="6" rx="1.5" strokeWidth="1.5" />
-      <rect x="11.5" y="2.5" width="6" height="6" rx="1.5" strokeWidth="1.5" />
-      <rect x="2.5" y="11.5" width="6" height="6" rx="1.5" strokeWidth="1.5" />
-      <rect x="11.5" y="11.5" width="6" height="6" rx="1.5" strokeWidth="1.5" />
-    </svg>
-  );
-}
-
-function AskAiIcon({ active }: { active: boolean }) {
-  return (
-    <svg
-      viewBox="0 0 20 20"
-      fill="none"
-      className={`h-4 w-4 ${active ? "stroke-accent" : "stroke-current"}`}
-      aria-hidden
-    >
-      <path
-        d="M4 12.5c0-3.3 2.7-6 6-6s6 2.7 6 6v1.5H4V12.5Z"
-        strokeWidth="1.5"
-      />
-      <path
-        d="M8 6.5 9 4l1 2.5L12.5 7.5 10 8.5 9 11 8 8.5 5.5 7.5 8 6.5Z"
-        strokeWidth="1.5"
-      />
-    </svg>
-  );
-}
-
-function DataSourcesIcon({ active }: { active: boolean }) {
-  return (
-    <svg
-      viewBox="0 0 20 20"
-      fill="none"
-      className={`h-4 w-4 ${active ? "stroke-accent" : "stroke-current"}`}
-      aria-hidden
-    >
-      <ellipse cx="10" cy="5" rx="6" ry="2.5" strokeWidth="1.5" />
-      <path
-        d="M4 5v5c0 1.4 2.7 2.5 6 2.5s6-1.1 6-2.5V5"
-        strokeWidth="1.5"
-      />
-      <path
-        d="M4 10v5c0 1.4 2.7 2.5 6 2.5s6-1.1 6-2.5v-5"
-        strokeWidth="1.5"
-      />
-    </svg>
-  );
-}
-
-function SettingsIcon({ active }: { active: boolean }) {
-  return (
-    <svg
-      viewBox="0 0 20 20"
-      fill="none"
-      className={`h-4 w-4 ${active ? "stroke-accent" : "stroke-current"}`}
-      aria-hidden
-    >
-      <circle cx="10" cy="10" r="2.5" strokeWidth="1.5" />
-      <path
-        d="M10 2.75v1.5M10 15.75v1.5M2.75 10h1.5M15.75 10h1.5M4.8 4.8l1.06 1.06M14.14 14.14l1.06 1.06M15.2 4.8l-1.06 1.06M5.86 14.14 4.8 15.2"
-        strokeWidth="1.5"
-        strokeLinecap="round"
-      />
-    </svg>
+      className={`inline-block h-5 w-5 shrink-0 ${
+        active ? "bg-accent" : "bg-foreground"
+      }`}
+      style={{
+        maskImage: `url(${src})`,
+        maskSize: "contain",
+        maskRepeat: "no-repeat",
+        maskPosition: "center",
+        WebkitMaskImage: `url(${src})`,
+        WebkitMaskSize: "contain",
+        WebkitMaskRepeat: "no-repeat",
+        WebkitMaskPosition: "center",
+      }}
+    />
   );
 }

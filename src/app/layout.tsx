@@ -1,5 +1,8 @@
 import type { Metadata } from "next";
 import { Geist_Mono, Montserrat, Poppins } from "next/font/google";
+import Script from "next/script";
+
+import { getAccentPresetBootstrapScript } from "@/lib/ui/accent-preset";
 
 import "./globals.css";
 
@@ -38,8 +41,16 @@ export default function RootLayout({
     <html
       lang="en"
       className={`${poppins.variable} ${montserrat.variable} ${geistMono.variable} h-full antialiased`}
+      suppressHydrationWarning
     >
       <body className="min-h-full bg-background font-sans text-foreground">
+        <Script
+          id="ha-accent-bootstrap"
+          strategy="beforeInteractive"
+          dangerouslySetInnerHTML={{
+            __html: getAccentPresetBootstrapScript(),
+          }}
+        />
         {children}
       </body>
     </html>

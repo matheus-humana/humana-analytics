@@ -1,6 +1,10 @@
-import { topPages } from "@/data/mock/dashboard";
+import type { TopPage } from "@/data/mock/dashboard";
 
-export function TopPages() {
+type Props = {
+  pages: TopPage[];
+};
+
+export function TopPages({ pages }: Props) {
   return (
     <section className="rounded-xl border border-border bg-surface p-5 shadow-sm shadow-black/5">
       <h2 className="font-display text-base font-semibold text-foreground">
@@ -9,7 +13,7 @@ export function TopPages() {
       <p className="mt-1 text-sm text-muted">Most viewed pages this week</p>
 
       <ul className="mt-5 divide-y divide-border">
-        {topPages.map((page) => (
+        {pages.map((page) => (
           <li
             key={page.path}
             className="flex items-center justify-between gap-4 py-3 first:pt-0 last:pb-0"
