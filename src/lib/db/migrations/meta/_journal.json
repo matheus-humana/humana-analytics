@@ -36,6 +36,13 @@
       "when": 1790105737023,
       "tag": "0004_humana_auth_chat",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1790267326394,
+      "tag": "0005_analytics_bot_bridge",
+      "breakpoints": true
     }
   ]
 }

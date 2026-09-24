@@ -182,9 +182,61 @@ Initial stack:
 * Tailwind CSS
 * PostgreSQL
 * Drizzle ORM
-* OpenAI API
+* OpenAI API (optional when the Analytics Bot bridge is configured)
 
 The application will initially use the Next.js server environment for backend functionality rather than introducing a separate backend service.
+
+## Analytics Bot bridge
+
+Humana Analytics can answer without an in-app LLM key. When `ANALYTICS_BOT_WEBHOOK_URL` is set, Ask AI stores the user message, marks the conversation pending (`Pensando…` / `Thinking…`), and POSTs the question to the external Grok / Analytics Bot. The bot calls back `POST /api/analytics-bot/reply`, which appends the assistant message in Postgres. The chat UI polls until that reply replaces the pending bubble. OpenAI is used only when the webhook URL is empty and `OPENAI_API_KEY` is set. If neither is set, the UI shows a configuration error and does not invent metrics.
+
+Apply `pnpm db:analytics:migrate` so `conversations.assistant_status` and `messages.reply_to_message_id` exist.
+
+Wire the Grok Bot routine with:
+
+1. Webhook URL = `ANALYTICS_BOT_WEBHOOK_URL` (the bot's inbound URL). If you set `ANALYTICS_BOT_WEBHOOK_SECRET`, Humana sends it as `Authorization: Bearer` and `X-Analytics-Bot-Key`.
+2. Reply target = `{APP_URL}/api/analytics-bot/reply` (also included as `replyUrl` on each outbound payload). The bot must send `ANALYTICS_BOT_REPLY_SECRET` as `Authorization: Bearer` or `X-Analytics-Bot-Reply-Secret`.
+3. `APP_URL` must be the public Humana Analytics origin, not an internal localhost address, when the bot runs outside this machine.
+
+Outbound payload (Humana Analytics → bot):
+
+```json
+{
+  "conversationId": "...",
+  "messageId": "...",
+  "userId": "...",
+  "organizationId": "...",
+  "projectId": "...",
+  "locale": "pt-BR",
+  "text": "user question",
+  "replyUrl": "https://<app-host>/api/analytics-bot/reply",
+  "createdAt": "ISO8601"
+}
+```
+
+`text` is redacted (emails, bearer tokens, GA4 property paths) before it leaves the app. The question itself may be Portuguese or English; `locale` is `en` only when the question reads as English or the client sends `locale`.
+
+Inbound payload (bot → Humana Analytics):
+
+```json
+{
+  "conversationId": "...",
+  "messageId": "...",
+  "text": "assistant answer",
+  "source": "analytics-bot"
+}
+```
+
+`messageId` is an optional echo of the user message and makes retries idempotent. Optional `userId`, `organizationId`, and `projectId` must match the conversation when present. Optional `imageUrls` (or `attachments[].url`) are https URLs stored under the answer; image files with a png, jpg, gif, or webp extension render in the assistant bubble. The bot may say it used Clarity or GA4. This app does not scrape those sources on the bridge path.
+
+Callback example:
+
+```bash
+curl -sS -X POST "$APP_URL/api/analytics-bot/reply" \
+  -H "Authorization: Bearer $ANALYTICS_BOT_REPLY_SECRET" \
+  -H "Content-Type: application/json" \
+  -d '{"conversationId":"CONVERSATION_ID","messageId":"USER_MESSAGE_ID","text":"Resposta do Analytics Bot. Cite a fonte (Clarity ou GA4) e o período; não invente números.","source":"analytics-bot"}'
+```
 
 ## Development Principles
 

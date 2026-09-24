@@ -21,6 +21,10 @@ export const conversations = analyticsSchema.table(
       .notNull()
       .references(() => projects.id, { onDelete: 'cascade' }),
     title: text('title').notNull(),
+    assistantStatus: text('assistant_status')
+      .$type<'idle' | 'pending'>()
+      .notNull()
+      .default('idle'),
     createdAt: timestamptz('created_at').defaultNow().notNull(),
     updatedAt: timestamptz('updated_at').defaultNow().notNull(),
   },
@@ -48,6 +52,7 @@ export const messages = analyticsSchema.table(
     completionTokens: integer('completion_tokens'),
     totalTokens: integer('total_tokens'),
     estimatedCostUsd: doublePrecision('estimated_cost_usd'),
+    replyToMessageId: text('reply_to_message_id'),
     createdAt: timestamptz('created_at').defaultNow().notNull(),
   },
   (table) => [index('messages_conversation_id_idx').on(table.conversationId)]

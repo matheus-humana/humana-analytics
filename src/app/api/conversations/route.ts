@@ -12,7 +12,10 @@ export async function GET() {
 
   try {
     const conversations = await listConversationsForUser(authResult.user.id);
-    return NextResponse.json({ ok: true, conversations });
+    return NextResponse.json(
+      { ok: true, conversations },
+      { headers: { "Cache-Control": "no-store" } }
+    );
   } catch (error) {
     const message = error instanceof Error ? error.message : "Failed to list conversations";
     return NextResponse.json(

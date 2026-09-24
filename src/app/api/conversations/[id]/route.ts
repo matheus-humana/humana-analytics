@@ -24,7 +24,10 @@ export async function GET(_request: Request, context: RouteContext) {
       );
     }
 
-    return NextResponse.json({ ok: true, conversation });
+    return NextResponse.json(
+      { ok: true, conversation },
+      { headers: { "Cache-Control": "no-store" } }
+    );
   } catch (error) {
     const message = error instanceof Error ? error.message : "Failed to load conversation";
     return NextResponse.json(
