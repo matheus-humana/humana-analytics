@@ -49,3 +49,5 @@ export {
   type DataSourceCredential,
   type NewDataSourceCredential,
 } from './data-source-credentials';
+
+export { githubRepoDays, githubTrafficDays } from './github-metrics';

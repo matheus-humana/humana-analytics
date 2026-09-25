@@ -28,7 +28,8 @@ Analytics Tools
 Data Sources
   ├── Google Analytics
   ├── Microsoft Clarity
-  └── Vercel Analytics
+  ├── Vercel Analytics
+  └── GitHub
 ```
 
 The project is initially intended for internal use at Humana AI, while its architecture is designed to allow future evolution into a multi-organization SaaS product.
@@ -69,8 +70,9 @@ The MVP should support questions such as:
 | Google Analytics 4 | Analytics, acquisition, events and pages | Live   |
 | Microsoft Clarity  | User behavior and interaction signals    | Live   |
 | Vercel Analytics   | Web analytics and traffic sources        | Live   |
+| GitHub             | Repository views, clones, stars, release downloads | Live when `GITHUB_TOKEN` and `GITHUB_REPO` are set |
 
-Dashboards and the Humana Analytics agent query these sources when credentials are configured. A disconnected source returns connect guidance instead of mock metrics. Apply `pnpm db:analytics:migrate` before the first sign-in. Moving the Google OAuth client and GA4 service account to the company GCP project is documented in [docs/gcp-oauth-migration.md](docs/gcp-oauth-migration.md).
+Dashboards and the Humana Analytics agent query these sources when credentials are configured. A disconnected source returns connect guidance instead of mock metrics. Apply `pnpm db:analytics:migrate` before the first sign-in. Moving the Google OAuth client and GA4 service account to the company GCP project is documented in [docs/gcp-oauth-migration.md](docs/gcp-oauth-migration.md). GitHub setup (token scope, daily snapshot, 14-day traffic window, Vercel Cron) is in [docs/github-source.md](docs/github-source.md).
 
 ## Architecture
 
@@ -93,8 +95,8 @@ Dashboards and the Humana Analytics agent query these sources when credentials a
                            │
               ┌────────────┼────────────┐
               ▼            ▼            ▼
-             GA4        CLARITY       VERCEL
-           ADAPTER       ADAPTER       ADAPTER
+          GA4      CLARITY     VERCEL     GITHUB
+         ADAPTER    ADAPTER    ADAPTER    ADAPTER
               │            │            │
               ▼            ▼            ▼
              APIs         APIs         APIs
@@ -124,7 +126,8 @@ Organization
 └── Project: Humana Website
     ├── Google Analytics
     ├── Microsoft Clarity
-    └── Vercel Analytics
+    ├── Vercel Analytics
+    └── GitHub (its own project, not the website property)
 ```
 
 ### AI Agent
@@ -210,9 +213,16 @@ Outbound payload (Humana Analytics → bot):
   "locale": "pt-BR",
   "text": "user question",
   "replyUrl": "https://<app-host>/api/analytics-bot/reply",
-  "createdAt": "ISO8601"
+  "createdAt": "ISO8601",
+  "github": {
+    "source": "GitHub",
+    "connected": false,
+    "error": "missing_token"
+  }
 }
 ```
+
+`github` is added on the webhook path so the Analytics Bot can cite stored repository metrics the same way the in-app tools can. When the source is disconnected or the collect has not run, the object carries `connected: false` and the real error, and it does not include counts. Views and clones are sums of recorded snapshot days. Unique views and unique clones are GitHub's 14-day totals, not a sum of daily uniques. Stars, forks, watchers and release downloads are the counter recorded that day. The payload never includes stargazer logins.
 
 `text` is redacted (emails, bearer tokens, GA4 property paths) before it leaves the app. The question itself may be Portuguese or English; `locale` is `en` only when the question reads as English or the client sends `locale`.
 

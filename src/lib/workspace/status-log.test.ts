@@ -56,6 +56,26 @@ test("connection status is the line when nothing else happened", () => {
   assert.equal(log.items.length, 2);
 });
 
+test("a GitHub permission error is shown as returned, without a stand-in number", () => {
+  const log = buildStatusLog(
+    [
+      {
+        provider: "github",
+        connected: false,
+        status: "error",
+        updatedAt: null,
+        detail: "acme/widget: GitHub 403: Must have push access to repository",
+      },
+    ],
+    [],
+    "pt-BR"
+  );
+  assert.equal(
+    log.line,
+    "GitHub · erro · acme/widget: GitHub 403: Must have push access to repository"
+  );
+});
+
 test("no connections and no chat events stay empty", () => {
   const log = buildStatusLog([], [], "pt-BR");
   assert.equal(log.line, null);

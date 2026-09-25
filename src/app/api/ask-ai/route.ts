@@ -19,6 +19,7 @@ import {
 } from "@/lib/ai/conversations";
 import { redactSensitive } from "@/lib/ai/redact";
 import { requireSessionUser } from "@/lib/auth/require-user";
+import { loadGithubBridgeSummary } from "@/lib/github/chat";
 
 export const dynamic = "force-dynamic";
 
@@ -68,17 +69,20 @@ export async function POST(request: NextRequest) {
     });
 
     if (engine === "webhook") {
-      const payload = buildOutboundPayload({
-        conversationId: turn.conversationId,
-        messageId: turn.messageId,
-        userId: turn.userId,
-        organizationId: turn.organizationId,
-        projectId: turn.projectId,
-        text: question,
-        replyUrl: `${resolveAppBaseUrl(request.nextUrl.origin)}/api/analytics-bot/reply`,
-        createdAt: turn.createdAt,
-        locale: body.locale,
-      });
+      const payload = {
+        ...buildOutboundPayload({
+          conversationId: turn.conversationId,
+          messageId: turn.messageId,
+          userId: turn.userId,
+          organizationId: turn.organizationId,
+          projectId: turn.projectId,
+          text: question,
+          replyUrl: `${resolveAppBaseUrl(request.nextUrl.origin)}/api/analytics-bot/reply`,
+          createdAt: turn.createdAt,
+          locale: body.locale,
+        }),
+        github: await loadGithubBridgeSummary(),
+      };
       const thinking = thinkingLabel(payload.locale);
       const pending = await markConversationPending({
         conversationId: turn.conversationId,

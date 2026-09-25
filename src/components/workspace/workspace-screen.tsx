@@ -30,6 +30,8 @@ import {
 
 import { IconChevron } from "./icons";
 import { WorkspacePanels } from "./workspace-panels";
+import type { GithubPanelData } from "@/lib/github/types";
+
 import type { TrafficSummary } from "./workspace-traffic";
 
 type Props = {
@@ -38,6 +40,7 @@ type Props = {
   model: WorkspaceModel;
   trafficSummary: TrafficSummary | null;
   traffic: React.ReactNode;
+  github: GithubPanelData;
 };
 
 export function WorkspaceScreen({
@@ -46,6 +49,7 @@ export function WorkspaceScreen({
   model,
   trafficSummary,
   traffic,
+  github,
 }: Props) {
   const storedLocale = useLocalString(workspaceLocaleKey(userId));
   const locale = normalizeChatLocale(storedLocale) ?? "pt-BR";
@@ -147,6 +151,7 @@ export function WorkspaceScreen({
             connections={model.connections}
             traffic={traffic}
             trafficSummary={trafficSummary}
+            github={github}
             mobileChatOpen={mobileChatOpen}
             onMobileChatOpen={setMobileChatOpen}
             onChatActivity={(signal) =>

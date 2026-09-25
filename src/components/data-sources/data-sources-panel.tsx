@@ -51,16 +51,36 @@ type VercelSyncResult = {
   };
 };
 
+function githubDetailLabel(detail: string | null): string | null {
+  if (!detail) return null;
+  if (detail === "missing_token") return "GITHUB_TOKEN is not set.";
+  if (detail === "missing_repo") return "GITHUB_REPO is not set. Use owner/name.";
+  if (detail.startsWith("invalid_repo")) {
+    const sample = detail.slice("invalid_repo".length).replace(/^:/, "");
+    return sample ? `GITHUB_REPO is invalid (${sample}).` : "GITHUB_REPO is invalid.";
+  }
+  return detail;
+}
+
+type GithubConnectionStatus = {
+  connected: boolean;
+  status: string;
+  detail: string | null;
+  repos: string[];
+};
+
 type Props = {
   initialGa4: Ga4ConnectionStatus;
   initialClarity: ClarityConnectionStatus;
   initialVercel: VercelConnectionStatus;
+  initialGithub: GithubConnectionStatus;
 };
 
 export function DataSourcesPanel({
   initialGa4,
   initialClarity,
   initialVercel,
+  initialGithub,
 }: Props) {
   const searchParams = useSearchParams();
   const oauthMessage =
@@ -73,11 +93,13 @@ export function DataSourcesPanel({
   const [clarity, setClarity] =
     useState<ClarityConnectionStatus>(initialClarity);
   const [vercel, setVercel] = useState<VercelConnectionStatus>(initialVercel);
+  const [github, setGithub] = useState<GithubConnectionStatus>(initialGithub);
   const [localMessage, setLocalMessage] = useState<string | null>(null);
   const [localError, setLocalError] = useState<string | null>(null);
   const [ga4Syncing, setGa4Syncing] = useState(false);
   const [claritySyncing, setClaritySyncing] = useState(false);
   const [vercelSyncing, setVercelSyncing] = useState(false);
+  const [githubSyncing, setGithubSyncing] = useState(false);
   const [ga4Sync, setGa4Sync] = useState<Ga4SyncResult | null>(null);
   const [claritySync, setClaritySync] = useState<ClaritySyncResult | null>(
     null
@@ -89,6 +111,7 @@ export function DataSourcesPanel({
   const ga4Connected = Boolean(ga4.connected);
   const clarityConnected = Boolean(clarity.connected);
   const vercelConnected = Boolean(vercel.connected);
+  const githubConnected = Boolean(github.connected);
 
   async function refreshStatus() {
     const response = await fetch("/api/data-sources/status");
@@ -96,6 +119,7 @@ export function DataSourcesPanel({
       ga4?: Ga4ConnectionStatus;
       clarity?: ClarityConnectionStatus;
       vercel?: VercelConnectionStatus;
+      github?: GithubConnectionStatus;
       error?: string;
       connected?: boolean;
       status?: string;
@@ -115,6 +139,7 @@ export function DataSourcesPanel({
     }
     if (data.clarity) setClarity(data.clarity);
     if (data.vercel) setVercel(data.vercel);
+    if (data.github) setGithub(data.github);
   }
 
   async function handleGa4Sync() {
@@ -184,6 +209,29 @@ export function DataSourcesPanel({
       setLocalError("Vercel sync request failed");
     } finally {
       setVercelSyncing(false);
+    }
+  }
+
+  async function handleGithubCollect() {
+    setGithubSyncing(true);
+    setLocalError(null);
+    setLocalMessage(null);
+    try {
+      const response = await fetch("/api/github/collect", { method: "POST" });
+      const data = (await response.json()) as {
+        ok?: boolean;
+        error?: string;
+      };
+      if (!response.ok || data.ok === false) {
+        setLocalError(data.error ?? "GitHub collect failed");
+      } else {
+        setLocalMessage("GitHub snapshot stored.");
+      }
+      await refreshStatus();
+    } catch {
+      setLocalError("GitHub collect request failed");
+    } finally {
+      setGithubSyncing(false);
     }
   }
 
@@ -310,6 +358,45 @@ export function DataSourcesPanel({
               className="rounded-lg bg-accent px-4 py-2 font-display text-sm font-medium text-white transition-colors hover:bg-[#4f61b0] disabled:cursor-not-allowed disabled:opacity-50"
             >
               {vercelSyncing ? "Syncing…" : "Sync metrics"}
+            </button>
+          </div>
+        </article>
+
+        <article className="flex flex-col gap-4 rounded-xl border border-border bg-surface p-5 shadow-sm shadow-black/5 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <h2 className="font-display text-base font-semibold text-foreground">
+              GitHub
+            </h2>
+            <p className="mt-1 text-sm text-muted">
+              Views, clones e downloads do repositório. Projeto separado do site.
+            </p>
+            <p
+              className={`mt-3 inline-flex rounded-full px-2.5 py-1 text-xs ${
+                githubConnected
+                  ? "bg-accent-soft text-accent"
+                  : "bg-[#f1f1f1] text-[#5f5f5f]"
+              }`}
+            >
+              {githubConnected ? "Connected" : github.status === "error" ? "Error" : "Not connected"}
+            </p>
+            {githubDetailLabel(github.detail) ? (
+              <p className="mt-2 max-w-xl text-sm text-foreground">
+                {githubDetailLabel(github.detail)}
+              </p>
+            ) : null}
+            {github.repos.length > 0 ? (
+              <p className="mt-1 text-xs text-muted">{github.repos.join(", ")}</p>
+            ) : null}
+          </div>
+
+          <div className="flex flex-wrap gap-2">
+            <button
+              type="button"
+              onClick={() => void handleGithubCollect()}
+              disabled={githubSyncing}
+              className="rounded-lg bg-accent px-4 py-2 font-display text-sm font-medium text-white transition-colors hover:bg-[#4f61b0] disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              {githubSyncing ? "Collecting…" : "Collect snapshot"}
             </button>
           </div>
         </article>

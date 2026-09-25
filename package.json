@@ -8,7 +8,7 @@
     "start": "next start",
     "lint": "eslint",
     "typecheck": "tsc --noEmit",
-    "test": "tsx --test src/lib/ai/*.test.ts src/lib/i18n/*.test.ts src/lib/workspace/*.test.ts",
+    "test": "tsx --test src/lib/ai/*.test.ts src/lib/i18n/*.test.ts src/lib/workspace/*.test.ts src/lib/github/*.test.ts",
     "db:analytics:generate": "drizzle-kit generate --config=drizzle.analytics.config.ts",
     "db:analytics:migrate": "drizzle-kit migrate --config=drizzle.analytics.config.ts",
     "db:analytics:studio": "drizzle-kit studio --config=drizzle.analytics.config.ts"

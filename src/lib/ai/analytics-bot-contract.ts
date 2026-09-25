@@ -32,6 +32,8 @@ export type OutboundPayload = {
   text: string;
   replyUrl: string;
   createdAt: string;
+  /** Aggregated GitHub snapshots when the bridge is used. Omitted by older callers. */
+  github?: unknown;
 };
 
 const ID_PATTERN = /^[A-Za-z0-9_-]{1,200}$/;

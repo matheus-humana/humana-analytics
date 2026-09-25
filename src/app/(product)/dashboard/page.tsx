@@ -8,6 +8,8 @@ import {
 import { resolveDashboardSource } from "@/lib/analytics/dashboard-source";
 import { resolveAnalyticsPeriod } from "@/lib/analytics/period";
 import { getSessionUser } from "@/lib/auth/require-user";
+import { loadGithubPanel } from "@/lib/github/panel";
+import { githubPeriodWindow, utcDay } from "@/lib/github/dates";
 import { loadWorkspaceModel } from "@/lib/workspace/load-workspace";
 
 type PageProps = {
@@ -21,9 +23,23 @@ export default async function DashboardPage({ searchParams }: PageProps) {
   const params = await searchParams;
   const period = resolveAnalyticsPeriod(params.period);
   const source = resolveDashboardSource(params.source);
-  const [model, traffic] = await Promise.all([
+  const [model, traffic, github] = await Promise.all([
     loadWorkspaceModel(user.id),
     loadTrafficPayload(period, source),
+    loadGithubPanel(period.id).catch((error: unknown) => {
+      const today = utcDay(new Date());
+      const window = githubPeriodWindow(period.id, today);
+      return {
+        configured: false,
+        status: "error" as const,
+        detail: error instanceof Error ? error.message : "GitHub panel failed",
+        periodId: period.id,
+        from: window.from,
+        to: window.to,
+        today,
+        repos: [],
+      };
+    }),
   ]);
 
   return (
@@ -33,6 +49,7 @@ export default async function DashboardPage({ searchParams }: PageProps) {
       model={model}
       trafficSummary={traffic.summary}
       traffic={<WorkspaceTraffic payload={traffic} />}
+      github={github}
     />
   );
 }
