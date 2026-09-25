@@ -9,7 +9,7 @@ export type WorkspacePanelId = (typeof WORKSPACE_PANEL_IDS)[number];
 
 export type CollapsiblePanelId = Exclude<WorkspacePanelId, "chat">;
 
-export type WorkspaceTab = "traffic" | "seo" | "geo";
+export type WorkspaceTab = "traffic" | "seo" | "geo" | "github";
 
 export type MobileColumn = CollapsiblePanelId;
 
@@ -29,7 +29,7 @@ export const DEFAULT_WORKSPACE_PREFS: WorkspacePrefs = {
   projectId: null,
 };
 
-const TABS = new Set<WorkspaceTab>(["traffic", "seo", "geo"]);
+const TABS = new Set<WorkspaceTab>(["traffic", "seo", "geo", "github"]);
 const MOBILE = new Set<MobileColumn>(["context", "analytics", "actions"]);
 
 export function workspacePrefsKey(userId: string): string {

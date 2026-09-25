@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { Suspense } from "react";
 
 import type { ChatLocale } from "@/lib/ai/analytics-bot-contract";
 import { workspaceText, type WorkspaceMessageKey } from "@/lib/i18n/workspace-copy";
@@ -14,6 +15,9 @@ import {
   IconChevron,
   IconContext,
 } from "./icons";
+import type { GithubPanelData } from "@/lib/github/types";
+
+import { GithubPanel } from "./github-panel";
 import type { TrafficSummary } from "./workspace-traffic";
 
 type Copy = (key: WorkspaceMessageKey) => string;
@@ -124,7 +128,20 @@ export function ContextColumn({
 function providerName(provider: ConnectionSnapshot["provider"]): string {
   if (provider === "ga4") return "GA4";
   if (provider === "clarity") return "Clarity";
+  if (provider === "github") return "GitHub";
   return "Vercel";
+}
+
+function connectionTitle(connection: ConnectionSnapshot, text: Copy): string {
+  const state = connection.status === "error"
+    ? text("statusError")
+    : connection.connected
+      ? text("statusConnected")
+      : text("statusDisconnected");
+  const detail = connection.detail?.trim();
+  return detail
+    ? `${providerName(connection.provider)} · ${state} · ${detail}`
+    : `${providerName(connection.provider)} · ${state}`;
 }
 
 function ConnectionPill({
@@ -143,6 +160,7 @@ function ConnectionPill({
       : text("statusDisconnected");
   return (
     <span
+      title={connectionTitle(connection, text)}
       className={`inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-xs ${
         on
           ? "bg-accent-soft text-accent"
@@ -169,6 +187,8 @@ export function AnalyticsColumn({
   blocked,
   blockedTitle,
   blockedBody,
+  github,
+  projectId,
 }: {
   locale: ChatLocale;
   tab: WorkspaceTab;
@@ -178,12 +198,15 @@ export function AnalyticsColumn({
   blocked: boolean;
   blockedTitle: string;
   blockedBody: string;
+  github: GithubPanelData;
+  projectId: string | null;
 }) {
   const text = (key: WorkspaceMessageKey) => workspaceText(locale, key);
   const tabs: Array<{ id: WorkspaceTab; label: string }> = [
     { id: "traffic", label: text("tabTraffic") },
     { id: "seo", label: text("tabSeo") },
     { id: "geo", label: text("tabGeo") },
+    { id: "github", label: text("tabGithub") },
   ];
 
   return (
@@ -227,6 +250,11 @@ export function AnalyticsColumn({
         ) : null}
         {tab === "geo" ? (
           <EmptyState title={text("geoEmptyTitle")} body={text("geoEmptyBody")} />
+        ) : null}
+        {tab === "github" ? (
+          <Suspense fallback={null}>
+            <GithubPanel locale={locale} data={github} selectedProjectId={projectId} />
+          </Suspense>
         ) : null}
       </div>
     </section>
@@ -304,11 +332,7 @@ export function ContextRail({
         {connections.map((connection) => (
           <span
             key={connection.provider}
-            title={`${providerName(connection.provider)} · ${
-              connection.connected
-                ? workspaceText(locale, "statusConnected")
-                : workspaceText(locale, "statusDisconnected")
-            }`}
+            title={connectionTitle(connection, (key) => workspaceText(locale, key))}
             className={`h-1.5 w-1.5 rounded-full ${
               connection.connected && connection.status !== "error"
                 ? "bg-accent"

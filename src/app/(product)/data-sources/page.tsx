@@ -3,6 +3,7 @@ import { Suspense } from "react";
 import { getClarityConnectionStatus } from "@/lib/analytics/clarity-source";
 import { getGa4ConnectionStatus } from "@/lib/analytics/ga4-source";
 import { getVercelConnectionStatus } from "@/lib/analytics/vercel-source";
+import { getGithubConnectionStatus } from "@/lib/github/status";
 import { DataSourcesPanel } from "@/components/data-sources/data-sources-panel";
 
 function publicGa4Status(
@@ -42,6 +43,13 @@ export default async function DataSourcesPage() {
     status: "not_connected",
   };
 
+  let initialGithub = {
+    connected: false,
+    status: "not_connected",
+    detail: "missing_token" as string | null,
+    repos: [] as string[],
+  };
+
   try {
     initialGa4 = publicGa4Status(await getGa4ConnectionStatus());
   } catch {
@@ -76,6 +84,23 @@ export default async function DataSourcesPage() {
     }
   }
 
+  try {
+    const github = await getGithubConnectionStatus();
+    initialGithub = {
+      connected: github.connected,
+      status: github.status,
+      detail: github.detail,
+      repos: github.repos,
+    };
+  } catch (error) {
+    initialGithub = {
+      connected: false,
+      status: "error",
+      detail: error instanceof Error ? error.message : "GitHub status failed",
+      repos: [],
+    };
+  }
+
   return (
     <Suspense
       fallback={
@@ -86,6 +111,7 @@ export default async function DataSourcesPage() {
         initialGa4={initialGa4}
         initialClarity={initialClarity}
         initialVercel={initialVercel}
+        initialGithub={initialGithub}
       />
     </Suspense>
   );

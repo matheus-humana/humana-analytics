@@ -1,0 +1,8 @@
+{
+  "crons": [
+    {
+      "path": "/api/github/collect",
+      "schedule": "15 8 * * *"
+    }
+  ]
+}

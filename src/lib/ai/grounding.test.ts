@@ -26,7 +26,7 @@ test("disconnected tool payload does not include metrics", () => {
 test("system prompt requires grounded bilingual answers", () => {
   const prompt = buildHumanaAnalyticsPrompt({
     periodLabel: "Últimos 7 dias",
-    sources: { ga4: true, clarity: false, vercel: true },
+    sources: { ga4: true, clarity: false, vercel: true, github: false },
   });
   assert.match(prompt, /Humana Analytics/);
   assert.match(prompt, /Never invent/);

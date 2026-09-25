@@ -2,7 +2,7 @@ import type { ChatLocale } from "@/lib/ai/analytics-bot-contract";
 
 import { workspaceText } from "@/lib/i18n/workspace-copy";
 
-export const CONNECTION_PROVIDERS = ["ga4", "clarity", "vercel"] as const;
+export const CONNECTION_PROVIDERS = ["ga4", "clarity", "vercel", "github"] as const;
 
 export type ConnectionProvider = (typeof CONNECTION_PROVIDERS)[number];
 
@@ -11,6 +11,8 @@ export type ConnectionSnapshot = {
   connected: boolean;
   status: string;
   updatedAt: string | null;
+  /** Machine code (`missing_token`) or the provider's own error text. */
+  detail?: string | null;
 };
 
 export type ChatSignal = {
@@ -29,6 +31,7 @@ const PROVIDER_LABEL: Record<ConnectionProvider, string> = {
   ga4: "GA4",
   clarity: "Clarity",
   vercel: "Vercel",
+  github: "GitHub",
 };
 
 function validTime(value: string | null): number | null {
@@ -62,8 +65,28 @@ export function describeConnection(
   const stamp = connection.updatedAt
     ? formatStatusStamp(connection.updatedAt, locale)
     : null;
-  if (!stamp) return `${name} · ${state}`;
-  return `${name} · ${state} · ${workspaceText(locale, "statusUpdated")} ${stamp}`;
+  const base = stamp
+    ? `${name} · ${state} · ${workspaceText(locale, "statusUpdated")} ${stamp}`
+    : `${name} · ${state}`;
+  const extra = connectionDetail(connection, locale);
+  return extra ? `${base} · ${extra}` : base;
+}
+
+function connectionDetail(
+  connection: ConnectionSnapshot,
+  locale: ChatLocale
+): string | null {
+  const detail = connection.detail?.trim();
+  if (!detail) return null;
+  if (detail === "missing_token") return workspaceText(locale, "statusGithubMissingToken");
+  if (detail === "missing_repo") return workspaceText(locale, "statusGithubMissingRepo");
+  if (detail.startsWith("invalid_repo")) {
+    const sample = detail.slice("invalid_repo".length).replace(/^:/, "").trim();
+    const label = workspaceText(locale, "statusGithubInvalidRepo");
+    return sample ? `${label} (${sample})` : label;
+  }
+  if (connection.status === "error") return detail;
+  return null;
 }
 
 export function describeChat(signal: ChatSignal, locale: ChatLocale): string {
