@@ -1,0 +1,131 @@
+import type { ChatLocale } from "@/lib/ai/analytics-bot-contract";
+
+import { workspaceText } from "@/lib/i18n/workspace-copy";
+
+export const CONNECTION_PROVIDERS = ["ga4", "clarity", "vercel"] as const;
+
+export type ConnectionProvider = (typeof CONNECTION_PROVIDERS)[number];
+
+export type ConnectionSnapshot = {
+  provider: ConnectionProvider;
+  connected: boolean;
+  status: string;
+  updatedAt: string | null;
+};
+
+export type ChatSignal = {
+  id: string;
+  kind: "question" | "reply";
+  at: string;
+};
+
+export type StatusItem = {
+  id: string;
+  at: string | null;
+  text: string;
+};
+
+const PROVIDER_LABEL: Record<ConnectionProvider, string> = {
+  ga4: "GA4",
+  clarity: "Clarity",
+  vercel: "Vercel",
+};
+
+function validTime(value: string | null): number | null {
+  if (!value) return null;
+  const time = Date.parse(value);
+  return Number.isNaN(time) ? null : time;
+}
+
+export function formatStatusStamp(iso: string, locale: ChatLocale): string | null {
+  const time = validTime(iso);
+  if (time == null) return null;
+  return new Intl.DateTimeFormat(locale === "en" ? "en-US" : "pt-BR", {
+    day: "2-digit",
+    month: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+  }).format(new Date(time));
+}
+
+export function describeConnection(
+  connection: ConnectionSnapshot,
+  locale: ChatLocale
+): string {
+  const name = PROVIDER_LABEL[connection.provider];
+  const state =
+    connection.status === "error"
+      ? workspaceText(locale, "statusError")
+      : connection.connected
+        ? workspaceText(locale, "statusConnected")
+        : workspaceText(locale, "statusDisconnected");
+  const stamp = connection.updatedAt
+    ? formatStatusStamp(connection.updatedAt, locale)
+    : null;
+  if (!stamp) return `${name} · ${state}`;
+  return `${name} · ${state} · ${workspaceText(locale, "statusUpdated")} ${stamp}`;
+}
+
+export function describeChat(signal: ChatSignal, locale: ChatLocale): string {
+  const label = workspaceText(
+    locale,
+    signal.kind === "question" ? "eventQuestion" : "eventReply"
+  );
+  const stamp = formatStatusStamp(signal.at, locale);
+  return stamp ? `${label} · ${stamp}` : label;
+}
+
+export function buildStatusLog(
+  connections: ConnectionSnapshot[],
+  chatSignals: ChatSignal[],
+  locale: ChatLocale
+): { line: string | null; items: StatusItem[] } {
+  const items: Array<StatusItem & { time: number | null }> = [];
+
+  for (const signal of chatSignals) {
+    const time = validTime(signal.at);
+    items.push({
+      id: `chat:${signal.id}`,
+      at: time == null ? null : signal.at,
+      time,
+      text: describeChat(signal, locale),
+    });
+  }
+
+  for (const connection of connections) {
+    const time = validTime(connection.updatedAt);
+    items.push({
+      id: `connection:${connection.provider}`,
+      at: time == null ? null : connection.updatedAt,
+      time,
+      text: describeConnection(connection, locale),
+    });
+  }
+
+  items.sort((a, b) => {
+    if (a.time == null && b.time == null) return 0;
+    if (a.time == null) return 1;
+    if (b.time == null) return -1;
+    return b.time - a.time;
+  });
+
+  const newest = items.find((item) => item.time != null);
+  if (newest) {
+    return {
+      line: newest.text,
+      items: items.map(({ id, at, text }) => ({ id, at, text })),
+    };
+  }
+
+  if (connections.length > 0) {
+    return {
+      line: connections.map((connection) => describeConnection(connection, locale)).join(" · "),
+      items: items.map(({ id, at, text }) => ({ id, at, text })),
+    };
+  }
+
+  return {
+    line: null,
+    items: [],
+  };
+}

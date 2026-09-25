@@ -84,6 +84,47 @@ export async function listConversationsForUser(userId: string) {
   }));
 }
 
+/** Recent ask/reply timestamps for the status log. Content stays out. */
+export async function listRecentChatSignals(userId: string, limit = 20) {
+  const rows = await db
+    .select({
+      id: messages.id,
+      role: messages.role,
+      content: messages.content,
+      createdAt: messages.createdAt,
+    })
+    .from(messages)
+    .innerJoin(conversations, eq(messages.conversationId, conversations.id))
+    .where(eq(conversations.userId, userId))
+    .orderBy(desc(messages.createdAt))
+    .limit(limit * 3);
+
+  const signals: Array<{ id: string; kind: "question" | "reply"; at: string }> =
+    [];
+
+  for (const row of rows) {
+    if (row.role === "user") {
+      signals.push({
+        id: row.id,
+        kind: "question",
+        at: row.createdAt.toISOString(),
+      });
+    } else if (
+      row.role === "assistant" &&
+      !isThinkingPlaceholder(row.content)
+    ) {
+      signals.push({
+        id: row.id,
+        kind: "reply",
+        at: row.createdAt.toISOString(),
+      });
+    }
+    if (signals.length >= limit) break;
+  }
+
+  return signals;
+}
+
 export async function getOwnedConversation(userId: string, conversationId: string) {
   const conversation = (
     await db

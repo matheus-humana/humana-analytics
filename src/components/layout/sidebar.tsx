@@ -3,7 +3,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useState, useSyncExternalStore } from "react";
 
 import { SettingsPanel } from "@/components/settings/settings-panel";
 
@@ -26,6 +26,20 @@ const navItems = [
 ] as const;
 
 const STORAGE_KEY = "ha-sidebar-collapsed";
+const SIDEBAR_EVENT = "ha-sidebar-change";
+
+function readSidebarCollapsed() {
+  try {
+    return localStorage.getItem(STORAGE_KEY) === "1";
+  } catch {
+    return false;
+  }
+}
+
+function subscribeSidebar(onChange: () => void) {
+  window.addEventListener(SIDEBAR_EVENT, onChange);
+  return () => window.removeEventListener(SIDEBAR_EVENT, onChange);
+}
 
 export function Sidebar({
   userName,
@@ -36,33 +50,20 @@ export function Sidebar({
 }) {
   const pathname = usePathname();
   const [mobileOpen, setMobileOpen] = useState(false);
-  const [collapsed, setCollapsed] = useState(false);
-  const [ready, setReady] = useState(false);
+  const collapsed = useSyncExternalStore(
+    subscribeSidebar,
+    readSidebarCollapsed,
+    () => false
+  );
   const [settingsOpen, setSettingsOpen] = useState(false);
 
-  useEffect(() => {
-    try {
-      setCollapsed(localStorage.getItem(STORAGE_KEY) === "1");
-    } catch {
-      // ignore
-    }
-    setReady(true);
-  }, []);
-
-  function persistCollapsed(next: boolean) {
-    try {
-      localStorage.setItem(STORAGE_KEY, next ? "1" : "0");
-    } catch {
-      // ignore
-    }
-  }
-
   function toggleCollapsed() {
-    setCollapsed((value) => {
-      const next = !value;
-      persistCollapsed(next);
-      return next;
-    });
+    try {
+      localStorage.setItem(STORAGE_KEY, collapsed ? "0" : "1");
+    } catch {
+      // ignore
+    }
+    window.dispatchEvent(new Event(SIDEBAR_EVENT));
   }
 
   function handleSidebarAreaClick(event: React.MouseEvent<HTMLElement>) {
@@ -114,9 +115,7 @@ export function Sidebar({
         onClick={handleSidebarAreaClick}
         className={`fixed inset-y-0 left-0 z-40 flex h-dvh flex-col border-r border-border bg-surface transition-[width,transform] duration-200 ease-out lg:sticky lg:top-0 lg:translate-x-0 ${
           mobileOpen ? "translate-x-0" : "-translate-x-full"
-        } ${collapsed ? "w-[4.5rem]" : "w-64"} ${
-          ready ? "" : "lg:w-64"
-        }`}
+        } ${collapsed ? "w-[4.5rem]" : "w-64"}`}
       >
         <div
           className={`flex border-b border-border py-3 ${

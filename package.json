@@ -7,6 +7,8 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
+    "typecheck": "tsc --noEmit",
+    "test": "tsx --test src/lib/ai/*.test.ts src/lib/i18n/*.test.ts src/lib/workspace/*.test.ts",
     "db:analytics:generate": "drizzle-kit generate --config=drizzle.analytics.config.ts",
     "db:analytics:migrate": "drizzle-kit migrate --config=drizzle.analytics.config.ts",
     "db:analytics:studio": "drizzle-kit studio --config=drizzle.analytics.config.ts"
@@ -19,7 +21,8 @@
     "openai": "^7.20.0",
     "postgres": "^3.4.9",
     "react": "19.2.8",
-    "react-dom": "19.2.8"
+    "react-dom": "19.2.8",
+    "react-resizable-panels": "^4.13.3"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
@@ -30,6 +33,7 @@
     "eslint": "^9",
     "eslint-config-next": "16.3.5",
     "tailwindcss": "^4",
+    "tsx": "^4.23.15",
     "typescript": "^5"
   },
   "packageManager": "pnpm@12.5.1"

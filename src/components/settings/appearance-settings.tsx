@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useSyncExternalStore } from "react";
 
 import {
   ACCENT_PRESET_OPTIONS,
@@ -14,24 +14,29 @@ import {
 const swatchClass =
   "size-3.5 shrink-0 rounded-full border border-border shadow-sm";
 
+const ACCENT_EVENT = "ha-accent-change";
+
+function subscribeAccent(onChange: () => void) {
+  window.addEventListener(ACCENT_EVENT, onChange);
+  return () => window.removeEventListener(ACCENT_EVENT, onChange);
+}
+
 type AppearanceSettingsProps = {
   /** Sem card externo — para uso dentro do painel flutuante. */
   compact?: boolean;
 };
 
 export function AppearanceSettings({ compact = false }: AppearanceSettingsProps) {
-  const [preset, setPreset] = useState<AccentPresetId>("default");
-
-  useEffect(() => {
-    const stored = readStoredAccentPreset();
-    setPreset(stored);
-    persistAndApplyAccentPreset(stored);
-  }, []);
+  const preset = useSyncExternalStore(
+    subscribeAccent,
+    readStoredAccentPreset,
+    (): AccentPresetId => "default"
+  );
 
   function onChange(value: string) {
     if (!isAccentPresetId(value)) return;
     persistAndApplyAccentPreset(value);
-    setPreset(value);
+    window.dispatchEvent(new Event(ACCENT_EVENT));
   }
 
   const body = (

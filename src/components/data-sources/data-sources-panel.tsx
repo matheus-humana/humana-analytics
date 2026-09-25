@@ -232,6 +232,8 @@ export function DataSourcesPanel({
 
           <div className="flex flex-wrap gap-2">
             {ga4.authMode !== "service_account" ? (
+              // Full document navigation: this URL starts Google OAuth.
+              // eslint-disable-next-line @next/next/no-html-link-for-pages
               <a
                 href="/api/auth/google/start"
                 className="rounded-lg border border-border bg-white px-4 py-2 text-sm font-medium text-foreground transition-colors hover:bg-[#f1f1f1]"

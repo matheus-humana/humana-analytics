@@ -51,7 +51,7 @@ export function DashboardHeader({
       : isVercel
         ? "Dados ao vivo · Vercel"
         : "Dados ao vivo · GA4"
-    : "Dados demo";
+    : "Sem dados ao vivo";
 
   const title = isClarity
     ? "Usabilidade e interação"

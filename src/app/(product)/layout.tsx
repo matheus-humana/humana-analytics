@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 
-import { AppShell } from "@/components/layout/app-shell";
 import { SignOutButton } from "@/components/auth/sign-out-button";
+import { ProductChrome } from "@/components/layout/product-chrome";
 import { ensureOrganizationMembership } from "@/lib/analytics/default-scope";
 import { getSessionUser } from "@/lib/auth/require-user";
 
@@ -22,8 +22,8 @@ export default async function ProductLayout({
   }
 
   return (
-    <AppShell userName={user.name ?? "Conta"} signOut={<SignOutButton />}>
+    <ProductChrome userName={user.name ?? "Conta"} signOut={<SignOutButton />}>
       {children}
-    </AppShell>
+    </ProductChrome>
   );
 }

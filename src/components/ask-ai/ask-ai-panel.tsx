@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter, useSearchParams } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import { PeriodFilter } from "@/components/analytics/period-filter";
 import { humanaAnalyticsSuggestions } from "@/data/mock/ask-ai";
@@ -10,12 +10,15 @@ import {
   isThinkingPlaceholder,
   splitAssistantContent,
   THINKING_PT,
+  thinkingLabel,
+  type ChatLocale,
 } from "@/lib/ai/analytics-bot-contract";
 import {
   DEFAULT_ANALYTICS_PERIOD,
   resolveAnalyticsPeriod,
   type AnalyticsPeriodId,
 } from "@/lib/analytics/period";
+import { workspaceText } from "@/lib/i18n/workspace-copy";
 
 type UsageInfo = {
   model: string;
@@ -45,9 +48,21 @@ type ConversationDetail = {
   messages: ChatMessage[];
 };
 
-export function AskAiPanel() {
+export function AskAiPanel({
+  variant = "page",
+  locale,
+  onActivity,
+}: {
+  variant?: "page" | "column";
+  locale?: ChatLocale;
+  onActivity?: (kind: "question" | "reply") => void;
+} = {}) {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const onActivityRef = useRef(onActivity);
+  useEffect(() => {
+    onActivityRef.current = onActivity;
+  }, [onActivity]);
   const periodId = resolveAnalyticsPeriod(searchParams.get("period")).id;
 
   const [question, setQuestion] = useState("");
@@ -122,6 +137,7 @@ export function AskAiPanel() {
       if (cancelled || !response.ok || !data.ok || !data.conversation) return;
       if (data.conversation.assistantStatus === ASSISTANT_STATUS_PENDING) return;
 
+      onActivityRef.current?.("reply");
       setAssistantStatus(data.conversation.assistantStatus ?? "idle");
       setMessages(data.conversation.messages ?? []);
       const list = await fetch("/api/conversations", { cache: "no-store" });
@@ -222,6 +238,7 @@ export function AskAiPanel() {
       }
 
       if (data.conversationId) setConversationId(data.conversationId);
+      onActivityRef.current?.("question");
 
       if (data.pending) {
         setAssistantStatus(ASSISTANT_STATUS_PENDING);
@@ -238,6 +255,7 @@ export function AskAiPanel() {
       }
 
       setAssistantStatus("idle");
+      onActivityRef.current?.("reply");
       setMessages((current) => [
         ...current,
         {
@@ -265,6 +283,121 @@ export function AskAiPanel() {
         message.role === "assistant" &&
         (message.pending || isThinkingPlaceholder(message.content))
     )?.content;
+
+  if (variant === "column") {
+    const chatLocale = locale ?? "pt-BR";
+    const text = (key: Parameters<typeof workspaceText>[1]) =>
+      workspaceText(chatLocale, key);
+    const askLabel = loading
+      ? text("chatSending")
+      : awaitingReply
+        ? (pendingLabel ?? thinkingLabel(chatLocale))
+        : text("chatAsk");
+
+    return (
+      <div className="flex h-full min-h-0 flex-col">
+        <div className="flex shrink-0 items-center justify-between gap-2 border-b border-border px-3 py-2">
+          <p className="text-xs text-muted">{text("chatPeriod")}</p>
+          <PeriodFilter value={periodId as AnalyticsPeriodId} />
+        </div>
+        <div className="flex shrink-0 items-center gap-2 px-3 py-2">
+          <button
+            type="button"
+            onClick={startNewConversation}
+            className="shrink-0 rounded-lg border border-border px-2.5 py-1.5 text-xs text-foreground transition-colors hover:border-accent hover:bg-accent-soft"
+          >
+            {text("chatNew")}
+          </button>
+          <select
+            value={conversationId ?? ""}
+            onChange={(event) => {
+              const id = event.target.value;
+              if (!id) {
+                startNewConversation();
+                return;
+              }
+              void openConversation(id);
+            }}
+            aria-label={text("chatNew")}
+            className="min-w-0 flex-1 rounded-lg border border-border bg-white px-2 py-1.5 text-xs text-foreground"
+          >
+            <option value="">{text("chatEmpty")}</option>
+            {conversations.map((conversation) => (
+              <option key={conversation.id} value={conversation.id}>
+                {conversation.title}
+              </option>
+            ))}
+          </select>
+        </div>
+        <div className="min-h-0 flex-1 space-y-3 overflow-y-auto px-3 py-2" aria-live="polite">
+          {loadingHistory ? (
+            <p className="text-sm text-muted">{text("chatLoading")}</p>
+          ) : null}
+          {messages.map((message, index) => {
+            const pendingBubble = isPendingBubble(message, assistantStatus);
+            return (
+              <article key={`${message.role}-${index}`}>
+                <p className="text-xs font-medium uppercase tracking-wide text-muted">
+                  {message.role === "user" ? text("chatYou") : text("chatAssistant")}
+                </p>
+                {message.role === "assistant" ? (
+                  <AssistantBody content={message.content} pending={pendingBubble} />
+                ) : (
+                  <p className="mt-1 whitespace-pre-wrap text-sm leading-relaxed text-foreground">
+                    {message.content}
+                  </p>
+                )}
+              </article>
+            );
+          })}
+          {error ? (
+            <div className="rounded-lg border border-[#cccccc] bg-[#f1f1f1] px-3 py-2 text-sm text-[#151515]">
+              {error}
+            </div>
+          ) : null}
+        </div>
+        <div className="shrink-0 border-t border-border px-3 py-3">
+          <label htmlFor="ask-ai-question" className="sr-only">
+            {text("chatPrompt")}
+          </label>
+          <div className="flex gap-2">
+            <input
+              id="ask-ai-question"
+              value={question}
+              onChange={(event) => setQuestion(event.target.value)}
+              onKeyDown={(event) => {
+                if (event.key === "Enter") void handleAsk();
+              }}
+              placeholder={text("chatPlaceholder")}
+              disabled={busy}
+              className="w-full rounded-lg border border-border bg-white px-3 py-2 text-sm text-foreground outline-none ring-accent placeholder:text-muted focus:ring-2 disabled:opacity-60"
+            />
+            <button
+              type="button"
+              onClick={() => void handleAsk()}
+              disabled={busy}
+              className="shrink-0 rounded-lg bg-accent px-3 py-2 font-display text-sm font-medium text-white transition-colors hover:bg-[#4f61b0] disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              {askLabel}
+            </button>
+          </div>
+          <div className="mt-2 flex flex-wrap gap-1.5">
+            {humanaAnalyticsSuggestions.map((suggestion) => (
+              <button
+                key={suggestion}
+                type="button"
+                disabled={busy}
+                onClick={() => void handleAsk(suggestion)}
+                className="rounded-full border border-border bg-[#f1f1f1] px-2.5 py-1 text-left text-xs text-foreground transition-colors hover:border-accent hover:bg-accent-soft disabled:opacity-50"
+              >
+                {suggestion}
+              </button>
+            ))}
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
