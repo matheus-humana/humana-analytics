@@ -9,10 +9,24 @@ const secret =
   process.env.AUTH_SECRET?.trim() ||
   process.env.CREDENTIALS_ENCRYPTION_KEY?.trim();
 
+const googleClientId =
+  process.env.AUTH_GOOGLE_ID?.trim() ||
+  process.env.GOOGLE_CLIENT_ID?.trim();
+const googleClientSecret =
+  process.env.AUTH_GOOGLE_SECRET?.trim() ||
+  process.env.GOOGLE_CLIENT_SECRET?.trim();
+
+if (!secret) {
+  console.error("[humana-analytics] AUTH_SECRET is missing");
+}
+if (!googleClientId || !googleClientSecret) {
+  console.error("[humana-analytics] Google OAuth client env is missing");
+}
+
 /**
  * Auth.js (NextAuth v5) with Google sign-in.
- * Reuses GOOGLE_CLIENT_ID / GOOGLE_CLIENT_SECRET. Sessions live in Postgres.
- * Login scopes stay on OpenID (email + profile) and do not request GA4 access.
+ * Prefers AUTH_GOOGLE_* then falls back to GOOGLE_CLIENT_*.
+ * Sessions live in Postgres. Login scopes stay on OpenID (no GA4).
  */
 export const { handlers, auth, signIn, signOut } = NextAuth({
   adapter: analyticsAuthAdapter(),
@@ -27,8 +41,8 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
   },
   providers: [
     Google({
-      clientId: process.env.GOOGLE_CLIENT_ID,
-      clientSecret: process.env.GOOGLE_CLIENT_SECRET,
+      clientId: googleClientId,
+      clientSecret: googleClientSecret,
       authorization: {
         params: {
           prompt: "select_account",

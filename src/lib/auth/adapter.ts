@@ -37,16 +37,25 @@ function toAdapterUser(row: typeof users.$inferSelect): AdapterUser {
 export function analyticsAuthAdapter(): Adapter {
   return {
     async createUser(user) {
+      if (!user.email) {
+        throw new Error("Cannot create a user without an email");
+      }
+
       const [created] = await db
         .insert(users)
         .values({
-          id: user.id,
-          name: user.name,
+          // Auth.js OAuth often omits id — we must generate one for the PK.
+          id: user.id?.trim() || newId(),
+          name: user.name ?? null,
           email: user.email,
-          emailVerified: user.emailVerified,
-          image: user.image,
+          emailVerified: user.emailVerified ?? null,
+          image: user.image ?? null,
         })
         .returning();
+
+      if (!created) {
+        throw new Error("Failed to create user");
+      }
 
       return toAdapterUser(created);
     },
