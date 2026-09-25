@@ -33,6 +33,8 @@ import {
   ContextRail,
 } from "./column-views";
 import { IconChat } from "./icons";
+import type { GithubPanelData } from "@/lib/github/types";
+
 import type { TrafficSummary } from "./workspace-traffic";
 
 const COLLAPSED_PX = 48;
@@ -50,6 +52,7 @@ type Props = {
   connections: ConnectionSnapshot[];
   traffic: React.ReactNode;
   trafficSummary: TrafficSummary | null;
+  github: GithubPanelData;
   onChatActivity: (signal: ChatSignal) => void;
   mobileChatOpen: boolean;
   onMobileChatOpen: (open: boolean) => void;
@@ -72,6 +75,7 @@ function DesktopWorkspace({
   connections,
   traffic,
   trafficSummary,
+  github,
   onChatActivity,
 }: Props) {
   const groupRef = useGroupRef();
@@ -210,6 +214,8 @@ function DesktopWorkspace({
             blocked={foreignProject}
             blockedTitle={text("otherProjectTitle")}
             blockedBody={text("otherProjectBody")}
+            github={github}
+            projectId={project?.id ?? null}
           />
         ) : (
           <AnalyticsRail
@@ -331,6 +337,7 @@ function MobileWorkspace({
   foreignProject,
   connections,
   traffic,
+  github,
   onChatActivity,
   mobileChatOpen,
   onMobileChatOpen,
@@ -391,6 +398,8 @@ function MobileWorkspace({
             blocked={foreignProject}
             blockedTitle={text("otherProjectTitle")}
             blockedBody={text("otherProjectBody")}
+            github={github}
+            projectId={project?.id ?? null}
           />
         ) : null}
         {prefs.mobileColumn === "actions" ? (

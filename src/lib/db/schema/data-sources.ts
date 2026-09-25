@@ -10,7 +10,7 @@ const timestamptz = (name: string) =>
  */
 export const analyticsDataSourceProvider = analyticsSchema.enum(
   'analytics_data_source_provider',
-  ['ga4', 'clarity', 'vercel']
+  ['ga4', 'clarity', 'vercel', 'github']
 );
 
 /**

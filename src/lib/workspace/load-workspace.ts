@@ -5,6 +5,9 @@ import { getClarityConnectionStatus } from "@/lib/analytics/clarity-source";
 import { ensureDefaultOrganization, ensureDefaultProject } from "@/lib/analytics/default-scope";
 import { getGa4ConnectionStatus } from "@/lib/analytics/ga4-source";
 import { getVercelConnectionStatus } from "@/lib/analytics/vercel-source";
+import { readGithubConfig } from "@/lib/github/config";
+import { ensureGithubProjects } from "@/lib/github/projects";
+import { getGithubConnectionStatus } from "@/lib/github/status";
 import { db } from "@/lib/db";
 import { dataSources, projects } from "@/lib/db/schema";
 import { hasGoogleServiceAccount } from "@/lib/google/service-account";
@@ -51,6 +54,14 @@ async function loadProjects(): Promise<{
   try {
     const organization = await ensureDefaultOrganization();
     const current = await ensureDefaultProject(organization.id);
+    const githubConfig = readGithubConfig();
+    if (githubConfig.ok) {
+      try {
+        await ensureGithubProjects(githubConfig.repos);
+      } catch {
+        // The website project still loads when the GitHub tables are unavailable.
+      }
+    }
     const rows = await db
       .select()
       .from(projects)
@@ -106,22 +117,27 @@ async function loadConnections(): Promise<ConnectionSnapshot[]> {
     // Status can still come from env. A missing timestamp stays blank.
   }
 
-  const [ga4, clarity, vercel] = await Promise.all([
+  const [ga4, clarity, vercel, github] = await Promise.all([
     safeGa4(),
     safeClarity(),
     safeVercel(),
+    safeGithub(),
   ]);
 
   const byProvider: Record<
     ConnectionProvider,
-    { connected: boolean; status: string }
-  > = { ga4, clarity, vercel };
+    { connected: boolean; status: string; detail: string | null }
+  > = { ga4, clarity, vercel, github };
 
   return CONNECTION_PROVIDERS.map((provider) => ({
     provider,
     connected: byProvider[provider].connected,
     status: byProvider[provider].status,
-    updatedAt: updatedAt.get(provider) ?? null,
+    detail: byProvider[provider].detail,
+    updatedAt:
+      provider === "github" && github.updatedAt
+        ? github.updatedAt
+        : updatedAt.get(provider) ?? null,
   }));
 }
 
@@ -129,33 +145,57 @@ function isConnectionProvider(value: string): value is ConnectionProvider {
   return (CONNECTION_PROVIDERS as readonly string[]).includes(value);
 }
 
-async function safeGa4(): Promise<{ connected: boolean; status: string }> {
+async function safeGithub(): Promise<{
+  connected: boolean;
+  status: string;
+  detail: string | null;
+  updatedAt: string | null;
+}> {
+  try {
+    const status = await getGithubConnectionStatus();
+    return {
+      connected: status.connected,
+      status: status.status,
+      detail: status.detail,
+      updatedAt: status.updatedAt,
+    };
+  } catch (error) {
+    return {
+      connected: false,
+      status: "error",
+      detail: error instanceof Error ? error.message : "GitHub status failed",
+      updatedAt: null,
+    };
+  }
+}
+
+async function safeGa4(): Promise<{ connected: boolean; status: string; detail: string | null }> {
   try {
     const status = await getGa4ConnectionStatus();
-    return { connected: status.connected, status: status.status };
+    return { connected: status.connected, status: status.status, detail: null };
   } catch {
     const propertyId = process.env.GA4_PROPERTY_ID?.trim();
     if (hasGoogleServiceAccount() && propertyId) {
-      return { connected: true, status: "active" };
+      return { connected: true, status: "active", detail: null };
     }
-    return { connected: false, status: "not_connected" };
+    return { connected: false, status: "not_connected", detail: null };
   }
 }
 
-async function safeClarity(): Promise<{ connected: boolean; status: string }> {
+async function safeClarity(): Promise<{ connected: boolean; status: string; detail: string | null }> {
   try {
     const status = await getClarityConnectionStatus();
-    return { connected: status.connected, status: status.status };
+    return { connected: status.connected, status: status.status, detail: null };
   } catch {
-    return { connected: false, status: "not_connected" };
+    return { connected: false, status: "not_connected", detail: null };
   }
 }
 
-async function safeVercel(): Promise<{ connected: boolean; status: string }> {
+async function safeVercel(): Promise<{ connected: boolean; status: string; detail: string | null }> {
   try {
     const status = await getVercelConnectionStatus();
-    return { connected: status.connected, status: status.status };
+    return { connected: status.connected, status: status.status, detail: null };
   } catch {
-    return { connected: false, status: "not_connected" };
+    return { connected: false, status: "not_connected", detail: null };
   }
 }
