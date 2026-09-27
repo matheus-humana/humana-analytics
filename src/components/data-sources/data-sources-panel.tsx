@@ -69,11 +69,25 @@ type GithubConnectionStatus = {
   repos: string[];
 };
 
+type SeoSourceStatus = {
+  connected: boolean;
+  status: string;
+  detail: string | null;
+  updatedAt: string | null;
+};
+
+type SeoConnectionStatus = {
+  siteUrl: string | null;
+  pagespeed: SeoSourceStatus;
+  crawl: SeoSourceStatus;
+};
+
 type Props = {
   initialGa4: Ga4ConnectionStatus;
   initialClarity: ClarityConnectionStatus;
   initialVercel: VercelConnectionStatus;
   initialGithub: GithubConnectionStatus;
+  initialSeo: SeoConnectionStatus;
 };
 
 export function DataSourcesPanel({
@@ -81,6 +95,7 @@ export function DataSourcesPanel({
   initialClarity,
   initialVercel,
   initialGithub,
+  initialSeo,
 }: Props) {
   const searchParams = useSearchParams();
   const oauthMessage =
@@ -94,12 +109,14 @@ export function DataSourcesPanel({
     useState<ClarityConnectionStatus>(initialClarity);
   const [vercel, setVercel] = useState<VercelConnectionStatus>(initialVercel);
   const [github, setGithub] = useState<GithubConnectionStatus>(initialGithub);
+  const [seo, setSeo] = useState<SeoConnectionStatus>(initialSeo);
   const [localMessage, setLocalMessage] = useState<string | null>(null);
   const [localError, setLocalError] = useState<string | null>(null);
   const [ga4Syncing, setGa4Syncing] = useState(false);
   const [claritySyncing, setClaritySyncing] = useState(false);
   const [vercelSyncing, setVercelSyncing] = useState(false);
   const [githubSyncing, setGithubSyncing] = useState(false);
+  const [seoSyncing, setSeoSyncing] = useState(false);
   const [ga4Sync, setGa4Sync] = useState<Ga4SyncResult | null>(null);
   const [claritySync, setClaritySync] = useState<ClaritySyncResult | null>(
     null
@@ -120,6 +137,7 @@ export function DataSourcesPanel({
       clarity?: ClarityConnectionStatus;
       vercel?: VercelConnectionStatus;
       github?: GithubConnectionStatus;
+      seo?: SeoConnectionStatus;
       error?: string;
       connected?: boolean;
       status?: string;
@@ -140,6 +158,7 @@ export function DataSourcesPanel({
     if (data.clarity) setClarity(data.clarity);
     if (data.vercel) setVercel(data.vercel);
     if (data.github) setGithub(data.github);
+    if (data.seo) setSeo(data.seo);
   }
 
   async function handleGa4Sync() {
@@ -209,6 +228,28 @@ export function DataSourcesPanel({
       setLocalError("Vercel sync request failed");
     } finally {
       setVercelSyncing(false);
+    }
+  }
+
+  async function handleSeoCollect() {
+    setSeoSyncing(true);
+    setLocalError(null);
+    setLocalMessage(null);
+    try {
+      const response = await fetch("/api/seo/collect", { method: "POST" });
+      const data = (await response.json()) as { ok?: boolean; error?: string };
+      if (!response.ok || data.ok === false) {
+        setLocalError(data.error ?? "SEO collect failed");
+      } else {
+        setLocalMessage(
+          "Crawl stored. PageSpeed continues one page at a time; refresh in a few minutes."
+        );
+      }
+      await refreshStatus();
+    } catch {
+      setLocalError("SEO collect request failed");
+    } finally {
+      setSeoSyncing(false);
     }
   }
 
@@ -397,6 +438,35 @@ export function DataSourcesPanel({
               className="rounded-lg bg-accent px-4 py-2 font-display text-sm font-medium text-white transition-colors hover:bg-[#4f61b0] disabled:cursor-not-allowed disabled:opacity-50"
             >
               {githubSyncing ? "Collecting…" : "Collect snapshot"}
+            </button>
+          </div>
+        </article>
+
+        <article className="flex flex-col gap-4 rounded-xl border border-border bg-surface p-5 shadow-sm shadow-black/5 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <h2 className="font-display text-base font-semibold text-foreground">
+              PageSpeed and crawl
+            </h2>
+            <p className="mt-1 text-sm text-muted">
+              Lighthouse scores, on-page findings, and the GEO checklist for {seo.siteUrl ?? "SITE_URL"}.
+            </p>
+            <p className="mt-3 text-sm text-foreground">
+              PageSpeed · {seo.pagespeed.status}
+              {seo.pagespeed.detail ? ` · ${seo.pagespeed.detail}` : ""}
+            </p>
+            <p className="mt-1 text-sm text-foreground">
+              Crawl · {seo.crawl.status}
+              {seo.crawl.detail ? ` · ${seo.crawl.detail}` : ""}
+            </p>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <button
+              type="button"
+              onClick={() => void handleSeoCollect()}
+              disabled={seoSyncing}
+              className="rounded-lg bg-accent px-4 py-2 font-display text-sm font-medium text-white transition-colors hover:bg-[#4f61b0] disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              {seoSyncing ? "Collecting…" : "Collect now"}
             </button>
           </div>
         </article>

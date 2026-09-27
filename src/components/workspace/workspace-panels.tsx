@@ -34,6 +34,7 @@ import {
 } from "./column-views";
 import { IconChat } from "./icons";
 import type { GithubPanelData } from "@/lib/github/types";
+import type { SeoWorkspace } from "@/lib/seo/view";
 
 import type { TrafficSummary } from "./workspace-traffic";
 
@@ -53,6 +54,7 @@ type Props = {
   traffic: React.ReactNode;
   trafficSummary: TrafficSummary | null;
   github: GithubPanelData;
+  seo: SeoWorkspace;
   onChatActivity: (signal: ChatSignal) => void;
   mobileChatOpen: boolean;
   onMobileChatOpen: (open: boolean) => void;
@@ -76,6 +78,7 @@ function DesktopWorkspace({
   traffic,
   trafficSummary,
   github,
+  seo,
   onChatActivity,
 }: Props) {
   const groupRef = useGroupRef();
@@ -215,12 +218,14 @@ function DesktopWorkspace({
             blockedTitle={text("otherProjectTitle")}
             blockedBody={text("otherProjectBody")}
             github={github}
+            seo={seo}
             projectId={project?.id ?? null}
           />
         ) : (
           <AnalyticsRail
             locale={locale}
             summary={foreignProject ? null : trafficSummary}
+            seo={foreignProject ? null : seo.rail}
             onExpand={() => toggle("analytics")}
           />
         )}
@@ -238,9 +243,20 @@ function DesktopWorkspace({
         style={{ overflow: "hidden" }}
       >
         {prefs.open.actions ? (
-          <ActionsColumn locale={locale} onCollapse={() => toggle("actions")} />
+          <ActionsColumn
+            locale={locale}
+            seo={seo}
+            blocked={foreignProject}
+            blockedTitle={text("otherProjectTitle")}
+            blockedBody={text("otherProjectBody")}
+            onCollapse={() => toggle("actions")}
+          />
         ) : (
-          <ActionsRail locale={locale} onExpand={() => toggle("actions")} />
+          <ActionsRail
+            locale={locale}
+            openCount={foreignProject ? null : seo.rail.openActions}
+            onExpand={() => toggle("actions")}
+          />
         )}
       </Panel>
       <PanelSeparator label={text("resizeColumns")} />
@@ -338,6 +354,7 @@ function MobileWorkspace({
   connections,
   traffic,
   github,
+  seo,
   onChatActivity,
   mobileChatOpen,
   onMobileChatOpen,
@@ -399,11 +416,18 @@ function MobileWorkspace({
             blockedTitle={text("otherProjectTitle")}
             blockedBody={text("otherProjectBody")}
             github={github}
+            seo={seo}
             projectId={project?.id ?? null}
           />
         ) : null}
         {prefs.mobileColumn === "actions" ? (
-          <ActionsColumn locale={locale} />
+          <ActionsColumn
+            locale={locale}
+            seo={seo}
+            blocked={foreignProject}
+            blockedTitle={text("otherProjectTitle")}
+            blockedBody={text("otherProjectBody")}
+          />
         ) : null}
       </div>
       <button

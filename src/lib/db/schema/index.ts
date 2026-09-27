@@ -51,3 +51,11 @@ export {
 } from './data-source-credentials';
 
 export { githubRepoDays, githubTrafficDays } from './github-metrics';
+
+export {
+  crawlPages,
+  crawlSnapshots,
+  pagespeedSnapshots,
+  seoRuns,
+  siteFindings,
+} from './seo-metrics';

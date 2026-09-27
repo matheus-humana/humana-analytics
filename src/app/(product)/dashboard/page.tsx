@@ -10,6 +10,9 @@ import { resolveAnalyticsPeriod } from "@/lib/analytics/period";
 import { getSessionUser } from "@/lib/auth/require-user";
 import { loadGithubPanel } from "@/lib/github/panel";
 import { githubPeriodWindow, utcDay } from "@/lib/github/dates";
+import { utcDay as seoUtcDay, periodWindow } from "@/lib/seo/dates";
+import { loadSeoWorkspace } from "@/lib/seo/panel";
+import { emptySeoWorkspace } from "@/lib/seo/view";
 import { loadWorkspaceModel } from "@/lib/workspace/load-workspace";
 
 type PageProps = {
@@ -23,7 +26,7 @@ export default async function DashboardPage({ searchParams }: PageProps) {
   const params = await searchParams;
   const period = resolveAnalyticsPeriod(params.period);
   const source = resolveDashboardSource(params.source);
-  const [model, traffic, github] = await Promise.all([
+  const [model, traffic, github, seo] = await Promise.all([
     loadWorkspaceModel(user.id),
     loadTrafficPayload(period, source),
     loadGithubPanel(period.id).catch((error: unknown) => {
@@ -40,6 +43,16 @@ export default async function DashboardPage({ searchParams }: PageProps) {
         repos: [],
       };
     }),
+    loadSeoWorkspace(period.id).catch((error: unknown) => {
+      const today = seoUtcDay(new Date());
+      const window = periodWindow(period.id, today);
+      return emptySeoWorkspace({
+        detail: error instanceof Error ? error.message : "SEO panel failed",
+        periodId: period.id,
+        periodFrom: window.from,
+        periodTo: window.to,
+      });
+    }),
   ]);
 
   return (
@@ -50,6 +63,7 @@ export default async function DashboardPage({ searchParams }: PageProps) {
       trafficSummary={traffic.summary}
       traffic={<WorkspaceTraffic payload={traffic} />}
       github={github}
+      seo={seo}
     />
   );
 }

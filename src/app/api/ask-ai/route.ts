@@ -20,6 +20,7 @@ import {
 import { redactSensitive } from "@/lib/ai/redact";
 import { requireSessionUser } from "@/lib/auth/require-user";
 import { loadGithubBridgeSummary } from "@/lib/github/chat";
+import { loadSeoBridgeSummary } from "@/lib/seo/chat";
 
 export const dynamic = "force-dynamic";
 
@@ -82,6 +83,7 @@ export async function POST(request: NextRequest) {
           locale: body.locale,
         }),
         github: await loadGithubBridgeSummary(),
+        seo: await loadSeoBridgeSummary(),
       };
       const thinking = thinkingLabel(payload.locale);
       const pending = await markConversationPending({

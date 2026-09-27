@@ -76,6 +76,31 @@ test("a GitHub permission error is shown as returned, without a stand-in number"
   );
 });
 
+test("PageSpeed and crawl errors are shown as returned", () => {
+  const log = buildStatusLog(
+    [
+      {
+        provider: "pagespeed",
+        connected: false,
+        status: "error",
+        updatedAt: null,
+        detail: "Quota exceeded for quota metric 'Queries'",
+      },
+      {
+        provider: "crawl",
+        connected: false,
+        status: "not_connected",
+        updatedAt: null,
+        detail: "missing_site_url",
+      },
+    ],
+    [],
+    "pt-BR"
+  );
+  assert.match(log.line ?? "", /PageSpeed · erro · Quota exceeded/);
+  assert.match(log.items.map((item) => item.text).join("\n"), /Crawl · desconectado · falta SITE_URL/);
+});
+
 test("no connections and no chat events stay empty", () => {
   const log = buildStatusLog([], [], "pt-BR");
   assert.equal(log.line, null);

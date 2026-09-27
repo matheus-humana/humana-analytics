@@ -16,8 +16,12 @@ import {
   IconContext,
 } from "./icons";
 import type { GithubPanelData } from "@/lib/github/types";
+import { formatScorePoints } from "@/lib/seo/explain";
+import type { SeoWorkspace } from "@/lib/seo/view";
 
 import { GithubPanel } from "./github-panel";
+import { GeoPanel } from "./geo-panel";
+import { FindingCard, SeoPanel } from "./seo-panel";
 import type { TrafficSummary } from "./workspace-traffic";
 
 type Copy = (key: WorkspaceMessageKey) => string;
@@ -129,6 +133,8 @@ function providerName(provider: ConnectionSnapshot["provider"]): string {
   if (provider === "ga4") return "GA4";
   if (provider === "clarity") return "Clarity";
   if (provider === "github") return "GitHub";
+  if (provider === "pagespeed") return "PageSpeed";
+  if (provider === "crawl") return "Crawl";
   return "Vercel";
 }
 
@@ -188,6 +194,7 @@ export function AnalyticsColumn({
   blockedTitle,
   blockedBody,
   github,
+  seo,
   projectId,
 }: {
   locale: ChatLocale;
@@ -199,6 +206,7 @@ export function AnalyticsColumn({
   blockedTitle: string;
   blockedBody: string;
   github: GithubPanelData;
+  seo: SeoWorkspace;
   projectId: string | null;
 }) {
   const text = (key: WorkspaceMessageKey) => workspaceText(locale, key);
@@ -246,10 +254,18 @@ export function AnalyticsColumn({
           )
         ) : null}
         {tab === "seo" ? (
-          <EmptyState title={text("seoEmptyTitle")} body={text("seoEmptyBody")} />
+          blocked ? (
+            <EmptyState title={blockedTitle} body={blockedBody} />
+          ) : (
+            <SeoPanel locale={locale} data={seo} />
+          )
         ) : null}
         {tab === "geo" ? (
-          <EmptyState title={text("geoEmptyTitle")} body={text("geoEmptyBody")} />
+          blocked ? (
+            <EmptyState title={blockedTitle} body={blockedBody} />
+          ) : (
+            <GeoPanel locale={locale} data={seo} />
+          )
         ) : null}
         {tab === "github" ? (
           <Suspense fallback={null}>
@@ -263,9 +279,17 @@ export function AnalyticsColumn({
 
 export function ActionsColumn({
   locale,
+  seo,
+  blocked,
+  blockedTitle,
+  blockedBody,
   onCollapse,
 }: {
   locale: ChatLocale;
+  seo: SeoWorkspace;
+  blocked: boolean;
+  blockedTitle: string;
+  blockedBody: string;
   onCollapse?: () => void;
 }) {
   const text = (key: WorkspaceMessageKey) => workspaceText(locale, key);
@@ -276,8 +300,42 @@ export function ActionsColumn({
         onCollapse={onCollapse}
         collapseLabel={`${text("collapseColumn")} ${text("columnActions")}`}
       />
-      <div className="min-h-0 flex-1 overflow-y-auto px-3 py-3">
-        <EmptyState title={text("actionsEmptyTitle")} body={text("actionsEmptyBody")} />
+      <div className="min-h-0 flex-1 space-y-4 overflow-y-auto px-3 py-3">
+        {blocked ? <EmptyState title={blockedTitle} body={blockedBody} /> : null}
+        {!blocked && !seo.configured ? (
+          <EmptyState title={text("actionsEmptyTitle")} body={text("seoMissingSite")} />
+        ) : null}
+        {!blocked && seo.configured ? (
+          <>
+            <p className="text-xs leading-relaxed text-muted">{text("actionsAuto")}</p>
+            <section className="space-y-2">
+              <h3 className="font-display text-sm font-semibold text-foreground">
+                {text("actionsNeedAttention")}
+              </h3>
+              {seo.openFindings.length === 0 ? (
+                <p className="text-sm text-muted">
+                  {seo.crawl ? text("actionsNoneOpen") : text("seoNoCrawl")}
+                </p>
+              ) : (
+                seo.openFindings.map((item) => (
+                  <FindingCard key={item.fingerprint} locale={locale} item={item} text={text} />
+                ))
+              )}
+            </section>
+            <section className="space-y-2">
+              <h3 className="font-display text-sm font-semibold text-foreground">
+                {text("actionsResolved")}
+              </h3>
+              {seo.resolvedFindings.length === 0 ? (
+                <p className="text-sm text-muted">{text("actionsNoneResolved")}</p>
+              ) : (
+                seo.resolvedFindings.map((item) => (
+                  <FindingCard key={item.fingerprint} locale={locale} item={item} text={text} />
+                ))
+              )}
+            </section>
+          </>
+        ) : null}
       </div>
     </section>
   );
@@ -348,10 +406,12 @@ export function ContextRail({
 export function AnalyticsRail({
   locale,
   summary,
+  seo,
   onExpand,
 }: {
   locale: ChatLocale;
   summary: TrafficSummary | null;
+  seo: { seoScore: number | null; geoScorePoints: number | null } | null;
   onExpand: () => void;
 }) {
   const label = `${workspaceText(locale, "expandColumn")} ${workspaceText(locale, "columnAnalytics")}`;
@@ -377,21 +437,38 @@ export function AnalyticsRail({
           </span>
         </span>
       ) : null}
+      {seo?.seoScore != null ? (
+        <span className="text-center text-[10px] font-semibold leading-tight text-foreground" title={workspaceText(locale, "railSeo")}>
+          {seo.seoScore}
+        </span>
+      ) : null}
+      {seo?.geoScorePoints != null ? (
+        <span className="text-center text-[10px] font-semibold leading-tight text-foreground" title={workspaceText(locale, "railGeo")}>
+          {formatScorePoints(seo.geoScorePoints)}
+        </span>
+      ) : null}
     </CollapsedRail>
   );
 }
 
 export function ActionsRail({
   locale,
+  openCount,
   onExpand,
 }: {
   locale: ChatLocale;
+  openCount: number | null;
   onExpand: () => void;
 }) {
   const label = `${workspaceText(locale, "expandColumn")} ${workspaceText(locale, "columnActions")}`;
   return (
     <CollapsedRail label={label} onExpand={onExpand}>
       <IconActions />
+      {openCount != null ? (
+        <span className="text-[10px] font-semibold text-foreground" title={workspaceText(locale, "railActions")}>
+          {openCount}
+        </span>
+      ) : null}
     </CollapsedRail>
   );
 }

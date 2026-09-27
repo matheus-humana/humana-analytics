@@ -2,7 +2,14 @@ import type { ChatLocale } from "@/lib/ai/analytics-bot-contract";
 
 import { workspaceText } from "@/lib/i18n/workspace-copy";
 
-export const CONNECTION_PROVIDERS = ["ga4", "clarity", "vercel", "github"] as const;
+export const CONNECTION_PROVIDERS = [
+  "ga4",
+  "clarity",
+  "vercel",
+  "github",
+  "pagespeed",
+  "crawl",
+] as const;
 
 export type ConnectionProvider = (typeof CONNECTION_PROVIDERS)[number];
 
@@ -32,6 +39,8 @@ const PROVIDER_LABEL: Record<ConnectionProvider, string> = {
   clarity: "Clarity",
   vercel: "Vercel",
   github: "GitHub",
+  pagespeed: "PageSpeed",
+  crawl: "Crawl",
 };
 
 function validTime(value: string | null): number | null {
@@ -84,6 +93,15 @@ function connectionDetail(
     const sample = detail.slice("invalid_repo".length).replace(/^:/, "").trim();
     const label = workspaceText(locale, "statusGithubInvalidRepo");
     return sample ? `${label} (${sample})` : label;
+  }
+  if (detail === "missing_site_url") return workspaceText(locale, "statusMissingSiteUrl");
+  if (detail === "invalid_site_url") return workspaceText(locale, "statusInvalidSiteUrl");
+  if (detail === "no_snapshot") return workspaceText(locale, "statusNoSnapshot");
+  if (
+    (connection.provider === "pagespeed" || connection.provider === "crawl") &&
+    detail
+  ) {
+    return detail;
   }
   if (connection.status === "error") return detail;
   return null;
