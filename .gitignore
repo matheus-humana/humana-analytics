@@ -155,3 +155,8 @@ vite.config.ts.timestamp-*
 /build
 .pnpm-debug.log*
 next-env.d.ts
+
+.tools/
+.cron-secret.tmp
+_tmp-deploy-out.txt
+
