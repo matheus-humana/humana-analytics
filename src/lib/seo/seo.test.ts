@@ -4,6 +4,7 @@ import test from "node:test";
 import { readSeoConfig } from "./config.ts";
 import { crawlSite } from "./crawl.ts";
 import { explainFinding, explainGeoRule, findingCodes, formatScorePoints } from "./explain.ts";
+import { groupFindings } from "./groups.ts";
 import { buildSeoFindings } from "./findings.ts";
 import { GEO_WEIGHTS, buildGeoChecklist, geoWeightTotal } from "./geo-checklist.ts";
 import { parseHtmlPage } from "./html-parse.ts";
@@ -457,6 +458,93 @@ test("finding copy exists in Portuguese and English", () => {
   assert.equal(formatScorePoints(150), "1.5");
 });
 
+test("an H1 that exists only in the RSC payload is not reported as missing", () => {
+  const prose = Array.from({ length: 40 }, () => "Humana organiza o trabalho da empresa.").join(" ");
+  const flight = [
+    '0:{"notFound":[["$","h1",null,{"children":"404"}]],"ok":true}',
+    '6:[["$","h1",null,{"className":"hero-title","children":"Artificial intelligence"}],["$","p",null,{"children":"' +
+      prose +
+      '"}]]',
+  ].join("\n");
+  const onlyBoundary = '0:{"notFound":[["$","h1",null,{"children":"404"}]],"className":"h1-title"}';
+  const withHero = parseHtmlPage({
+    html: shell(flight),
+    url: HOME,
+    httpStatus: 200,
+    origin: ORIGIN,
+  });
+  assert.equal(withHero.h1.length, 0);
+  assert.equal(withHero.payloadH1, 1);
+  assert.equal(withHero.textInPayload, true);
+
+  const boundaryOnly = parseHtmlPage({
+    html: shell(onlyBoundary),
+    url: HOME,
+    httpStatus: 200,
+    origin: ORIGIN,
+  });
+  assert.equal(boundaryOnly.payloadH1, 0);
+  assert.equal(boundaryOnly.textInPayload, false);
+
+  const seo = buildSeoFindings({
+    projectId: "proj",
+    pages: [withHero, boundaryOnly],
+    linkStatus: new Map([
+      [HOME, 200],
+    ]),
+  });
+  assert.equal(seo.find((item) => item.code === "h1_js_only")?.severity, "warning");
+  assert.equal(seo.find((item) => item.code === "h1_js_only")?.pageUrl, HOME);
+  assert.equal(seo.filter((item) => item.code === "h1_missing").length, 1);
+  assert.equal(seo.find((item) => item.code === "h1_missing")?.severity, "critical");
+
+  const geo = buildGeoChecklist({
+    projectId: "proj",
+    siteUrl: HOME,
+    llmsStatus: 404,
+    llmsBody: "",
+    llmsContentType: null,
+    bots: aiBotReports("User-agent: *\nDisallow:\n"),
+    pages: [withHero],
+    homePage: withHero,
+  });
+  const headings = geo.rules.find((rule) => rule.id === "headings");
+  const reading = geo.rules.find((rule) => rule.id === "readability");
+  assert.equal(headings?.evidence.reason, "js_only");
+  assert.equal(headings?.earnedPoints, 0);
+  assert.equal(reading?.evidence.reason, "js_only");
+  assert.equal(reading?.earnedPoints, 0);
+  assert.match(explainGeoRule("pt-BR", headings!), /payload RSC/);
+  assert.match(explainGeoRule("en", reading!), /does not count as readable/);
+  assert.equal(geo.findings.some((item) => item.code === "geo_headings"), false);
+  assert.equal(geo.findings.some((item) => item.code === "geo_readability"), false);
+  const action = geo.findings.find((item) => item.code === "geo_js_only");
+  assert.equal(action?.severity, "critical");
+  assert.equal(action?.detail, "h1,text");
+
+  const grouped = groupFindings(
+    [withHero, { ...withHero, url: ENGLISH }].flatMap((page) =>
+      buildSeoFindings({
+        projectId: "proj",
+        pages: [page],
+        linkStatus: new Map([[page.url, 200]]),
+      }).filter((item) => item.code === "h1_js_only")
+    ).map((item) => ({
+      ...item,
+      status: "open" as const,
+      firstSeenOn: "2026-09-27",
+      lastSeenOn: "2026-09-27",
+      resolvedOn: null,
+    }))
+  );
+  assert.equal(grouped.length, 1);
+  assert.equal(grouped[0]?.count, 2);
+  assert.deepEqual(
+    grouped[0]?.pages.map((page) => page.url),
+    [ENGLISH, HOME].sort()
+  );
+});
+
 test("readability uses the body and ignores the document title", () => {
   const page = parseHtmlPage({
     html: `<html><head><title>${HOME_TITLE}</title></head><body><div id="root"></div></body></html>`,
@@ -486,6 +574,10 @@ test("SITE_URL is required and pages stay on that origin", () => {
   assert.deepEqual(config.config.pages, ["https://www.humana.ai/pt"]);
   assert.deepEqual(config.config.aiSources, ["claude.ai", "perplexity.ai"]);
 });
+
+function shell(flight: string): string {
+  return `<!doctype html><html><head><title>${HOME_TITLE}</title></head><body><script>self.__next_f.push([1,${JSON.stringify(flight)}])</script><div id="root"></div></body></html>`;
+}
 
 function healthyHtml(url: string, title: string, description: string, alternate: string): string {
   const paragraph = Array.from({ length: 15 }, () =>

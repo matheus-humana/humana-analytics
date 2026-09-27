@@ -1,7 +1,10 @@
+import { readRscPayload } from "./rsc-payload";
 import type { HreflangLink, PageSignals } from "./types";
 import { resolveInternalUrl } from "./urls";
 
 const MAX_HTML = 2_000_000;
+/** Payload prose at or above this, with a thin HTML body, is treated as JS-only text. */
+export const PAYLOAD_PROSE_WORDS = 80;
 
 export function parseHtmlPage(input: {
   html: string;
@@ -12,13 +15,15 @@ export function parseHtmlPage(input: {
   error?: string | null;
 }): PageSignals {
   const html = input.html.slice(0, MAX_HTML);
-  const title = textContent(html, "title");
+  const visible = withoutScripts(html);
+  const title = textContent(visible, "title");
   const description = metaContent(html, "description");
   const robots = metaContent(html, "robots") ?? metaContent(html, "googlebot");
   const hreflang = readHreflang(html);
-  const headingLevels = readHeadingLevels(html);
-  const mainText = mainTextOf(html);
+  const headingLevels = readHeadingLevels(visible);
+  const mainText = mainTextOf(visible);
   const reading = readabilityOf(mainText);
+  const payload = readRscPayload(html);
   const noindex = /noindex/i.test(`${robots ?? ""} ${input.xRobots ?? ""}`);
 
   return {
@@ -29,7 +34,7 @@ export function parseHtmlPage(input: {
     canonical: linkHref(html, "canonical"),
     lang: htmlLang(html),
     hreflang,
-    h1: readH1(html),
+    h1: readH1(visible),
     headingLevels,
     imagesMissingAlt: countImagesMissingAlt(html),
     noindex,
@@ -38,8 +43,18 @@ export function parseHtmlPage(input: {
     wordCount: reading.words,
     sentenceCount: reading.sentences,
     averageSentenceWords: reading.average,
+    payloadH1: payload.h1Count,
+    payloadWords: payload.wordCount,
+    textInPayload:
+      payload.wordCount >= PAYLOAD_PROSE_WORDS &&
+      reading.words < 120 &&
+      payload.wordCount > reading.words,
     error: input.error ?? null,
   };
+}
+
+function withoutScripts(html: string): string {
+  return html.replace(/<script\b[^>]*>[\s\S]*?<\/script>/gi, " ");
 }
 
 export function headingSkipCount(levels: number[]): number {

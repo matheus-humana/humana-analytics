@@ -43,16 +43,18 @@ A rota processa **uma página e uma estratégia por invocação** e dispara a pr
 
 ## Varredura
 
-A varredura lê `robots.txt`, `sitemap.xml` (inclusive os `Sitemap:` do robots e índices, até 3 níveis) e `/llms.txt`. Depois busca a home, as páginas de `SEO_PAGES` e as URLs do sitemap, até `SEO_MAX_PAGES`, com a concorrência configurada. Ela lê o HTML da resposta e não executa JavaScript: um H1 que só aparece depois da hidratação conta como ausente. Se a home redireciona, o checklist de títulos e legibilidade usa o HTML final, e duas URLs que caem no mesmo endereço viram uma página só. A legibilidade usa `<main>`, senão `<article>`, senão `<body>`. O `<title>` não entra nessa conta. O orçamento da função é cerca de 45 segundos. Se o tempo acabar antes, o snapshot fica marcado como parcial e achados de páginas não visitadas **não** são resolvidos.
+A varredura lê `robots.txt`, `sitemap.xml` (inclusive os `Sitemap:` do robots e índices, até 3 níveis) e `/llms.txt`. Depois busca a home, as páginas de `SEO_PAGES` e as URLs do sitemap, até `SEO_MAX_PAGES`, com a concorrência configurada. Ela lê o HTML da resposta e o payload RSC do Next (`self.__next_f`), sem executar JavaScript. Um H1 que não existe em nenhum dos dois é `h1_missing` (crítico). Um H1 que só existe no payload, fora do boundary `notFound`, é `h1_js_only` (aviso de SEO: o Google renderiza JS) e `geo_js_only` (crítico de GEO: GPTBot, ClaudeBot e PerplexityBot em geral não executam JS). O texto do payload não entra na nota de legibilidade. Se a home redireciona, o checklist de títulos e legibilidade usa o HTML final, e duas URLs que caem no mesmo endereço viram uma página só. A legibilidade usa `<main>`, senão `<article>`, senão `<body>`. O `<title>` não entra nessa conta. O orçamento da função é cerca de 45 segundos. Se o tempo acabar antes, o snapshot fica marcado como parcial e achados de páginas não visitadas **não** são resolvidos.
 
 Cada achado tem gravidade, página e uma correção curta:
 
 | Código | Gravidade | Regra |
 | --- | --- | --- |
 | `http_error` | crítico | Status fora de 2xx/3xx, ou falha de rede. |
-| `missing_title`, `h1_missing`, `noindex` | crítico | Title vazio, nenhum H1, ou `noindex`. |
+| `missing_title`, `h1_missing`, `noindex` | crítico | Title vazio, nenhum H1 no HTML nem no payload, ou `noindex`. |
+| `geo_js_only` | crítico | H1 ou texto principal só no payload RSC. Não conta para GEO. |
 | `broken_internal_link` | crítico | Link interno com status 4xx/5xx. No máximo 25 por varredura. |
-| `h1_multiple` | aviso | Mais de um H1. |
+| `h1_js_only` | aviso | H1 só no payload RSC. Para SEO é aviso, porque o Google renderiza JS. |
+| `h1_multiple` | aviso | Mais de um H1 no HTML. |
 | `title_length` | aviso | Fora de 30–60 caracteres. |
 | `missing_description`, `description_length` | aviso | Ausente, ou fora de 50–160 caracteres. |
 | `duplicate_title`, `duplicate_description` | aviso | O mesmo texto em duas páginas desta varredura. Numa varredura parcial esses dois não são auto-resolvidos. |
@@ -73,10 +75,12 @@ A nota é a soma dos pontos, dividida por 100, numa escala de 0 a 10. Os pesos s
 | JSON-LD WebSite | 0,75 | Idem, WebSite. |
 | JSON-LD Product ou SoftwareApplication | 0,75 | Um dos dois tipos. |
 | JSON-LD FAQPage | 0,75 | Tipo FAQPage. |
-| Estrutura de títulos | 1,5 | Na home: 0,75 por um único H1 e 0,75 se não houver salto de nível (H2 para H4). |
-| Legibilidade | 1,5 | No texto de `<main>` (ou `<article>`): 0,5 por pelo menos 120 palavras, 0,5 por pelo menos 2 frases, 0,5 se a média ficar entre 8 e 32 palavras. |
+| Estrutura de títulos | 1,5 | Na home, no HTML servido: 0,75 por um único H1 e 0,75 se não houver salto de nível (H2 para H4). H1 só no payload não pontua e o motivo na tela é `js_only`. |
+| Legibilidade | 1,5 | No texto de `<main>` (ou `<article>`, senão `<body>`): 0,5 por pelo menos 120 palavras, 0,5 por pelo menos 2 frases, 0,5 se a média ficar entre 8 e 32 palavras. Texto que só está no payload não conta; a regra mostra esse motivo. |
 
-Uma regra que não ganha o peso inteiro vira um item na coluna Ações, com fonte GEO. Bloquear todos os robôs listados é crítico. O resto é aviso.
+Uma regra que não ganha o peso inteiro vira um item na coluna Ações, com fonte GEO, exceto títulos e legibilidade quando o motivo é conteúdo só no JavaScript: nesse caso a ação é o item crítico `geo_js_only`. Bloquear todos os robôs listados é crítico. O resto é aviso.
+
+A coluna Ações agrupa o mesmo código na mesma fonte e gravidade. Várias páginas viram um item, com a contagem e a lista de URLs.
 
 ## Tráfego de IA
 
@@ -84,7 +88,7 @@ O card consulta o GA4 já conectado, no período selecionado (o mesmo `?period=`
 
 ## Ações
 
-O fingerprint é `fonte:código:página:qualificador`. A mesma coleta no mesmo dia não duplica a linha. Se a varredura seguinte olhou a página e o problema sumiu, `status` passa a `resolved` e `resolved_on` guarda o dia. Uma página que não entrou na amostra continua aberta.
+O fingerprint é `fonte:código:página:qualificador`. A mesma coleta no mesmo dia não duplica a linha. Se a varredura seguinte olhou a página e o problema sumiu, `status` passa a `resolved` e `resolved_on` guarda o dia. Uma página que não entrou na amostra continua aberta. Na tela, achados iguais em várias páginas aparecem como um item só.
 
 Não há ação escrita por LLM.
 

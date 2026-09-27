@@ -54,7 +54,11 @@ export function buildSeoFindings(input: {
       );
     }
 
-    if (page.h1.length === 0) {
+    if (page.h1.length === 0 && page.payloadH1 > 0) {
+      findings.push(
+        finding(input.projectId, "seo", "warning", "h1_js_only", page.url, "", page.url)
+      );
+    } else if (page.h1.length === 0) {
       findings.push(finding(input.projectId, "seo", "critical", "h1_missing", page.url, "", page.url));
     } else if (page.h1.length > 1) {
       findings.push(

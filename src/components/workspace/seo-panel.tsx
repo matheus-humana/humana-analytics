@@ -5,6 +5,7 @@ import { useState } from "react";
 import type { ChatLocale } from "@/lib/ai/analytics-bot-contract";
 import { workspaceText, type WorkspaceMessageKey } from "@/lib/i18n/workspace-copy";
 import { explainFinding, explainVitalOrigin } from "@/lib/seo/explain";
+import type { FindingGroup } from "@/lib/seo/groups";
 import type { FindingView, ScoreCard, SeoWorkspace } from "@/lib/seo/view";
 import type { VitalOrigin } from "@/lib/seo/types";
 
@@ -163,6 +164,50 @@ export function SeoPanel({ locale, data }: { locale: ChatLocale; data: SeoWorksp
   );
 }
 
+export function FindingGroupCard({
+  locale,
+  group,
+  text,
+}: {
+  locale: ChatLocale;
+  group: FindingGroup;
+  text: Copy;
+}) {
+  const copy = explainFinding(locale, group.code);
+  const countLabel =
+    group.count === 1
+      ? text("actionsOnePage")
+      : `${group.count} ${text("actionsPages")}`;
+  return (
+    <article className="rounded-xl border border-border px-3 py-2">
+      <div className="flex items-center justify-between gap-2">
+        <p className="text-sm font-medium text-foreground">{copy?.title ?? group.code}</p>
+        <span className="text-xs text-muted">
+          {group.severity === "critical" ? text("seoCritical") : text("seoWarning")}
+        </span>
+      </div>
+      <p className="mt-1 text-xs leading-relaxed text-muted">{copy?.fix}</p>
+      {group.detail ? (
+        <p className="mt-1 text-xs text-foreground">{findingDetail(group.code, group.detail, text)}</p>
+      ) : null}
+      <p className="mt-2 text-xs font-medium text-foreground">{countLabel}</p>
+      <ul className="mt-1 max-h-36 space-y-1 overflow-y-auto text-[11px] text-muted">
+        {group.pages.map((page) => (
+          <li key={`${page.url}:${page.detail}`}>
+            {page.url}
+            {group.detail == null && page.detail
+              ? ` · ${findingDetail(group.code, page.detail, text)}`
+              : ""}
+          </li>
+        ))}
+      </ul>
+      <p className="mt-1 text-[11px] text-muted">
+        {group.source === "geo" ? "GEO" : "SEO"} · {formatDay(group.lastSeenOn, locale)}
+      </p>
+    </article>
+  );
+}
+
 export function FindingCard({
   locale,
   item,
@@ -188,6 +233,14 @@ export function FindingCard({
       </p>
     </article>
   );
+}
+
+function findingDetail(code: string, detail: string, text: Copy): string {
+  if (code !== "geo_js_only") return detail;
+  if (detail === "h1,text") return text("actionsJsBoth");
+  if (detail === "text") return text("actionsJsText");
+  if (detail === "h1") return text("actionsJsH1");
+  return detail;
 }
 
 function StrategyScores({

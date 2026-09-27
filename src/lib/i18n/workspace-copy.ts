@@ -208,6 +208,11 @@ export const workspaceCopy = {
     actionsAuto:
       "Um item sai da lista quando a próxima varredura não encontra mais o mesmo problema.",
     actionsPage: "Página",
+    actionsOnePage: "1 página",
+    actionsPages: "páginas",
+    actionsJsBoth: "H1 e texto só no payload",
+    actionsJsText: "texto só no payload",
+    actionsJsH1: "H1 só no payload",
     actionsSource: "Fonte",
     actionsSeen: "Visto em",
     actionsResolvedOn: "Resolvido em",
@@ -418,6 +423,11 @@ export const workspaceCopy = {
     actionsAuto:
       "An item leaves the list when the next crawl no longer finds the same issue.",
     actionsPage: "Page",
+    actionsOnePage: "1 page",
+    actionsPages: "pages",
+    actionsJsBoth: "H1 and text only in the payload",
+    actionsJsText: "text only in the payload",
+    actionsJsH1: "H1 only in the payload",
     actionsSource: "Source",
     actionsSeen: "Seen on",
     actionsResolvedOn: "Resolved on",

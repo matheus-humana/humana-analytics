@@ -66,6 +66,9 @@ export type PageSignals = {
   wordCount: number;
   sentenceCount: number;
   averageSentenceWords: number | null;
+  payloadH1: number;
+  payloadWords: number;
+  textInPayload: boolean;
   error: string | null;
 };
 

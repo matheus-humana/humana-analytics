@@ -17,11 +17,12 @@ import {
 } from "./icons";
 import type { GithubPanelData } from "@/lib/github/types";
 import { formatScorePoints } from "@/lib/seo/explain";
+import { groupFindings } from "@/lib/seo/groups";
 import type { SeoWorkspace } from "@/lib/seo/view";
 
 import { GithubPanel } from "./github-panel";
 import { GeoPanel } from "./geo-panel";
-import { FindingCard, SeoPanel } from "./seo-panel";
+import { FindingGroupCard, SeoPanel } from "./seo-panel";
 import type { TrafficSummary } from "./workspace-traffic";
 
 type Copy = (key: WorkspaceMessageKey) => string;
@@ -317,8 +318,8 @@ export function ActionsColumn({
                   {seo.crawl ? text("actionsNoneOpen") : text("seoNoCrawl")}
                 </p>
               ) : (
-                seo.openFindings.map((item) => (
-                  <FindingCard key={item.fingerprint} locale={locale} item={item} text={text} />
+                groupFindings(seo.openFindings).map((group) => (
+                  <FindingGroupCard key={group.key} locale={locale} group={group} text={text} />
                 ))
               )}
             </section>
@@ -329,8 +330,8 @@ export function ActionsColumn({
               {seo.resolvedFindings.length === 0 ? (
                 <p className="text-sm text-muted">{text("actionsNoneResolved")}</p>
               ) : (
-                seo.resolvedFindings.map((item) => (
-                  <FindingCard key={item.fingerprint} locale={locale} item={item} text={text} />
+                groupFindings(seo.resolvedFindings).map((group) => (
+                  <FindingGroupCard key={group.key} locale={locale} group={group} text={text} />
                 ))
               )}
             </section>

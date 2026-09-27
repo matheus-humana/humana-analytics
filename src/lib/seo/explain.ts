@@ -76,11 +76,21 @@ const FINDINGS = {
   h1_missing: {
     "pt-BR": {
       title: "H1 ausente",
-      fix: "Inclua um único H1 no HTML da resposta. A varredura não executa JavaScript.",
+      fix: "Não há H1 no HTML nem no payload da página. Inclua um único H1 no HTML da resposta.",
     },
     en: {
       title: "Missing H1",
-      fix: "Include a single H1 in the HTML response. The crawl does not run JavaScript.",
+      fix: "There is no H1 in the HTML or in the page payload. Add a single H1 to the HTML response.",
+    },
+  },
+  h1_js_only: {
+    "pt-BR": {
+      title: "H1 só aparece com JavaScript",
+      fix: "O H1 está no payload RSC do Next (self.__next_f), não no HTML servido. O Google renderiza JavaScript, então para SEO isto é um aviso. Publique o H1 no HTML para não depender do render.",
+    },
+    en: {
+      title: "H1 only appears with JavaScript",
+      fix: "The H1 is in the Next.js RSC payload (self.__next_f), not in the served HTML. Google renders JavaScript, so for SEO this is a warning. Put the H1 in the HTML so it does not depend on rendering.",
     },
   },
   h1_multiple: {
@@ -253,6 +263,16 @@ const FINDINGS = {
       fix: "Write at least 120 words, in 2 or more sentences, averaging 8 to 32 words per sentence.",
     },
   },
+  geo_js_only: {
+    "pt-BR": {
+      title: "Conteúdo só aparece com JavaScript",
+      fix: "O H1 ou o texto principal está no payload RSC do Next, não no HTML servido. GPTBot, ClaudeBot e PerplexityBot em geral não executam JavaScript, então esse conteúdo não conta para GEO. Coloque o H1 e o texto no HTML da resposta.",
+    },
+    en: {
+      title: "Content only appears with JavaScript",
+      fix: "The H1 or the main text is in the Next.js RSC payload, not in the served HTML. GPTBot, ClaudeBot, and PerplexityBot generally do not run JavaScript, so that content does not count for GEO. Put the H1 and the text in the HTML response.",
+    },
+  },
 } as const;
 
 export type FindingCode = keyof typeof FINDINGS;
@@ -336,10 +356,16 @@ function explainGeoPt(
   }
   if (id === "headings") {
     if (evidence.fetched === false) return "A home não entrou nesta varredura.";
-    return `H1=${evidence.h1}, saltos de nível=${evidence.skips}. ${score}.`;
+    if (evidence.reason === "js_only") {
+      return `O H1 não está no HTML servido. Ele só aparece no payload RSC do Next (self.__next_f, ${evidence.payloadH1} na página). Robôs de IA em geral não executam JavaScript, então a estrutura não conta. ${score}.`;
+    }
+    return `H1=${evidence.h1} no HTML, saltos de nível=${evidence.skips}. ${score}.`;
   }
   if (evidence.fetched === false) return "A home não entrou nesta varredura.";
-  return `Palavras=${evidence.words}, frases=${evidence.sentences}, média=${evidence.average ?? "—"}. ${score}.`;
+  if (evidence.reason === "js_only") {
+    return `O texto principal não está no HTML (${evidence.words} palavras). Ele só aparece no payload RSC (${evidence.payloadWords} palavras). Isso não conta como legível para IA. ${score}.`;
+  }
+  return `Palavras=${evidence.words} no HTML, frases=${evidence.sentences}, média=${evidence.average ?? "—"}. ${score}.`;
 }
 
 function explainGeoEn(
@@ -373,8 +399,14 @@ function explainGeoEn(
   }
   if (id === "headings") {
     if (evidence.fetched === false) return "The homepage was not part of this crawl.";
-    return `H1=${evidence.h1}, skipped levels=${evidence.skips}. ${score}.`;
+    if (evidence.reason === "js_only") {
+      return `The H1 is not in the served HTML. It only appears in the Next.js RSC payload (self.__next_f, ${evidence.payloadH1} on the page). AI crawlers generally do not run JavaScript, so the structure does not count. ${score}.`;
+    }
+    return `H1=${evidence.h1} in the HTML, skipped levels=${evidence.skips}. ${score}.`;
   }
   if (evidence.fetched === false) return "The homepage was not part of this crawl.";
-  return `Words=${evidence.words}, sentences=${evidence.sentences}, average=${evidence.average ?? "—"}. ${score}.`;
+  if (evidence.reason === "js_only") {
+    return `The main text is not in the HTML (${evidence.words} words). It only appears in the RSC payload (${evidence.payloadWords} words). That does not count as readable for AI. ${score}.`;
+  }
+  return `Words=${evidence.words} in the HTML, sentences=${evidence.sentences}, average=${evidence.average ?? "—"}. ${score}.`;
 }

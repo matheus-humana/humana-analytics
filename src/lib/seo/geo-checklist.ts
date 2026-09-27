@@ -52,10 +52,14 @@ export function buildGeoChecklist(input: {
     readabilityRule(home),
   ];
   const scorePoints = rules.reduce((sum, rule) => sum + rule.earnedPoints, 0);
+  const ruleFindings = rules.flatMap((rule) => ruleFinding(input.projectId, input.siteUrl, rule));
+  const jsOnly = input.pages
+    .filter((page) => page.httpStatus >= 200 && page.httpStatus < 400)
+    .flatMap((page) => jsOnlyFinding(input.projectId, page));
   return {
     scorePoints,
     rules,
-    findings: rules.flatMap((rule) => ruleFinding(input.projectId, input.siteUrl, rule)),
+    findings: [...ruleFindings, ...jsOnly],
   };
 }
 
@@ -139,13 +143,21 @@ function headingsRule(home: PageSignals | null): GeoRuleResult {
     return rule("headings", 0, { page: home?.url ?? null, h1: 0, skips: 0, fetched: false });
   }
   const skips = headingSkipCount(home.headingLevels);
+  const jsOnly = home.h1.length === 0 && home.payloadH1 > 0;
   const single = home.h1.length === 1 ? HEADING_SLICE : 0;
   const ordered = skips === 0 && home.headingLevels.length > 0 ? HEADING_SLICE : 0;
-  return rule("headings", single + ordered, {
+  let reason = "ok";
+  if (jsOnly) reason = "js_only";
+  else if (home.h1.length === 0) reason = "missing";
+  else if (home.h1.length > 1) reason = "multiple";
+  else if (skips > 0) reason = "skips";
+  return rule("headings", jsOnly ? 0 : single + ordered, {
     page: home.url,
     h1: home.h1.length,
     skips,
     fetched: true,
+    reason,
+    payloadH1: home.payloadH1,
   });
 }
 
@@ -167,7 +179,9 @@ function readabilityRule(home: PageSignals | null): GeoRuleResult {
     home.averageSentenceWords <= 32
       ? READABILITY_SLICE
       : 0;
-  return rule("readability", words + sentences + average, {
+  const earned = words + sentences + average;
+  const reason = home.textInPayload && earned < GEO_WEIGHTS.readability ? "js_only" : earned === GEO_WEIGHTS.readability ? "ok" : "short";
+  return rule("readability", home.textInPayload ? 0 : earned, {
     page: home.url,
     words: home.wordCount,
     sentences: home.sentenceCount,
@@ -176,7 +190,19 @@ function readabilityRule(home: PageSignals | null): GeoRuleResult {
         ? null
         : Math.round(home.averageSentenceWords * 10) / 10,
     fetched: true,
+    reason,
+    payloadWords: home.payloadWords,
   });
+}
+
+function jsOnlyFinding(projectId: string, page: PageSignals): IncomingFinding[] {
+  const h1 = page.h1.length === 0 && page.payloadH1 > 0;
+  const text = page.textInPayload;
+  if (!h1 && !text) return [];
+  const parts = [h1 ? "h1" : null, text ? "text" : null].filter((part): part is string => Boolean(part));
+  return [
+    finding(projectId, "geo", "critical", "geo_js_only", page.url, parts.join(","), page.url),
+  ];
 }
 
 function ruleFinding(
@@ -185,6 +211,12 @@ function ruleFinding(
   item: GeoRuleResult
 ): IncomingFinding[] {
   if (item.passed) return [];
+  if (
+    (item.id === "headings" || item.id === "readability") &&
+    item.evidence.reason === "js_only"
+  ) {
+    return [];
+  }
   const blocked = String(item.evidence.blocked ?? "");
   const severity =
     item.id === "robots_ai" && blocked.length > 0 && item.earnedPoints === 0
@@ -205,9 +237,11 @@ function ruleFinding(
 
 function evidenceDetail(item: GeoRuleResult): string {
   if (item.id === "robots_ai") return String(item.evidence.blocked ?? "");
-  if (item.id === "headings") return `h1=${item.evidence.h1};skips=${item.evidence.skips}`;
+  if (item.id === "headings") {
+    return `h1=${item.evidence.h1};skips=${item.evidence.skips};reason=${item.evidence.reason ?? ""}`;
+  }
   if (item.id === "readability") {
-    return `words=${item.evidence.words};sentences=${item.evidence.sentences}`;
+    return `words=${item.evidence.words};sentences=${item.evidence.sentences};reason=${item.evidence.reason ?? ""}`;
   }
   if (String(item.id).startsWith("jsonld")) return String(item.evidence.types ?? "");
   if (item.id === "llms_present" || item.id === "llms_valid") {
