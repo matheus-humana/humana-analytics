@@ -5,15 +5,12 @@ import type { ReactNode } from "react";
 
 import { DashboardHeader, LiveGa4Dashboard } from "@/components/dashboard/live-ga4-dashboard";
 import { FreshnessBadge } from "@/components/freshness/freshness-badge";
-import { normalizeChatLocale } from "@/lib/ai/analytics-bot-contract";
+import { useLocale } from "@/components/i18n/locale-provider";
 import type { AnalyticsPeriodId } from "@/lib/analytics/period";
 import { GA4_POLL_INTERVAL_MS } from "@/lib/freshness/status";
 import type { Ga4DashboardSnapshot } from "@/lib/ga4/dashboard-cache";
-import { useLocalString } from "@/lib/workspace/browser-store";
-import { guestLocaleKey, workspaceLocaleKey } from "@/lib/workspace/prefs";
 
 type Props = {
-  userId: string;
   periodId: AnalyticsPeriodId;
   periodLabel: string;
   initial: Ga4DashboardSnapshot | null;
@@ -21,16 +18,12 @@ type Props = {
 };
 
 export function Ga4TrafficSection({
-  userId,
   periodId,
   periodLabel,
   initial,
   initialError,
 }: Props) {
-  const storedLocale = useLocalString(workspaceLocaleKey(userId));
-  const guestLocale = useLocalString(guestLocaleKey());
-  const locale =
-    normalizeChatLocale(storedLocale) ?? normalizeChatLocale(guestLocale) ?? "pt-BR";
+  const { locale } = useLocale();
 
   const serverKey = `${periodId}:${initial?.fetchedAt ?? ""}:${initialError ?? ""}`;
   const [generation, setGeneration] = useState(serverKey);

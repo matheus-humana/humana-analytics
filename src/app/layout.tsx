@@ -2,6 +2,9 @@ import type { Metadata } from "next";
 import { Geist_Mono, Montserrat, Poppins } from "next/font/google";
 import Script from "next/script";
 
+import { LocaleProvider } from "@/components/i18n/locale-provider";
+import { getLocaleCookieBootstrapScript, htmlLang } from "@/lib/i18n/locale";
+import { getRequestLocale } from "@/lib/i18n/request-locale";
 import { getAccentPresetBootstrapScript } from "@/lib/ui/accent-preset";
 
 import "./globals.css";
@@ -37,14 +40,16 @@ export const metadata: Metadata = {
   },
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const locale = await getRequestLocale();
+
   return (
     <html
-      lang="en"
+      lang={htmlLang(locale)}
       className={`${poppins.variable} ${montserrat.variable} ${geistMono.variable} h-full antialiased`}
       suppressHydrationWarning
     >
@@ -56,7 +61,14 @@ export default function RootLayout({
             __html: getAccentPresetBootstrapScript(),
           }}
         />
-        {children}
+        <Script
+          id="ha-locale-bootstrap"
+          strategy="beforeInteractive"
+          dangerouslySetInnerHTML={{
+            __html: getLocaleCookieBootstrapScript(),
+          }}
+        />
+        <LocaleProvider initialLocale={locale}>{children}</LocaleProvider>
       </body>
     </html>
   );

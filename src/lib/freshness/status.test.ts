@@ -1,7 +1,12 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { describeFreshness, LIVE_FRESH_MS, SNAPSHOT_FRESH_MS } from "./status.ts";
+import {
+  describeFreshness,
+  HOURLY_FRESH_MS,
+  LIVE_FRESH_MS,
+  SNAPSHOT_FRESH_MS,
+} from "./status.ts";
 
 const ZONE = "America/Sao_Paulo";
 /** 2026-09-28 09:00 in São Paulo (UTC-3). */
@@ -161,6 +166,80 @@ test("a failed snapshot collect is amber when a previous collect exists", () => 
   assert.equal(view.tone, "amber");
   assert.equal(view.pulse, false);
   assert.equal(view.label, "Desatualizado · última coleta hoje, 05:15");
+});
+
+test("an hourly GitHub collect from 40 minutes ago names the age and is not live", () => {
+  const view = describeFreshness({
+    cadence: "hourly",
+    observedAt: new Date(NOW - 40 * 60 * 1000).toISOString(),
+    ok: true,
+    now: NOW,
+    timeZone: ZONE,
+    locale: "pt-BR",
+  });
+  assert.equal(view.kind, "snapshot");
+  assert.equal(view.tone, "blue");
+  assert.equal(view.pulse, false);
+  assert.equal(view.label, "Atualizado há 40 min");
+});
+
+test("an hourly collect inside three hours stays blue in English", () => {
+  const view = describeFreshness({
+    cadence: "hourly",
+    observedAt: new Date(NOW - 2 * 60 * 60 * 1000).toISOString(),
+    ok: true,
+    now: NOW,
+    timeZone: ZONE,
+    locale: "en",
+  });
+  assert.ok(2 * 60 * 60 * 1000 <= HOURLY_FRESH_MS);
+  assert.equal(view.tone, "blue");
+  assert.equal(view.pulse, false);
+  assert.equal(view.label, "Updated 2 hours ago");
+});
+
+test("an hourly collect older than three hours is amber", () => {
+  const age = HOURLY_FRESH_MS + 60 * 1000;
+  const view = describeFreshness({
+    cadence: "hourly",
+    observedAt: new Date(NOW - age).toISOString(),
+    ok: true,
+    now: NOW,
+    timeZone: ZONE,
+    locale: "pt-BR",
+  });
+  assert.equal(view.kind, "stale");
+  assert.equal(view.tone, "amber");
+  assert.equal(view.pulse, false);
+  assert.equal(view.label, "Desatualizado · última coleta há 3 h");
+});
+
+test("a failed hourly collect is amber even when it is recent", () => {
+  const view = describeFreshness({
+    cadence: "hourly",
+    observedAt: new Date(NOW - 40 * 60 * 1000).toISOString(),
+    ok: false,
+    now: NOW,
+    timeZone: ZONE,
+    locale: "en",
+  });
+  assert.equal(view.tone, "amber");
+  assert.equal(view.pulse, false);
+  assert.equal(view.label, "Out of date · last collect 40 min ago");
+});
+
+test("an hourly source with nothing stored is gray", () => {
+  const view = describeFreshness({
+    cadence: "hourly",
+    observedAt: null,
+    ok: false,
+    now: NOW,
+    timeZone: ZONE,
+    locale: "pt-BR",
+  });
+  assert.equal(view.kind, "unavailable");
+  assert.equal(view.tone, "gray");
+  assert.equal(view.label, "Sem coleta");
 });
 
 test("a snapshot source with nothing stored is gray", () => {

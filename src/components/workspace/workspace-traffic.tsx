@@ -42,16 +42,9 @@ export async function loadTrafficPayload(period: AnalyticsPeriod): Promise<Traff
   }
 }
 
-export function WorkspaceTraffic({
-  payload,
-  userId,
-}: {
-  payload: TrafficPayload;
-  userId: string;
-}) {
+export function WorkspaceTraffic({ payload }: { payload: TrafficPayload }) {
   return (
     <Ga4TrafficSection
-      userId={userId}
       periodId={payload.periodId}
       periodLabel={payload.periodLabel}
       initial={payload.ga4}

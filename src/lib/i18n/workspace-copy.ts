@@ -102,7 +102,9 @@ export const workspaceCopy = {
     tabGithub: "GitHub",
     githubHeading: "Lançamento no GitHub",
     githubIntro:
-      "Views, clones e downloads do repositório. Os números vêm dos snapshots diários, separados do site.",
+      "Views, clones e downloads do repositório. A coleta roda de hora em hora e fica separada do site.",
+    githubTrafficLag:
+      "Views e clones podem atrasar horas ou dias na API do GitHub. O indicador mostra a nossa coleta, não o horário em que o GitHub publicou esses dias.",
     githubMissingToken:
       "GITHUB_TOKEN não está configurado. Sem token não há métricas para mostrar.",
     githubMissingRepo:
@@ -343,7 +345,9 @@ export const workspaceCopy = {
     tabGithub: "GitHub",
     githubHeading: "GitHub launch",
     githubIntro:
-      "Repository views, clones, and downloads. Figures come from daily snapshots, separate from the website.",
+      "Repository views, clones, and downloads. Collection runs hourly and stays separate from the website.",
+    githubTrafficLag:
+      "Views and clones can lag by hours or days on GitHub's API. The indicator shows our collect, not when GitHub published those days.",
     githubMissingToken:
       "GITHUB_TOKEN is not set. There are no metrics to show without a token.",
     githubMissingRepo:

@@ -28,9 +28,11 @@ type Props = {
   observedAt: string | null;
   ok: boolean;
   locale: ChatLocale;
+  /** Extra note, such as a delay that belongs to the source and not to our collect. */
+  hint?: string;
 };
 
-export function FreshnessBadge({ cadence, observedAt, ok, locale }: Props) {
+export function FreshnessBadge({ cadence, observedAt, ok, locale, hint }: Props) {
   const [now, setNow] = useState<number | null>(null);
 
   useEffect(() => {
@@ -61,7 +63,7 @@ export function FreshnessBadge({ cadence, observedAt, ok, locale }: Props) {
   return (
     <span
       className={`inline-flex items-center gap-1.5 text-xs ${TONE_TEXT[view.tone]}`}
-      title={view.label}
+      title={hint ? `${view.label}. ${hint}` : view.label}
     >
       <span
         aria-hidden

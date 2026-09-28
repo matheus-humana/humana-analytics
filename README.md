@@ -68,11 +68,11 @@ The MVP should support questions such as:
 | Provider           | Purpose                                  | Status |
 | ------------------ | ---------------------------------------- | ------ |
 | Google Analytics 4 | Site traffic, acquisition, events and pages | Live while the screen is open (polled) |
-| GitHub             | Repository views, clones, stars, release downloads | Daily snapshot, collected hourly |
+| GitHub             | Repository views, clones, stars, release downloads | Hourly collect of daily snapshots |
 | PageSpeed Insights | Lighthouse scores and Core Web Vitals | Daily snapshot |
 | SEO/GEO crawl      | On-page findings and the GEO checklist | Daily snapshot |
 
-Microsoft Clarity and Vercel Web Analytics are not shown and are not sent to the agent. Their tables, migrations and client modules remain in the repo, unused. Dashboards and the Humana Analytics agent query GA4, GitHub and SEO/GEO when credentials are configured. A disconnected source returns connect guidance instead of mock metrics. Apply `pnpm db:analytics:migrate` before the first sign-in. Moving the Google OAuth client and GA4 service account to the company GCP project is documented in [docs/gcp-oauth-migration.md](docs/gcp-oauth-migration.md). GitHub setup (token scope, daily snapshot, 14-day traffic window, Vercel Cron) is in [docs/github-source.md](docs/github-source.md).
+Dashboards and the Humana Analytics agent query GA4, GitHub, PageSpeed, and SEO/GEO when credentials are configured. A disconnected source returns connect guidance instead of mock metrics. Apply `pnpm db:analytics:migrate` before the first sign-in. Moving the Google OAuth client and GA4 service account to the company GCP project is documented in [docs/gcp-oauth-migration.md](docs/gcp-oauth-migration.md). GitHub setup (token scope, hourly collect, 14-day traffic window, Vercel Cron) is in [docs/github-source.md](docs/github-source.md).
 
 ## Architecture
 
@@ -93,17 +93,17 @@ Microsoft Clarity and Vercel Web Analytics are not shown and are not sent to the
                            ▼
                        REPOSITORY
                            │
-              ┌────────────┼────────────┐
-              ▼            ▼            ▼
-          GA4      CLARITY     VERCEL     GITHUB
-         ADAPTER    ADAPTER    ADAPTER    ADAPTER
-              │            │            │
-              ▼            ▼            ▼
-             APIs         APIs         APIs
-                           │
-                           ▼
-                      PostgreSQL
+         ┌─────────┬───────┴────────┬──────────┐
+         ▼         ▼                ▼          ▼
+        GA4      GITHUB          PAGESPEED   SEO/GEO
+     (traffic)  (hourly)          (daily)    (daily)
+         │         │                │          │
+         └─────────┴────────┬───────┴──────────┘
+                            ▼
+                       PostgreSQL
 ```
+
+Microsoft Clarity and Vercel Web Analytics were turned off. Their historical rows stay in the database.
 
 ## Core Concepts
 
@@ -124,7 +124,7 @@ Example:
 ```text
 Organization
 └── Project: Humana Website
-    ├── Google Analytics 4
+    ├── Google Analytics 4 (site traffic)
     ├── PageSpeed and SEO/GEO crawl
     └── GitHub (its own project, not the website property)
 ```
@@ -149,7 +149,7 @@ comparePeriods
 
 ## Data Strategy
 
-The initial GA4 MVP queries the GA4 Data API directly. GitHub and SEO/GEO are stored as daily snapshots.
+The initial GA4 MVP queries the GA4 Data API directly. GitHub is collected hourly and SEO/GEO once a day; both are stored as daily snapshots.
 
 As the product evolves, selected analytics data will be collected and persisted in PostgreSQL to provide:
 
@@ -160,7 +160,7 @@ As the product evolves, selected analytics data will be collected and persisted 
 * Trend analysis
 * Future anomaly detection
 
-Microsoft Clarity and Vercel Web Analytics were explored earlier and are not product sources. Their database tables stay.
+Microsoft Clarity and Vercel Web Analytics were turned off. The `clarity` and `vercel` provider values, migrations, and any historical rows stay in the database.
 
 ## Security
 

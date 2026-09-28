@@ -44,12 +44,13 @@ export function GithubPanel({
       <div className="flex flex-wrap items-center gap-2">
         <PeriodSwitch periodId={data.periodId} text={text} />
         <FreshnessBadge
-          cadence="snapshot"
+          cadence="hourly"
           observedAt={data.collectedAt}
           ok={data.status === "active"}
           locale={locale}
+          hint={text("githubTrafficLag")}
         />
-        <InfoTip text={text("githubIntro")} />
+        <InfoTip text={`${text("githubIntro")} ${text("githubTrafficLag")}`} />
       </div>
 
       {!data.configured ? (

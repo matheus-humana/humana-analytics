@@ -61,7 +61,7 @@ export default async function DashboardPage({ searchParams }: PageProps) {
       userEmail={user.email}
       model={model}
       trafficSummary={traffic.summary}
-      traffic={<WorkspaceTraffic payload={traffic} userId={user.id} />}
+      traffic={<WorkspaceTraffic payload={traffic} />}
       github={github}
       seo={seo}
     />

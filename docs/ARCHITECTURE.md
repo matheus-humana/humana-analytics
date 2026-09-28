@@ -38,6 +38,8 @@ The application must allow an organization to connect one or more analytics prov
                 └───────────────┘
 ```
 
+Traffic comes from Google Analytics 4. GitHub is collected hourly. PageSpeed and the SEO/GEO crawl run once a day. Microsoft Clarity and Vercel Web Analytics were turned off; historical rows stay in the database.
+
 ## 3. Application Structure
 
 The application uses Next.js App Router.
@@ -71,8 +73,9 @@ src/
 │   │
 │   ├── analytics/
 │   │   ├── ga4/
-│   │   ├── clarity/
-│   │   ├── vercel/
+│   │   ├── github/
+│   │   ├── pagespeed/
+│   │   ├── seo/
 │   │   └── repository/
 │   │
 │   ├── auth/
@@ -111,9 +114,9 @@ Example:
 Humana AI
 │
 └── Humana Website
-    ├── Google Analytics
-    ├── Microsoft Clarity
-    └── Vercel Analytics
+    ├── Google Analytics 4 (traffic)
+    ├── PageSpeed and SEO/GEO crawl
+    └── GitHub (its own project)
 ```
 
 ## 5. Initial Database Model
@@ -140,7 +143,6 @@ analytics_daily
 analytics_pages
 analytics_events
 analytics_traffic_sources
-clarity_metrics
 ```
 
 The database should store only data required by product functionality rather than attempting to replicate an external analytics platform.
@@ -164,13 +166,16 @@ created_at
 updated_at
 ```
 
-Supported providers:
+Supported providers in the product:
 
 ```text
-google_analytics
-microsoft_clarity
-vercel_analytics
+ga4
+github
+pagespeed
+crawl
 ```
+
+`clarity` and `vercel` remain in the database enum. They are not shown and are not sent to the agent.
 
 Credentials are stored separately.
 
@@ -350,9 +355,7 @@ The response should include the relevant period and, where useful, the source.
 
 ## 12. Data Collection
 
-The initial MVP may query GA4 directly.
-
-Later, scheduled collectors will persist selected data:
+GA4 is read while the screen is open. GitHub, PageSpeed, and the SEO/GEO crawl are stored as snapshots. GitHub is collected hourly. PageSpeed and the crawl run once a day.
 
 ```text
 Scheduler
@@ -365,8 +368,6 @@ Normalization
     ↓
 PostgreSQL
 ```
-
-This becomes particularly important for Microsoft Clarity because its API has limited historical access and request volume.
 
 ## 13. Security Boundaries
 
@@ -445,20 +446,17 @@ M1
 GA4 → Agent → Chat
 
 M2
-Clarity → Collector → PostgreSQL → Agent
+GitHub, PageSpeed, and SEO/GEO snapshots → Agent
 
 M3
-Vercel → Agent
-
-M4
 Cross-source analysis
 
-M5
+M4
 Historical trends
 Anomaly detection
 Automated insights
 
-M6
+M5
 Internal Marketing demonstration
 
 Future
