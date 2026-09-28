@@ -1,6 +1,6 @@
 /**
  * Shared analytics period presets.
- * Shared by GA4, Clarity, Vercel, and Humana Analytics via URL `?period=`.
+ * Shared by GA4 and Humana Analytics via URL `?period=`.
  */
 
 export const ANALYTICS_PERIOD_IDS = [
@@ -19,7 +19,7 @@ export type AnalyticsPeriod = {
   shortLabel: string;
   /** Inclusive calendar window expressed for GA4 Data API. */
   ga4: { startDate: string; endDate: string };
-  /** Hint for providers that support rolling hours (Clarity, etc.). */
+  /** Hint for providers that support rolling hours. */
   rollingHours: number | null;
 };
 

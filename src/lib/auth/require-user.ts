@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 
 import { auth } from "@/lib/auth";
+import { isAllowedCompanyEmail } from "@/lib/auth/allowed-domains";
 
 export type SessionUser = {
   id: string;
@@ -33,6 +34,16 @@ export async function requireSessionUser(): Promise<
       response: NextResponse.json(
         { ok: false, error: "Sign in required." },
         { status: 401 }
+      ),
+    };
+  }
+
+  if (!isAllowedCompanyEmail(user.email)) {
+    return {
+      user: null,
+      response: NextResponse.json(
+        { ok: false, error: "Access denied." },
+        { status: 403 }
       ),
     };
   }

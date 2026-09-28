@@ -4,8 +4,6 @@ import { workspaceText } from "@/lib/i18n/workspace-copy";
 
 export const CONNECTION_PROVIDERS = [
   "ga4",
-  "clarity",
-  "vercel",
   "github",
   "pagespeed",
   "crawl",
@@ -36,8 +34,6 @@ export type StatusItem = {
 
 const PROVIDER_LABEL: Record<ConnectionProvider, string> = {
   ga4: "GA4",
-  clarity: "Clarity",
-  vercel: "Vercel",
   github: "GitHub",
   pagespeed: "PageSpeed",
   crawl: "Crawl",

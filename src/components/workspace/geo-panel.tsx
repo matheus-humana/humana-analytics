@@ -1,5 +1,6 @@
 "use client";
 
+import { FreshnessBadge } from "@/components/freshness/freshness-badge";
 import type { ChatLocale } from "@/lib/ai/analytics-bot-contract";
 import { workspaceText, type WorkspaceMessageKey } from "@/lib/i18n/workspace-copy";
 import { explainBot, explainGeoRule, formatScorePoints } from "@/lib/seo/explain";
@@ -19,24 +20,38 @@ export function GeoPanel({ locale, data }: { locale: ChatLocale; data: SeoWorksp
   const text = (key: WorkspaceMessageKey) => workspaceText(locale, key);
   if (!data.configured) {
     return (
-      <EmptyLine
-        title={text("geoHeading")}
-        detail={
-          data.detail === "invalid_site_url"
-            ? text("seoInvalidSite")
-            : !data.detail || data.detail === "missing_site_url"
-              ? text("seoMissingSite")
-              : data.detail
-        }
-      />
+      <div className="space-y-4">
+        <FreshnessBadge
+          cadence="snapshot"
+          observedAt={data.crawlUpdatedAt}
+          ok={false}
+          locale={locale}
+        />
+        <EmptyLine
+          title={text("geoHeading")}
+          detail={
+            data.detail === "invalid_site_url"
+              ? text("seoInvalidSite")
+              : !data.detail || data.detail === "missing_site_url"
+                ? text("seoMissingSite")
+                : data.detail
+          }
+        />
+      </div>
     );
   }
 
   const crawl = data.crawl;
   return (
     <div className="space-y-6">
-      <header className="flex min-w-0 items-center gap-1">
+      <header className="flex min-w-0 flex-wrap items-center gap-2">
         <h3 className="truncate text-sm font-medium text-foreground">{text("geoHeading")}</h3>
+        <FreshnessBadge
+          cadence="snapshot"
+          observedAt={data.crawlUpdatedAt}
+          ok={data.crawlStatus === "active"}
+          locale={locale}
+        />
         <InfoTip text={text("geoIntro")} />
       </header>
 

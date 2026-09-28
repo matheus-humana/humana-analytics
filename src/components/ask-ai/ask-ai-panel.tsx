@@ -328,7 +328,7 @@ export function AskAiPanel({
       <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div>
           <div className="mb-2 inline-flex items-center rounded-full border border-accent bg-accent-soft px-2.5 py-1 text-xs text-accent">
-            GA4 · Clarity · Vercel
+            GA4 · GitHub · PageSpeed · SEO/GEO
           </div>
           <h1 className="font-display text-2xl font-semibold tracking-tight text-foreground sm:text-3xl">
             Humana Analytics

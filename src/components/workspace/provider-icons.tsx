@@ -2,7 +2,7 @@ import type { ConnectionProvider } from "@/lib/workspace/status-log";
 
 type Props = { provider: ConnectionProvider; className?: string };
 
-/** Brand marks from Simple Icons (CC0). Clarity uses Microsoft's own site icon. */
+/** Brand marks from Simple Icons (CC0). */
 export function ProviderIcon({ provider, className = "h-5 w-5" }: Props) {
   if (provider === "ga4") {
     return (
@@ -15,19 +15,6 @@ export function ProviderIcon({ provider, className = "h-5 w-5" }: Props) {
           fill="#E37400"
           d="M4.1326 18.0548c-1.6417 0-2.9726 1.331-2.9726 2.9726C1.16 22.6691 2.4909 24 4.1326 24s2.9726-1.3309 2.9726-2.9726-1.331-2.9726-2.9726-2.9726zm7.8728-9.0098c-.0171 0-.0342 0-.0513.0003-1.6495.0904-2.9293 1.474-2.891 3.1256v7.9846c0 2.167.9535 3.4825 2.3505 3.763 1.6118.3266 3.1832-.7152 3.5098-2.327.04-.1974.06-.3983.0593-.5998v-8.9585c.003-1.6474-1.33-2.9852-2.9773-2.9882z"
         />
-      </svg>
-    );
-  }
-  if (provider === "clarity") {
-    return (
-      // eslint-disable-next-line @next/next/no-img-element
-      <img src="/integrations/clarity.png" alt="Microsoft Clarity" className={className} />
-    );
-  }
-  if (provider === "vercel") {
-    return (
-      <svg viewBox="0 0 24 24" className={className} role="img" aria-label="Vercel">
-        <path fill="#000000" d="m12 1.608 12 20.784H0Z" />
       </svg>
     );
   }

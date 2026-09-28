@@ -27,6 +27,7 @@ import {
 } from "@/lib/workspace/browser-store";
 import {
   parseWorkspacePrefs,
+  guestLocaleKey,
   workspaceLocaleKey,
   workspacePrefsKey,
   type WorkspaceMode,
@@ -66,7 +67,9 @@ export function WorkspaceScreen({
   seo,
 }: Props) {
   const storedLocale = useLocalString(workspaceLocaleKey(userId));
-  const locale = normalizeChatLocale(storedLocale) ?? "pt-BR";
+  const guestLocale = useLocalString(guestLocaleKey());
+  const locale =
+    normalizeChatLocale(storedLocale) ?? normalizeChatLocale(guestLocale) ?? "pt-BR";
   const storedPrefs = useLocalString(workspacePrefsKey(userId));
   const prefs = parseWorkspacePrefs(storedPrefs);
   const mobile = useMediaQuery("(max-width: 1023px)");

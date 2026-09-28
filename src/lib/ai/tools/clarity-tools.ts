@@ -1,3 +1,7 @@
+/**
+ * Not registered with the analytics agent. Clarity is not a product source.
+ * The module stays so the integration can be restored without rewriting it.
+ */
 import { hasClarityCredentials } from "@/lib/analytics/clarity-source";
 import { resolveAnalyticsPeriod } from "@/lib/analytics/period";
 import { fetchClarityLiveInsights } from "@/lib/clarity/fetch-report";

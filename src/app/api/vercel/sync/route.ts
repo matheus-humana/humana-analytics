@@ -1,25 +1,14 @@
 import { NextResponse } from "next/server";
 
-import { requireSessionUser } from "@/lib/auth/require-user";
-import { fetchVercelSyncPreview } from "@/lib/vercel/fetch-report";
-
-export const dynamic = "force-dynamic";
-
+/**
+ * Vercel Web Analytics is not a product source. The client remains in
+ * src/lib/vercel and src/lib/analytics/vercel-source.ts, and the database
+ * tables are unchanged. This route no longer calls the API.
+ * CRON_SECRET and the Vercel platform still run the GitHub and SEO crons.
+ */
 export async function POST() {
-  const authResult = await requireSessionUser();
-  if (!authResult.user) return authResult.response;
-
-  try {
-    const report = await fetchVercelSyncPreview();
-    return NextResponse.json({
-      ok: true,
-      source: "vercel",
-      periodLabel: report.periodLabel,
-      totals: report.totals,
-    });
-  } catch (error) {
-    const message =
-      error instanceof Error ? error.message : "Vercel sync failed";
-    return NextResponse.json({ ok: false, error: message }, { status: 500 });
-  }
+  return NextResponse.json(
+    { ok: false, error: "Vercel Analytics is not used as a traffic source." },
+    { status: 410 }
+  );
 }
