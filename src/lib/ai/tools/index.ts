@@ -1,6 +1,7 @@
 import { clarityToolDefinitions, executeClarityTool } from "./clarity-tools";
 import { executeGa4Tool, ga4ToolDefinitions } from "./ga4-tools";
 import { executeGithubTool, githubToolDefinitions } from "./github-tools";
+import { executeSeoTool, seoToolDefinitions } from "./seo-tools";
 import { executeVercelTool, vercelToolDefinitions } from "./vercel-tools";
 
 export const analyticsToolDefinitions = [
@@ -8,6 +9,7 @@ export const analyticsToolDefinitions = [
   ...clarityToolDefinitions,
   ...vercelToolDefinitions,
   ...githubToolDefinitions,
+  ...seoToolDefinitions,
 ];
 
 const CLARITY_TOOLS = new Set([
@@ -23,6 +25,8 @@ const GITHUB_TOOLS = new Set([
   "get_github_referrers",
   "get_github_downloads",
 ]);
+
+const SEO_TOOLS = new Set(["get_seo_overview", "get_geo_overview"]);
 
 const GA4_TOOLS = new Set([
   "get_overview",
@@ -48,6 +52,9 @@ export async function executeAnalyticsTool(
   }
   if (GITHUB_TOOLS.has(name)) {
     return executeGithubTool(name, rawArgs, defaultPeriod);
+  }
+  if (SEO_TOOLS.has(name)) {
+    return executeSeoTool(name, rawArgs, defaultPeriod);
   }
   return {
     error: `Unknown tool: ${name}`,

@@ -4,6 +4,7 @@ import { getClarityConnectionStatus } from "@/lib/analytics/clarity-source";
 import { getGa4ConnectionStatus } from "@/lib/analytics/ga4-source";
 import { getVercelConnectionStatus } from "@/lib/analytics/vercel-source";
 import { getGithubConnectionStatus } from "@/lib/github/status";
+import { getSeoConnectionStatus } from "@/lib/seo/status";
 import { DataSourcesPanel } from "@/components/data-sources/data-sources-panel";
 
 function publicGa4Status(
@@ -48,6 +49,22 @@ export default async function DataSourcesPage() {
     status: "not_connected",
     detail: "missing_token" as string | null,
     repos: [] as string[],
+  };
+
+  let initialSeo = {
+    siteUrl: null as string | null,
+    pagespeed: {
+      connected: false,
+      status: "not_connected",
+      detail: "missing_site_url" as string | null,
+      updatedAt: null as string | null,
+    },
+    crawl: {
+      connected: false,
+      status: "not_connected",
+      detail: "missing_site_url" as string | null,
+      updatedAt: null as string | null,
+    },
   };
 
   try {
@@ -101,6 +118,17 @@ export default async function DataSourcesPage() {
     };
   }
 
+  try {
+    initialSeo = await getSeoConnectionStatus();
+  } catch (error) {
+    const detail = error instanceof Error ? error.message : "SEO status failed";
+    initialSeo = {
+      siteUrl: null,
+      pagespeed: { connected: false, status: "error", detail, updatedAt: null },
+      crawl: { connected: false, status: "error", detail, updatedAt: null },
+    };
+  }
+
   return (
     <Suspense
       fallback={
@@ -112,6 +140,7 @@ export default async function DataSourcesPage() {
         initialClarity={initialClarity}
         initialVercel={initialVercel}
         initialGithub={initialGithub}
+        initialSeo={initialSeo}
       />
     </Suspense>
   );

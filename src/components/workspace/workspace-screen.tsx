@@ -31,6 +31,7 @@ import {
 import { IconChevron } from "./icons";
 import { WorkspacePanels } from "./workspace-panels";
 import type { GithubPanelData } from "@/lib/github/types";
+import type { SeoWorkspace } from "@/lib/seo/view";
 
 import type { TrafficSummary } from "./workspace-traffic";
 
@@ -41,6 +42,7 @@ type Props = {
   trafficSummary: TrafficSummary | null;
   traffic: React.ReactNode;
   github: GithubPanelData;
+  seo: SeoWorkspace;
 };
 
 export function WorkspaceScreen({
@@ -50,6 +52,7 @@ export function WorkspaceScreen({
   trafficSummary,
   traffic,
   github,
+  seo,
 }: Props) {
   const storedLocale = useLocalString(workspaceLocaleKey(userId));
   const locale = normalizeChatLocale(storedLocale) ?? "pt-BR";
@@ -152,6 +155,7 @@ export function WorkspaceScreen({
             traffic={traffic}
             trafficSummary={trafficSummary}
             github={github}
+            seo={seo}
             mobileChatOpen={mobileChatOpen}
             onMobileChatOpen={setMobileChatOpen}
             onChatActivity={(signal) =>

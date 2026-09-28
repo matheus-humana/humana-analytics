@@ -4,6 +4,7 @@ import { getClarityConnectionStatus } from "@/lib/analytics/clarity-source";
 import { getGa4ConnectionStatus } from "@/lib/analytics/ga4-source";
 import { getVercelConnectionStatus } from "@/lib/analytics/vercel-source";
 import { getGithubConnectionStatus } from "@/lib/github/status";
+import { getSeoConnectionStatus } from "@/lib/seo/status";
 import { requireSessionUser } from "@/lib/auth/require-user";
 
 export const dynamic = "force-dynamic";
@@ -30,11 +31,21 @@ export async function GET() {
   if (!authResult.user) return authResult.response;
 
   try {
-    const [ga4Raw, clarityRaw, vercelRaw, githubRaw] = await Promise.all([
+    const [ga4Raw, clarityRaw, vercelRaw, githubRaw, seoRaw] = await Promise.all([
       getGa4ConnectionStatus(),
       getClarityConnectionStatus(),
       getVercelConnectionStatus(),
       getGithubConnectionStatus(),
+      getSeoConnectionStatus().catch((error: unknown) => {
+        const detail = error instanceof Error ? error.message : "SEO status failed";
+        const failed = {
+          connected: false,
+          status: "error" as const,
+          detail,
+          updatedAt: null,
+        };
+        return { siteUrl: null, pagespeed: failed, crawl: { ...failed } };
+      }),
     ]);
 
     const ga4 = publicGa4(ga4Raw);
@@ -53,6 +64,11 @@ export async function GET() {
       clarity,
       vercel,
       github,
+      seo: {
+        siteUrl: seoRaw.siteUrl,
+        pagespeed: seoRaw.pagespeed,
+        crawl: seoRaw.crawl,
+      },
     });
   } catch (error) {
     const message =

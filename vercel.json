@@ -3,6 +3,14 @@
     {
       "path": "/api/github/collect",
       "schedule": "15 8 * * *"
+    },
+    {
+      "path": "/api/seo/crawl",
+      "schedule": "20 8 * * *"
+    },
+    {
+      "path": "/api/seo/pagespeed",
+      "schedule": "40 8 * * *"
     }
   ]
 }

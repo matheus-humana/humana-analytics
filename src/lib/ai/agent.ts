@@ -9,6 +9,7 @@ import { getGa4ConnectionStatus } from "@/lib/analytics/ga4-source";
 import { resolveAnalyticsPeriod } from "@/lib/analytics/period";
 import { getVercelConnectionStatus } from "@/lib/analytics/vercel-source";
 import { getGithubConnectionStatus } from "@/lib/github/status";
+import { getSeoConnectionStatus } from "@/lib/seo/status";
 
 import type { StoredTurn } from "./conversations";
 import { buildHumanaAnalyticsPrompt } from "./prompts";
@@ -54,11 +55,12 @@ function usageFromResponse(response: {
 }
 
 async function connectedSources() {
-  const [ga4, clarity, vercel, github] = await Promise.all([
+  const [ga4, clarity, vercel, github, seo] = await Promise.all([
     getGa4ConnectionStatus().catch(() => ({ connected: false })),
     getClarityConnectionStatus().catch(() => ({ connected: false })),
     getVercelConnectionStatus().catch(() => ({ connected: false })),
     getGithubConnectionStatus().catch(() => ({ connected: false })),
+    getSeoConnectionStatus().catch(() => null),
   ]);
 
   return {
@@ -66,6 +68,8 @@ async function connectedSources() {
     clarity: clarity.connected,
     vercel: vercel.connected,
     github: github.connected,
+    seo: Boolean(seo?.pagespeed.connected),
+    geo: Boolean(seo?.crawl.connected),
   };
 }
 

@@ -50,6 +50,13 @@
       "when": 1790355125834,
       "tag": "0006_github_snapshots",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1790520468965,
+      "tag": "0007_motionless_rogue",
+      "breakpoints": true
     }
   ]
 }

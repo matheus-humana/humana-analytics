@@ -461,3 +461,67 @@ export async function fetchGa4Events(periodInput?: string | null) {
     })),
   };
 }
+
+export async function fetchGa4AiReferrals(
+  sources: string[],
+  periodInput?: string | null
+) {
+  const hosts = sources.map((source) => source.trim().toLowerCase()).filter(Boolean);
+  const { period, accessToken, propertyId } = await openGa4Report(periodInput);
+  if (hosts.length === 0) {
+    return {
+      source: "Google Analytics 4" as const,
+      period: period.label,
+      periodId: period.id,
+      sessions: 0,
+      activeUsers: 0,
+      sources: [] as Array<{ source: string; sessions: number; activeUsers: number }>,
+      queriedSources: hosts,
+    };
+  }
+
+  const dimensionFilter = {
+    orGroup: {
+      expressions: hosts.map((host) => ({
+        filter: {
+          fieldName: "sessionSource",
+          stringFilter: {
+            matchType: "CONTAINS",
+            value: host,
+            caseSensitive: false,
+          },
+        },
+      })),
+    },
+  };
+
+  const [totals, breakdown] = await Promise.all([
+    runGa4Report(propertyId, accessToken, {
+      dateRanges: [period.ga4],
+      metrics: [{ name: "activeUsers" }, { name: "sessions" }],
+      dimensionFilter,
+    }),
+    runGa4Report(propertyId, accessToken, {
+      dateRanges: [period.ga4],
+      dimensions: [{ name: "sessionSource" }],
+      metrics: [{ name: "activeUsers" }, { name: "sessions" }],
+      dimensionFilter,
+      orderBys: [{ metric: { metricName: "sessions" }, desc: true }],
+      limit: 25,
+    }),
+  ]);
+
+  return {
+    source: "Google Analytics 4" as const,
+    period: period.label,
+    periodId: period.id,
+    sessions: metricNumber(totals.rows, 1),
+    activeUsers: metricNumber(totals.rows, 0),
+    sources: (breakdown.rows ?? []).map((row) => ({
+      source: row.dimensionValues?.[0]?.value || "(not set)",
+      activeUsers: Number(row.metricValues?.[0]?.value ?? 0),
+      sessions: Number(row.metricValues?.[1]?.value ?? 0),
+    })),
+    queriedSources: hosts,
+  };
+}

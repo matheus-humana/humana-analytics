@@ -34,6 +34,8 @@ export type OutboundPayload = {
   createdAt: string;
   /** Aggregated GitHub snapshots when the bridge is used. Omitted by older callers. */
   github?: unknown;
+  /** Aggregated SEO/GEO snapshots and GA4 AI-referral totals. Omitted by older callers. */
+  seo?: unknown;
 };
 
 const ID_PATTERN = /^[A-Za-z0-9_-]{1,200}$/;

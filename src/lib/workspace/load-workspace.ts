@@ -8,6 +8,7 @@ import { getVercelConnectionStatus } from "@/lib/analytics/vercel-source";
 import { readGithubConfig } from "@/lib/github/config";
 import { ensureGithubProjects } from "@/lib/github/projects";
 import { getGithubConnectionStatus } from "@/lib/github/status";
+import { getSeoConnectionStatus } from "@/lib/seo/status";
 import { db } from "@/lib/db";
 import { dataSources, projects } from "@/lib/db/schema";
 import { hasGoogleServiceAccount } from "@/lib/google/service-account";
@@ -117,17 +118,25 @@ async function loadConnections(): Promise<ConnectionSnapshot[]> {
     // Status can still come from env. A missing timestamp stays blank.
   }
 
-  const [ga4, clarity, vercel, github] = await Promise.all([
+  const [ga4, clarity, vercel, github, seo] = await Promise.all([
     safeGa4(),
     safeClarity(),
     safeVercel(),
     safeGithub(),
+    safeSeo(),
   ]);
 
   const byProvider: Record<
     ConnectionProvider,
-    { connected: boolean; status: string; detail: string | null }
-  > = { ga4, clarity, vercel, github };
+    { connected: boolean; status: string; detail: string | null; updatedAt?: string | null }
+  > = {
+    ga4,
+    clarity,
+    vercel,
+    github,
+    pagespeed: seo.pagespeed,
+    crawl: seo.crawl,
+  };
 
   return CONNECTION_PROVIDERS.map((provider) => ({
     provider,
@@ -137,7 +146,9 @@ async function loadConnections(): Promise<ConnectionSnapshot[]> {
     updatedAt:
       provider === "github" && github.updatedAt
         ? github.updatedAt
-        : updatedAt.get(provider) ?? null,
+        : provider === "pagespeed" || provider === "crawl"
+          ? byProvider[provider].updatedAt ?? null
+          : updatedAt.get(provider) ?? null,
   }));
 }
 
@@ -166,6 +177,20 @@ async function safeGithub(): Promise<{
       detail: error instanceof Error ? error.message : "GitHub status failed",
       updatedAt: null,
     };
+  }
+}
+
+async function safeSeo(): Promise<{
+  pagespeed: { connected: boolean; status: string; detail: string | null; updatedAt: string | null };
+  crawl: { connected: boolean; status: string; detail: string | null; updatedAt: string | null };
+}> {
+  try {
+    const status = await getSeoConnectionStatus();
+    return { pagespeed: status.pagespeed, crawl: status.crawl };
+  } catch (error) {
+    const detail = error instanceof Error ? error.message : "SEO status failed";
+    const failed = { connected: false, status: "error", detail, updatedAt: null };
+    return { pagespeed: failed, crawl: { ...failed } };
   }
 }
 
