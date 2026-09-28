@@ -23,10 +23,10 @@ test("disconnected tool payload does not include metrics", () => {
   assert.equal("visitors" in payload, false);
 });
 
-test("system prompt requires grounded bilingual answers", () => {
+test("system prompt requires grounded bilingual answers and does not offer Clarity or Vercel", () => {
   const prompt = buildHumanaAnalyticsPrompt({
     periodLabel: "Últimos 7 dias",
-    sources: { ga4: true, clarity: false, vercel: true, github: false },
+    sources: { ga4: true, github: true, seo: true, geo: false },
   });
   assert.match(prompt, /Humana Analytics/);
   assert.match(prompt, /Never invent/);
@@ -34,7 +34,10 @@ test("system prompt requires grounded bilingual answers", () => {
   assert.match(prompt, /English/);
   assert.match(prompt, /Últimos 7 dias/);
   assert.match(prompt, /Google Analytics 4/);
-  assert.match(prompt, /Vercel Analytics/);
-  assert.match(prompt, /No analytics source is connected|Connected sources/);
-  assert.match(prompt, /Microsoft Clarity/);
+  assert.match(prompt, /GitHub/);
+  assert.match(prompt, /PageSpeed Insights/);
+  assert.match(prompt, /Connected sources/);
+  assert.doesNotMatch(prompt, /Connected sources:.*Vercel Analytics/);
+  assert.doesNotMatch(prompt, /Connected sources:.*Microsoft Clarity/);
+  assert.match(prompt, /Do not use Microsoft Clarity or Vercel Analytics/);
 });

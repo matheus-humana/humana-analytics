@@ -128,3 +128,25 @@ h4,
   font-family: var(--font-display);
   letter-spacing: -0.02em;
 }
+
+@keyframes ha-live-pulse {
+  0% {
+    box-shadow: 0 0 0 0 color-mix(in srgb, var(--status-on) 55%, transparent);
+  }
+  70% {
+    box-shadow: 0 0 0 6px transparent;
+  }
+  100% {
+    box-shadow: 0 0 0 0 transparent;
+  }
+}
+
+.ha-live-dot {
+  animation: ha-live-pulse 1.8s ease-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ha-live-dot {
+    animation: none;
+  }
+}

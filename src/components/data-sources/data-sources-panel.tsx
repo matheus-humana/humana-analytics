@@ -9,16 +9,6 @@ type Ga4ConnectionStatus = {
   authMode?: "service_account" | "oauth" | null;
 };
 
-type ClarityConnectionStatus = {
-  connected: boolean;
-  status: string;
-};
-
-type VercelConnectionStatus = {
-  connected: boolean;
-  status: string;
-};
-
 type Ga4SyncResult = {
   ok: boolean;
   error?: string;
@@ -26,28 +16,6 @@ type Ga4SyncResult = {
     activeUsers: number;
     sessions: number;
     screenPageViews: number;
-  };
-};
-
-type ClaritySyncResult = {
-  ok: boolean;
-  error?: string;
-  periodLabel?: string;
-  totals?: {
-    sessions: number;
-    distantUsers: number;
-    rageClicks: number;
-    deadClicks: number;
-  };
-};
-
-type VercelSyncResult = {
-  ok: boolean;
-  error?: string;
-  periodLabel?: string;
-  totals?: {
-    visitors: number;
-    pageviews: number;
   };
 };
 
@@ -84,16 +52,12 @@ type SeoConnectionStatus = {
 
 type Props = {
   initialGa4: Ga4ConnectionStatus;
-  initialClarity: ClarityConnectionStatus;
-  initialVercel: VercelConnectionStatus;
   initialGithub: GithubConnectionStatus;
   initialSeo: SeoConnectionStatus;
 };
 
 export function DataSourcesPanel({
   initialGa4,
-  initialClarity,
-  initialVercel,
   initialGithub,
   initialSeo,
 }: Props) {
@@ -105,37 +69,24 @@ export function DataSourcesPanel({
   const oauthError = searchParams.get("error");
 
   const [ga4, setGa4] = useState<Ga4ConnectionStatus>(initialGa4);
-  const [clarity, setClarity] =
-    useState<ClarityConnectionStatus>(initialClarity);
-  const [vercel, setVercel] = useState<VercelConnectionStatus>(initialVercel);
   const [github, setGithub] = useState<GithubConnectionStatus>(initialGithub);
   const [seo, setSeo] = useState<SeoConnectionStatus>(initialSeo);
   const [localMessage, setLocalMessage] = useState<string | null>(null);
   const [localError, setLocalError] = useState<string | null>(null);
   const [ga4Syncing, setGa4Syncing] = useState(false);
-  const [claritySyncing, setClaritySyncing] = useState(false);
-  const [vercelSyncing, setVercelSyncing] = useState(false);
   const [githubSyncing, setGithubSyncing] = useState(false);
   const [seoSyncing, setSeoSyncing] = useState(false);
   const [ga4Sync, setGa4Sync] = useState<Ga4SyncResult | null>(null);
-  const [claritySync, setClaritySync] = useState<ClaritySyncResult | null>(
-    null
-  );
-  const [vercelSync, setVercelSync] = useState<VercelSyncResult | null>(null);
 
   const message = localMessage ?? oauthMessage;
   const error = localError ?? oauthError;
   const ga4Connected = Boolean(ga4.connected);
-  const clarityConnected = Boolean(clarity.connected);
-  const vercelConnected = Boolean(vercel.connected);
   const githubConnected = Boolean(github.connected);
 
   async function refreshStatus() {
     const response = await fetch("/api/data-sources/status");
     const data = (await response.json()) as {
       ga4?: Ga4ConnectionStatus;
-      clarity?: ClarityConnectionStatus;
-      vercel?: VercelConnectionStatus;
       github?: GithubConnectionStatus;
       seo?: SeoConnectionStatus;
       error?: string;
@@ -155,8 +106,6 @@ export function DataSourcesPanel({
         authMode: data.authMode ?? null,
       });
     }
-    if (data.clarity) setClarity(data.clarity);
-    if (data.vercel) setVercel(data.vercel);
     if (data.github) setGithub(data.github);
     if (data.seo) setSeo(data.seo);
   }
@@ -180,54 +129,6 @@ export function DataSourcesPanel({
       setLocalError("GA4 sync request failed");
     } finally {
       setGa4Syncing(false);
-    }
-  }
-
-  async function handleClaritySync() {
-    setClaritySyncing(true);
-    setLocalError(null);
-    setClaritySync(null);
-
-    try {
-      const response = await fetch("/api/clarity/sync", { method: "POST" });
-      const data = (await response.json()) as ClaritySyncResult;
-      setClaritySync(data);
-      if (!response.ok || !data.ok) {
-        setLocalError(data.error ?? "Clarity sync failed");
-      } else {
-        setLocalMessage(
-          `Clarity metrics synced (${data.periodLabel ?? "últimos dias"}).`
-        );
-        await refreshStatus();
-      }
-    } catch {
-      setLocalError("Clarity sync request failed");
-    } finally {
-      setClaritySyncing(false);
-    }
-  }
-
-  async function handleVercelSync() {
-    setVercelSyncing(true);
-    setLocalError(null);
-    setVercelSync(null);
-
-    try {
-      const response = await fetch("/api/vercel/sync", { method: "POST" });
-      const data = (await response.json()) as VercelSyncResult;
-      setVercelSync(data);
-      if (!response.ok || !data.ok) {
-        setLocalError(data.error ?? "Vercel sync failed");
-      } else {
-        setLocalMessage(
-          `Vercel metrics synced (${data.periodLabel ?? "últimos 7 dias"}).`
-        );
-        await refreshStatus();
-      }
-    } catch {
-      setLocalError("Vercel sync request failed");
-    } finally {
-      setVercelSyncing(false);
     }
   }
 
@@ -283,7 +184,8 @@ export function DataSourcesPanel({
           Data Sources
         </h1>
         <p className="mt-2 max-w-2xl text-sm text-muted sm:text-base">
-          Connect analytics platforms to power dashboards and Humana Analytics.
+          GA4 is the traffic source. GitHub, PageSpeed and the SEO/GEO crawl stay
+          connected here. Clarity and Vercel are not used.
         </p>
       </div>
 
@@ -337,68 +239,6 @@ export function DataSourcesPanel({
               className="rounded-lg bg-accent px-4 py-2 font-display text-sm font-medium text-white transition-colors hover:bg-[#4f61b0] disabled:cursor-not-allowed disabled:opacity-50"
             >
               {ga4Syncing ? "Syncing…" : "Sync metrics"}
-            </button>
-          </div>
-        </article>
-
-        <article className="flex flex-col gap-4 rounded-xl border border-border bg-surface p-5 shadow-sm shadow-black/5 sm:flex-row sm:items-center sm:justify-between">
-          <div>
-            <h2 className="font-display text-base font-semibold text-foreground">
-              Microsoft Clarity
-            </h2>
-            <p className="mt-1 text-sm text-muted">
-              Comportamento, cliques e fricção na interface.
-            </p>
-            <p
-              className={`mt-3 inline-flex rounded-full px-2.5 py-1 text-xs ${
-                clarityConnected
-                  ? "bg-accent-soft text-accent"
-                  : "bg-[#f1f1f1] text-[#5f5f5f]"
-              }`}
-            >
-              {clarityConnected ? "Connected" : "Not connected"}
-            </p>
-          </div>
-
-          <div className="flex flex-wrap gap-2">
-            <button
-              type="button"
-              onClick={() => void handleClaritySync()}
-              disabled={!clarityConnected || claritySyncing}
-              className="rounded-lg bg-accent px-4 py-2 font-display text-sm font-medium text-white transition-colors hover:bg-[#4f61b0] disabled:cursor-not-allowed disabled:opacity-50"
-            >
-              {claritySyncing ? "Syncing…" : "Sync metrics"}
-            </button>
-          </div>
-        </article>
-
-        <article className="flex flex-col gap-4 rounded-xl border border-border bg-surface p-5 shadow-sm shadow-black/5 sm:flex-row sm:items-center sm:justify-between">
-          <div>
-            <h2 className="font-display text-base font-semibold text-foreground">
-              Vercel Analytics
-            </h2>
-            <p className="mt-1 text-sm text-muted">
-              Visitantes, pageviews e origem do tráfego.
-            </p>
-            <p
-              className={`mt-3 inline-flex rounded-full px-2.5 py-1 text-xs ${
-                vercelConnected
-                  ? "bg-accent-soft text-accent"
-                  : "bg-[#f1f1f1] text-[#5f5f5f]"
-              }`}
-            >
-              {vercelConnected ? "Connected" : "Not connected"}
-            </p>
-          </div>
-
-          <div className="flex flex-wrap gap-2">
-            <button
-              type="button"
-              onClick={() => void handleVercelSync()}
-              disabled={!vercelConnected || vercelSyncing}
-              className="rounded-lg bg-accent px-4 py-2 font-display text-sm font-medium text-white transition-colors hover:bg-[#4f61b0] disabled:cursor-not-allowed disabled:opacity-50"
-            >
-              {vercelSyncing ? "Syncing…" : "Sync metrics"}
             </button>
           </div>
         </article>
@@ -494,62 +334,6 @@ export function DataSourcesPanel({
               <p className="text-xs text-muted">Page views</p>
               <p className="mt-1 text-xl font-semibold">
                 {ga4Sync.totals.screenPageViews.toLocaleString("en-US")}
-              </p>
-            </div>
-          </div>
-        </section>
-      ) : null}
-
-      {claritySync?.ok && claritySync.totals ? (
-        <section className="rounded-xl border border-border bg-surface p-5 shadow-sm shadow-black/5">
-          <h3 className="font-display text-base font-semibold text-foreground">
-            {claritySync.periodLabel ?? "Clarity"}
-          </h3>
-          <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-            <div className="rounded-lg border border-border p-3">
-              <p className="text-xs text-muted">Sessions</p>
-              <p className="mt-1 text-xl font-semibold">
-                {claritySync.totals.sessions.toLocaleString("en-US")}
-              </p>
-            </div>
-            <div className="rounded-lg border border-border p-3">
-              <p className="text-xs text-muted">Users</p>
-              <p className="mt-1 text-xl font-semibold">
-                {claritySync.totals.distantUsers.toLocaleString("en-US")}
-              </p>
-            </div>
-            <div className="rounded-lg border border-border p-3">
-              <p className="text-xs text-muted">Rage clicks</p>
-              <p className="mt-1 text-xl font-semibold">
-                {claritySync.totals.rageClicks.toLocaleString("en-US")}
-              </p>
-            </div>
-            <div className="rounded-lg border border-border p-3">
-              <p className="text-xs text-muted">Dead clicks</p>
-              <p className="mt-1 text-xl font-semibold">
-                {claritySync.totals.deadClicks.toLocaleString("en-US")}
-              </p>
-            </div>
-          </div>
-        </section>
-      ) : null}
-
-      {vercelSync?.ok && vercelSync.totals ? (
-        <section className="rounded-xl border border-border bg-surface p-5 shadow-sm shadow-black/5">
-          <h3 className="font-display text-base font-semibold text-foreground">
-            {vercelSync.periodLabel ?? "Vercel"}
-          </h3>
-          <div className="mt-4 grid gap-3 sm:grid-cols-2">
-            <div className="rounded-lg border border-border p-3">
-              <p className="text-xs text-muted">Visitors</p>
-              <p className="mt-1 text-xl font-semibold">
-                {vercelSync.totals.visitors.toLocaleString("en-US")}
-              </p>
-            </div>
-            <div className="rounded-lg border border-border p-3">
-              <p className="text-xs text-muted">Pageviews</p>
-              <p className="mt-1 text-xl font-semibold">
-                {vercelSync.totals.pageviews.toLocaleString("en-US")}
               </p>
             </div>
           </div>

@@ -47,6 +47,11 @@ export function workspaceLocaleKey(userId: string): string {
   return `ha-locale:${userId}`;
 }
 
+/** Language chosen on the login screen, before a user id exists. */
+export function guestLocaleKey(): string {
+  return "ha-locale:guest";
+}
+
 function defaults(): WorkspacePrefs {
   return { ...DEFAULT_WORKSPACE_PREFS, open: { ...DEFAULT_WORKSPACE_PREFS.open } };
 }

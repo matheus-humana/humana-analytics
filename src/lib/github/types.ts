@@ -110,6 +110,8 @@ export type GithubPanelData = {
   from: string;
   to: string;
   today: string;
+  /** ISO time of the latest stored collect. Null when nothing has been stored. */
+  collectedAt: string | null;
   repos: GithubPanelRepo[];
 };
 

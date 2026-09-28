@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 
+import { FreshnessBadge } from "@/components/freshness/freshness-badge";
 import type { ChatLocale } from "@/lib/ai/analytics-bot-contract";
 import { workspaceText, type WorkspaceMessageKey } from "@/lib/i18n/workspace-copy";
 import { explainFinding, explainVitalOrigin } from "@/lib/seo/explain";
@@ -33,7 +34,15 @@ export function SeoPanel({ locale, data }: { locale: ChatLocale; data: SeoWorksp
 
   if (!data.configured) {
     return (
-      <EmptyLine title={text("seoHeading")} detail={configMessage(data.detail, text)} />
+      <div className="space-y-4">
+        <FreshnessBadge
+          cadence="snapshot"
+          observedAt={data.pagespeedUpdatedAt}
+          ok={false}
+          locale={locale}
+        />
+        <EmptyLine title={text("seoHeading")} detail={configMessage(data.detail, text)} />
+      </div>
     );
   }
 
@@ -41,8 +50,14 @@ export function SeoPanel({ locale, data }: { locale: ChatLocale; data: SeoWorksp
 
   return (
     <div className="space-y-6">
-      <header className="flex min-w-0 items-center gap-1">
+      <header className="flex min-w-0 flex-wrap items-center gap-2">
         <h3 className="truncate text-sm font-medium text-foreground">{text("seoHeading")}</h3>
+        <FreshnessBadge
+          cadence="snapshot"
+          observedAt={data.pagespeedUpdatedAt}
+          ok={data.pagespeedStatus === "active"}
+          locale={locale}
+        />
         <InfoTip text={sourceLine} />
       </header>
 

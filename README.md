@@ -2,7 +2,7 @@
 
 Analytics AI is an AI-powered analytics environment that allows users to connect analytics platforms and interact with their data through natural language.
 
-The current version covers Google Analytics 4, Microsoft Clarity, and Vercel Analytics. Humana Analytics is the grounded chat agent: it answers in the user's language (PT-BR or EN) using only tool data from connected sources. Google sign-in is required before the dashboard and chat.
+The current version covers Google Analytics 4 for site traffic, plus GitHub, PageSpeed Insights and the SEO/GEO crawl. Microsoft Clarity and Vercel Web Analytics are not product sources. Humana Analytics is the grounded chat agent: it answers in the user's language (PT-BR or EN) using only tool data from the connected sources. Google sign-in is required before the dashboard and chat, and only company email domains can enter.
 
 ## Objective
 
@@ -26,10 +26,10 @@ AI Agent
 Analytics Tools
   ↓
 Data Sources
-  ├── Google Analytics
-  ├── Microsoft Clarity
-  ├── Vercel Analytics
-  └── GitHub
+  ├── Google Analytics 4
+  ├── GitHub
+  ├── PageSpeed Insights
+  └── SEO/GEO crawl
 ```
 
 The project is initially intended for internal use at Humana AI, while its architecture is designed to allow future evolution into a multi-organization SaaS product.
@@ -67,12 +67,12 @@ The MVP should support questions such as:
 
 | Provider           | Purpose                                  | Status |
 | ------------------ | ---------------------------------------- | ------ |
-| Google Analytics 4 | Analytics, acquisition, events and pages | Live   |
-| Microsoft Clarity  | User behavior and interaction signals    | Live   |
-| Vercel Analytics   | Web analytics and traffic sources        | Live   |
-| GitHub             | Repository views, clones, stars, release downloads | Live when `GITHUB_TOKEN` and `GITHUB_REPO` are set |
+| Google Analytics 4 | Site traffic, acquisition, events and pages | Live while the screen is open (polled) |
+| GitHub             | Repository views, clones, stars, release downloads | Daily snapshot |
+| PageSpeed Insights | Lighthouse scores and Core Web Vitals | Daily snapshot |
+| SEO/GEO crawl      | On-page findings and the GEO checklist | Daily snapshot |
 
-Dashboards and the Humana Analytics agent query these sources when credentials are configured. A disconnected source returns connect guidance instead of mock metrics. Apply `pnpm db:analytics:migrate` before the first sign-in. Moving the Google OAuth client and GA4 service account to the company GCP project is documented in [docs/gcp-oauth-migration.md](docs/gcp-oauth-migration.md). GitHub setup (token scope, daily snapshot, 14-day traffic window, Vercel Cron) is in [docs/github-source.md](docs/github-source.md).
+Microsoft Clarity and Vercel Web Analytics are not shown and are not sent to the agent. Their tables, migrations and client modules remain in the repo, unused. Dashboards and the Humana Analytics agent query GA4, GitHub and SEO/GEO when credentials are configured. A disconnected source returns connect guidance instead of mock metrics. Apply `pnpm db:analytics:migrate` before the first sign-in. Moving the Google OAuth client and GA4 service account to the company GCP project is documented in [docs/gcp-oauth-migration.md](docs/gcp-oauth-migration.md). GitHub setup (token scope, daily snapshot, 14-day traffic window, Vercel Cron) is in [docs/github-source.md](docs/github-source.md).
 
 ## Architecture
 
@@ -124,9 +124,8 @@ Example:
 ```text
 Organization
 └── Project: Humana Website
-    ├── Google Analytics
-    ├── Microsoft Clarity
-    ├── Vercel Analytics
+    ├── Google Analytics 4
+    ├── PageSpeed and SEO/GEO crawl
     └── GitHub (its own project, not the website property)
 ```
 
@@ -150,7 +149,7 @@ comparePeriods
 
 ## Data Strategy
 
-The initial GA4 MVP can query the GA4 Data API directly.
+The initial GA4 MVP queries the GA4 Data API directly. GitHub and SEO/GEO are stored as daily snapshots.
 
 As the product evolves, selected analytics data will be collected and persisted in PostgreSQL to provide:
 
@@ -161,7 +160,7 @@ As the product evolves, selected analytics data will be collected and persisted 
 * Trend analysis
 * Future anomaly detection
 
-Microsoft Clarity requires particular attention to data collection and historical persistence because of API limitations.
+Microsoft Clarity and Vercel Web Analytics were explored earlier and are not product sources. Their database tables stay.
 
 ## Security
 
@@ -237,7 +236,7 @@ Inbound payload (bot → Humana Analytics):
 }
 ```
 
-`messageId` is an optional echo of the user message and makes retries idempotent. Optional `userId`, `organizationId`, and `projectId` must match the conversation when present. Optional `imageUrls` (or `attachments[].url`) are https URLs stored under the answer; image files with a png, jpg, gif, or webp extension render in the assistant bubble. The bot may say it used Clarity or GA4. This app does not scrape those sources on the bridge path.
+`messageId` is an optional echo of the user message and makes retries idempotent. Optional `userId`, `organizationId`, and `projectId` must match the conversation when present. Optional `imageUrls` (or `attachments[].url`) are https URLs stored under the answer; image files with a png, jpg, gif, or webp extension render in the assistant bubble. The bot may say it used GA4, GitHub, PageSpeed or the site crawl. This app does not scrape those sources on the bridge path.
 
 Callback example:
 
@@ -245,7 +244,7 @@ Callback example:
 curl -sS -X POST "$APP_URL/api/analytics-bot/reply" \
   -H "Authorization: Bearer $ANALYTICS_BOT_REPLY_SECRET" \
   -H "Content-Type: application/json" \
-  -d '{"conversationId":"CONVERSATION_ID","messageId":"USER_MESSAGE_ID","text":"Resposta do Analytics Bot. Cite a fonte (Clarity ou GA4) e o período; não invente números.","source":"analytics-bot"}'
+  -d '{"conversationId":"CONVERSATION_ID","messageId":"USER_MESSAGE_ID","text":"Resposta do Analytics Bot. Cite a fonte (GA4, GitHub ou PageSpeed) e o período; não invente números.","source":"analytics-bot"}'
 ```
 
 ## Development Principles
@@ -275,9 +274,9 @@ The architecture should support future multi-organization usage without prematur
 ```text
 M1  GA4 + Chat
  ↓
-M2  Microsoft Clarity
+M2  Microsoft Clarity (not a product source)
  ↓
-M3  Vercel Analytics
+M3  Vercel Analytics (not a product source)
  ↓
 M4  Cross-source analysis
  ↓
