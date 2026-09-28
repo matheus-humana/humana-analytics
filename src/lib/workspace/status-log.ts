@@ -1,5 +1,6 @@
 import type { ChatLocale } from "@/lib/ai/analytics-bot-contract";
 
+import { intlLocale } from "@/lib/i18n/format";
 import { workspaceText } from "@/lib/i18n/workspace-copy";
 
 export const CONNECTION_PROVIDERS = [
@@ -32,12 +33,12 @@ export type StatusItem = {
   text: string;
 };
 
-const PROVIDER_LABEL: Record<ConnectionProvider, string> = {
-  ga4: "GA4",
-  github: "GitHub",
-  pagespeed: "PageSpeed",
-  crawl: "Crawl",
-};
+function providerLabel(provider: ConnectionProvider, locale: ChatLocale): string {
+  if (provider === "ga4") return "GA4";
+  if (provider === "github") return "GitHub";
+  if (provider === "pagespeed") return "PageSpeed";
+  return workspaceText(locale, "connCrawlShort");
+}
 
 function validTime(value: string | null): number | null {
   if (!value) return null;
@@ -48,7 +49,7 @@ function validTime(value: string | null): number | null {
 export function formatStatusStamp(iso: string, locale: ChatLocale): string | null {
   const time = validTime(iso);
   if (time == null) return null;
-  return new Intl.DateTimeFormat(locale === "en" ? "en-US" : "pt-BR", {
+  return new Intl.DateTimeFormat(intlLocale(locale), {
     day: "2-digit",
     month: "2-digit",
     hour: "2-digit",
@@ -60,7 +61,7 @@ export function describeConnection(
   connection: ConnectionSnapshot,
   locale: ChatLocale
 ): string {
-  const name = PROVIDER_LABEL[connection.provider];
+  const name = providerLabel(connection.provider, locale);
   const state =
     connection.status === "error"
       ? workspaceText(locale, "statusError")

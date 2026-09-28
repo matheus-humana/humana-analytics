@@ -7,6 +7,8 @@ import {
 } from "@/components/workspace/workspace-traffic";
 import { resolveAnalyticsPeriod } from "@/lib/analytics/period";
 import { getSessionUser } from "@/lib/auth/require-user";
+import { getRequestLocale } from "@/lib/i18n/request-locale";
+import { workspaceText } from "@/lib/i18n/workspace-copy";
 import { loadGithubPanel } from "@/lib/github/panel";
 import { githubPeriodWindow, utcDay } from "@/lib/github/dates";
 import { utcDay as seoUtcDay, periodWindow } from "@/lib/seo/dates";
@@ -19,7 +21,7 @@ type PageProps = {
 };
 
 export default async function DashboardPage({ searchParams }: PageProps) {
-  const user = await getSessionUser();
+  const [user, locale] = await Promise.all([getSessionUser(), getRequestLocale()]);
   if (!user) redirect("/login");
 
   const params = await searchParams;
@@ -57,7 +59,7 @@ export default async function DashboardPage({ searchParams }: PageProps) {
   return (
     <WorkspaceScreen
       userId={user.id}
-      userName={user.name?.trim() || "Conta"}
+      userName={user.name?.trim() || workspaceText(locale, "accountFallback")}
       userEmail={user.email}
       model={model}
       trafficSummary={traffic.summary}

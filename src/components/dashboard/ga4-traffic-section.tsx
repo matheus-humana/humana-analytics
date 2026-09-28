@@ -9,17 +9,16 @@ import { useLocale } from "@/components/i18n/locale-provider";
 import type { AnalyticsPeriodId } from "@/lib/analytics/period";
 import { GA4_POLL_INTERVAL_MS } from "@/lib/freshness/status";
 import type { Ga4DashboardSnapshot } from "@/lib/ga4/dashboard-cache";
+import { workspaceCopy } from "@/lib/i18n/workspace-copy";
 
 type Props = {
   periodId: AnalyticsPeriodId;
-  periodLabel: string;
   initial: Ga4DashboardSnapshot | null;
   initialError: string | null;
 };
 
 export function Ga4TrafficSection({
   periodId,
-  periodLabel,
   initial,
   initialError,
 }: Props) {
@@ -64,7 +63,7 @@ export function Ga4TrafficSection({
         if (!response.ok || !body.ok || !body.data?.fetchedAt) {
           setPollOk(false);
           if (!fetchedAtRef.current) {
-            setPollError(body.error ?? "Falha ao carregar GA4");
+            setPollError(body.error ?? workspaceCopy["pt-BR"].ga4LoadFailed);
           }
           return;
         }
@@ -113,12 +112,12 @@ export function Ga4TrafficSection({
   return (
     <div className="space-y-4">
       <DashboardHeader
+        locale={locale}
         periodId={periodId}
-        periodLabel={data?.periodLabel ?? periodLabel}
         error={data ? null : error}
         freshness={freshness}
       />
-      {data ? <LiveGa4Dashboard data={data} /> : null}
+      {data ? <LiveGa4Dashboard data={data} locale={locale} periodId={periodId} /> : null}
     </div>
   );
 }

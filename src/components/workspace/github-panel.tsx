@@ -5,7 +5,9 @@ import { useState } from "react";
 
 import { FreshnessBadge } from "@/components/freshness/freshness-badge";
 import type { ChatLocale } from "@/lib/ai/analytics-bot-contract";
-import { ANALYTICS_PERIODS, type AnalyticsPeriodId } from "@/lib/analytics/period";
+import type { AnalyticsPeriodId } from "@/lib/analytics/period";
+import { formatCalendarDay, formatCount as formatIntlCount, formatSigned } from "@/lib/i18n/format";
+import { periodShortLabel } from "@/lib/i18n/period-label";
 import { workspaceText, type WorkspaceMessageKey } from "@/lib/i18n/workspace-copy";
 import {
   GITHUB_INVALID_REPO,
@@ -37,7 +39,7 @@ export function GithubPanel({
   const repos = visibleRepos(data.repos, selectedProjectId);
   const configMessage = configCopy(data.detail, text);
 
-  const periodLabel = periodShort(data.periodId, text);
+  const periodLabel = periodShort(data.periodId, locale);
 
   return (
     <div className="space-y-6">
@@ -150,11 +152,8 @@ function PeriodSwitch({
   );
 }
 
-function periodShort(periodId: AnalyticsPeriodId, text: Copy): string {
-  if (periodId === "7d") return text("githubPeriod7");
-  if (periodId === "28d") return text("githubPeriod28");
-  if (periodId === "90d") return text("githubPeriod90");
-  return ANALYTICS_PERIODS[periodId].shortLabel;
+function periodShort(periodId: AnalyticsPeriodId, locale: ChatLocale): string {
+  return periodShortLabel(locale, periodId);
 }
 
 function RepoSection({
@@ -523,18 +522,11 @@ function explainCollectError(error: string, text: Copy): string {
 
 function formatCount(value: number | null, locale: ChatLocale): string {
   if (value == null) return "—";
-  return new Intl.NumberFormat(locale === "en" ? "en-US" : "pt-BR").format(value);
+  return formatIntlCount(value, locale);
 }
 
 function formatDay(day: string, locale: ChatLocale): string {
-  const [year, month, date] = day.split("-").map(Number);
-  if (!year || !month || !date) return day;
-  return new Intl.DateTimeFormat(locale === "en" ? "en-US" : "pt-BR", {
-    day: "2-digit",
-    month: "2-digit",
-    year: "numeric",
-    timeZone: "UTC",
-  }).format(new Date(Date.UTC(year, month - 1, date)));
+  return formatCalendarDay(day, locale);
 }
 
 function delta(current: number | null, previous: number | null): number | null {
@@ -543,10 +535,7 @@ function delta(current: number | null, previous: number | null): number | null {
 }
 
 function formatDelta(value: number, locale: ChatLocale): string {
-  const formatted = new Intl.NumberFormat(locale === "en" ? "en-US" : "pt-BR", {
-    maximumFractionDigits: 1,
-    signDisplay: "exceptZero",
-  }).format(value);
+  const formatted = formatSigned(value, locale);
   return `${formatted}%`;
 }
 

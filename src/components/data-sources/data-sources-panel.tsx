@@ -3,6 +3,10 @@
 import { useSearchParams } from "next/navigation";
 import { useState } from "react";
 
+import { useLocale } from "@/components/i18n/locale-provider";
+import { formatCount } from "@/lib/i18n/format";
+import { workspaceText, type WorkspaceMessageKey } from "@/lib/i18n/workspace-copy";
+
 type Ga4ConnectionStatus = {
   connected: boolean;
   status: string;
@@ -19,13 +23,16 @@ type Ga4SyncResult = {
   };
 };
 
-function githubDetailLabel(detail: string | null): string | null {
+function githubDetailLabel(
+  detail: string | null,
+  text: (key: WorkspaceMessageKey) => string
+): string | null {
   if (!detail) return null;
-  if (detail === "missing_token") return "GITHUB_TOKEN is not set.";
-  if (detail === "missing_repo") return "GITHUB_REPO is not set. Use owner/name.";
+  if (detail === "missing_token") return text("githubMissingToken");
+  if (detail === "missing_repo") return text("githubMissingRepo");
   if (detail.startsWith("invalid_repo")) {
     const sample = detail.slice("invalid_repo".length).replace(/^:/, "");
-    return sample ? `GITHUB_REPO is invalid (${sample}).` : "GITHUB_REPO is invalid.";
+    return sample ? `${text("githubInvalidRepo")} (${sample})` : text("githubInvalidRepo");
   }
   return detail;
 }
@@ -61,11 +68,11 @@ export function DataSourcesPanel({
   initialGithub,
   initialSeo,
 }: Props) {
+  const { locale } = useLocale();
+  const text = (key: WorkspaceMessageKey) => workspaceText(locale, key);
   const searchParams = useSearchParams();
   const oauthMessage =
-    searchParams.get("connected") === "ga4"
-      ? "Google Analytics connected successfully."
-      : null;
+    searchParams.get("connected") === "ga4" ? text("sourcesOauthConnected") : null;
   const oauthError = searchParams.get("error");
 
   const [ga4, setGa4] = useState<Ga4ConnectionStatus>(initialGa4);
@@ -95,7 +102,7 @@ export function DataSourcesPanel({
       authMode?: Ga4ConnectionStatus["authMode"];
     };
     if (!response.ok) {
-      setLocalError(data.error ?? "Failed to load connection status");
+      setLocalError(data.error ?? text("sourcesStatusFailed"));
       return;
     }
     if (data.ga4) setGa4(data.ga4);
@@ -120,13 +127,13 @@ export function DataSourcesPanel({
       const data = (await response.json()) as Ga4SyncResult;
       setGa4Sync(data);
       if (!response.ok || !data.ok) {
-        setLocalError(data.error ?? "GA4 sync failed");
+        setLocalError(data.error ?? text("sourcesGa4SyncFailed"));
       } else {
-        setLocalMessage("GA4 metrics synced for the last 7 days.");
+        setLocalMessage(text("sourcesGa4Synced"));
         await refreshStatus();
       }
     } catch {
-      setLocalError("GA4 sync request failed");
+      setLocalError(text("sourcesGa4SyncRequestFailed"));
     } finally {
       setGa4Syncing(false);
     }
@@ -140,15 +147,13 @@ export function DataSourcesPanel({
       const response = await fetch("/api/seo/collect", { method: "POST" });
       const data = (await response.json()) as { ok?: boolean; error?: string };
       if (!response.ok || data.ok === false) {
-        setLocalError(data.error ?? "SEO collect failed");
+        setLocalError(data.error ?? text("sourcesSeoCollectFailed"));
       } else {
-        setLocalMessage(
-          "Crawl stored. PageSpeed continues one page at a time; refresh in a few minutes."
-        );
+        setLocalMessage(text("sourcesSeoStored"));
       }
       await refreshStatus();
     } catch {
-      setLocalError("SEO collect request failed");
+      setLocalError(text("sourcesSeoCollectRequestFailed"));
     } finally {
       setSeoSyncing(false);
     }
@@ -165,13 +170,13 @@ export function DataSourcesPanel({
         error?: string;
       };
       if (!response.ok || data.ok === false) {
-        setLocalError(data.error ?? "GitHub collect failed");
+        setLocalError(data.error ?? text("sourcesGithubCollectFailed"));
       } else {
-        setLocalMessage("GitHub snapshot stored.");
+        setLocalMessage(text("sourcesGithubStored"));
       }
       await refreshStatus();
     } catch {
-      setLocalError("GitHub collect request failed");
+      setLocalError(text("sourcesGithubCollectRequestFailed"));
     } finally {
       setGithubSyncing(false);
     }
@@ -181,12 +186,9 @@ export function DataSourcesPanel({
     <div className="space-y-6">
       <div>
         <h1 className="font-display text-2xl font-semibold tracking-tight text-foreground sm:text-3xl">
-          Data Sources
+          {text("dataSources")}
         </h1>
-        <p className="mt-2 max-w-2xl text-sm text-muted sm:text-base">
-          GA4 is the traffic source. GitHub, PageSpeed and the SEO/GEO crawl stay
-          connected here. Clarity and Vercel are not used.
-        </p>
+        <p className="mt-2 max-w-2xl text-sm text-muted sm:text-base">{text("sourcesIntro")}</p>
       </div>
 
       {message ? (
@@ -208,7 +210,7 @@ export function DataSourcesPanel({
               Google Analytics 4
             </h2>
             <p className="mt-1 text-sm text-muted">
-              Aquisição, engajamento e conversões.
+              {text("sourcesGa4Body")}
             </p>
             <p
               className={`mt-3 inline-flex rounded-full px-2.5 py-1 text-xs ${
@@ -217,7 +219,7 @@ export function DataSourcesPanel({
                   : "bg-[#f1f1f1] text-[#5f5f5f]"
               }`}
             >
-              {ga4Connected ? "Connected" : "Not connected"}
+              {ga4Connected ? text("sourcesConnected") : text("sourcesDisconnected")}
             </p>
           </div>
 
@@ -229,7 +231,7 @@ export function DataSourcesPanel({
                 href="/api/auth/google/start"
                 className="rounded-lg border border-border bg-white px-4 py-2 text-sm font-medium text-foreground transition-colors hover:bg-[#f1f1f1]"
               >
-                {ga4Connected ? "Reconnect" : "Connect"}
+                {ga4Connected ? text("sourcesReconnect") : text("sourcesConnect")}
               </a>
             ) : null}
             <button
@@ -238,7 +240,7 @@ export function DataSourcesPanel({
               disabled={!ga4Connected || ga4Syncing}
               className="rounded-lg bg-accent px-4 py-2 font-display text-sm font-medium text-white transition-colors hover:bg-[#4f61b0] disabled:cursor-not-allowed disabled:opacity-50"
             >
-              {ga4Syncing ? "Syncing…" : "Sync metrics"}
+              {ga4Syncing ? text("sourcesSyncing") : text("sourcesSync")}
             </button>
           </div>
         </article>
@@ -249,7 +251,7 @@ export function DataSourcesPanel({
               GitHub
             </h2>
             <p className="mt-1 text-sm text-muted">
-              Views, clones e downloads do repositório. Projeto separado do site.
+              {text("sourcesGithubBody")}
             </p>
             <p
               className={`mt-3 inline-flex rounded-full px-2.5 py-1 text-xs ${
@@ -258,11 +260,15 @@ export function DataSourcesPanel({
                   : "bg-[#f1f1f1] text-[#5f5f5f]"
               }`}
             >
-              {githubConnected ? "Connected" : github.status === "error" ? "Error" : "Not connected"}
+              {githubConnected
+                ? text("sourcesConnected")
+                : github.status === "error"
+                  ? text("sourcesError")
+                  : text("sourcesDisconnected")}
             </p>
-            {githubDetailLabel(github.detail) ? (
+            {githubDetailLabel(github.detail, text) ? (
               <p className="mt-2 max-w-xl text-sm text-foreground">
-                {githubDetailLabel(github.detail)}
+                {githubDetailLabel(github.detail, text)}
               </p>
             ) : null}
             {github.repos.length > 0 ? (
@@ -277,7 +283,7 @@ export function DataSourcesPanel({
               disabled={githubSyncing}
               className="rounded-lg bg-accent px-4 py-2 font-display text-sm font-medium text-white transition-colors hover:bg-[#4f61b0] disabled:cursor-not-allowed disabled:opacity-50"
             >
-              {githubSyncing ? "Collecting…" : "Collect snapshot"}
+              {githubSyncing ? text("githubCollecting") : text("sourcesCollectSnapshot")}
             </button>
           </div>
         </article>
@@ -285,10 +291,10 @@ export function DataSourcesPanel({
         <article className="flex flex-col gap-4 rounded-xl border border-border bg-surface p-5 shadow-sm shadow-black/5 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <h2 className="font-display text-base font-semibold text-foreground">
-              PageSpeed and crawl
+              {text("sourcesSeoTitle")}
             </h2>
             <p className="mt-1 text-sm text-muted">
-              Lighthouse scores, on-page findings, and the GEO checklist for {seo.siteUrl ?? "SITE_URL"}.
+              {text("sourcesSeoBody")} {seo.siteUrl ?? "SITE_URL"}.
             </p>
             <p className="mt-3 text-sm text-foreground">
               PageSpeed · {seo.pagespeed.status}
@@ -306,7 +312,7 @@ export function DataSourcesPanel({
               disabled={seoSyncing}
               className="rounded-lg bg-accent px-4 py-2 font-display text-sm font-medium text-white transition-colors hover:bg-[#4f61b0] disabled:cursor-not-allowed disabled:opacity-50"
             >
-              {seoSyncing ? "Collecting…" : "Collect now"}
+              {seoSyncing ? text("seoCollecting") : text("seoCollect")}
             </button>
           </div>
         </article>
@@ -315,25 +321,25 @@ export function DataSourcesPanel({
       {ga4Sync?.ok && ga4Sync.totals ? (
         <section className="rounded-xl border border-border bg-surface p-5 shadow-sm shadow-black/5">
           <h3 className="font-display text-base font-semibold text-foreground">
-            Last 7 days (GA4)
+            {text("sourcesLast7")}
           </h3>
           <div className="mt-4 grid gap-3 sm:grid-cols-3">
             <div className="rounded-lg border border-border p-3">
-              <p className="text-xs text-muted">Active users</p>
+              <p className="text-xs text-muted">{text("ga4ActiveUsers")}</p>
               <p className="mt-1 text-xl font-semibold">
-                {ga4Sync.totals.activeUsers.toLocaleString("en-US")}
+                {formatCount(ga4Sync.totals.activeUsers, locale)}
               </p>
             </div>
             <div className="rounded-lg border border-border p-3">
-              <p className="text-xs text-muted">Sessions</p>
+              <p className="text-xs text-muted">{text("sourcesSessions")}</p>
               <p className="mt-1 text-xl font-semibold">
-                {ga4Sync.totals.sessions.toLocaleString("en-US")}
+                {formatCount(ga4Sync.totals.sessions, locale)}
               </p>
             </div>
             <div className="rounded-lg border border-border p-3">
-              <p className="text-xs text-muted">Page views</p>
+              <p className="text-xs text-muted">{text("sourcesPageViews")}</p>
               <p className="mt-1 text-xl font-semibold">
-                {ga4Sync.totals.screenPageViews.toLocaleString("en-US")}
+                {formatCount(ga4Sync.totals.screenPageViews, locale)}
               </p>
             </div>
           </div>

@@ -425,7 +425,7 @@ function ChatColumn({
         <Suspense
           fallback={
             <p className="px-3 py-3 text-sm text-muted">
-              {locale === "en" ? "Loading chat…" : "Carregando o chat…"}
+              {workspaceText(locale, "chatLoadingPanel")}
             </p>
           }
         >

@@ -24,6 +24,7 @@ import {
   type TokenUsage,
   type UsageSummary,
 } from "./usage";
+import { workspaceCopy } from "@/lib/i18n/workspace-copy";
 
 const MAX_TOOL_ROUNDS = 4;
 const MAX_OUTPUT_TOKENS = 700;
@@ -31,9 +32,7 @@ const MAX_OUTPUT_TOKENS = 700;
 function getClient() {
   const apiKey = process.env.OPENAI_API_KEY?.trim();
   if (!apiKey) {
-    throw new Error(
-      "OPENAI_API_KEY não configurada. Adicione a chave em .env.local."
-    );
+    throw new Error(workspaceCopy["pt-BR"].openaiMissing);
   }
   return new OpenAI({ apiKey });
 }
@@ -115,7 +114,7 @@ export async function runAskAiAgent(input: {
     usage = addUsage(usage, usageFromResponse(response));
     const message = response.choices[0]?.message;
     if (!message) {
-      throw new Error("OpenAI não retornou mensagem.");
+      throw new Error(workspaceCopy["pt-BR"].openaiEmpty);
     }
 
     messages.push(message);
@@ -124,7 +123,7 @@ export async function runAskAiAgent(input: {
     if (!toolCalls || toolCalls.length === 0) {
       const answer = message.content?.trim();
       if (!answer) {
-        throw new Error("OpenAI retornou resposta vazia.");
+        throw new Error(workspaceCopy["pt-BR"].openaiBlank);
       }
       const summary = summarizeUsage(model, usage);
       logUsage(summary, toolsUsed.length);
@@ -155,7 +154,7 @@ export async function runAskAiAgent(input: {
   logUsage(summary, toolsUsed.length);
   return {
     answer:
-      "Atingi o limite de consultas internas. Reformule a pergunta de forma mais específica.",
+      workspaceCopy["pt-BR"].agentLimit,
     toolsUsed,
     usage: summary,
   };

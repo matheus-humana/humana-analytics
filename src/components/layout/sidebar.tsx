@@ -5,25 +5,31 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState, useSyncExternalStore } from "react";
 
+import { useLocale } from "@/components/i18n/locale-provider";
 import { SettingsPanel } from "@/components/settings/settings-panel";
+import { workspaceText, type WorkspaceMessageKey } from "@/lib/i18n/workspace-copy";
 
 const navItems = [
   {
     href: "/dashboard",
-    label: "Dashboard",
+    labelKey: "navDashboard",
     iconSrc: "/icons/black-icons/bar-chart.png",
   },
   {
     href: "/ask-ai",
-    label: "Humana Analytics",
+    labelKey: "navAskAi",
     iconSrc: "/icons/black-icons/ai.png",
   },
   {
     href: "/data-sources",
-    label: "Data Sources",
+    labelKey: "dataSources",
     iconSrc: "/icons/black-icons/layer.png",
   },
-] as const;
+] as const satisfies ReadonlyArray<{
+  href: string;
+  labelKey: WorkspaceMessageKey;
+  iconSrc: string;
+}>;
 
 const STORAGE_KEY = "ha-sidebar-collapsed";
 const SIDEBAR_EVENT = "ha-sidebar-change";
@@ -49,6 +55,8 @@ export function Sidebar({
   signOut: React.ReactNode;
 }) {
   const pathname = usePathname();
+  const { locale } = useLocale();
+  const text = (key: WorkspaceMessageKey) => workspaceText(locale, key);
   const [mobileOpen, setMobileOpen] = useState(false);
   const collapsed = useSyncExternalStore(
     subscribeSidebar,
@@ -96,9 +104,9 @@ export function Sidebar({
           onClick={() => setMobileOpen((value) => !value)}
           className="rounded-md border border-border px-3 py-1.5 text-sm text-foreground"
           aria-expanded={mobileOpen}
-          aria-label="Abrir navegação"
+          aria-label={text("navOpen")}
         >
-          Menu
+          {text("navMenu")}
         </button>
       </div>
 
@@ -106,7 +114,7 @@ export function Sidebar({
         <button
           type="button"
           className="fixed inset-0 z-30 bg-black/20 lg:hidden"
-          aria-label="Fechar navegação"
+          aria-label={text("navClose")}
           onClick={() => setMobileOpen(false)}
         />
       ) : null}
@@ -130,8 +138,8 @@ export function Sidebar({
             className={`rounded-md transition-colors hover:bg-[#f1f1f1] ${
               collapsed ? "p-1.5" : "p-1"
             }`}
-            aria-label={collapsed ? "Expandir menu" : "Recolher menu"}
-            title={collapsed ? "Expandir menu" : "Recolher menu"}
+            aria-label={collapsed ? text("navExpand") : text("navCollapse")}
+            title={collapsed ? text("navExpand") : text("navCollapse")}
           >
             {collapsed ? (
               <Image
@@ -157,6 +165,7 @@ export function Sidebar({
 
         <nav className="flex min-h-0 flex-1 flex-col gap-1 overflow-y-auto px-2 py-4">
           {navItems.map((item) => {
+            const label = text(item.labelKey);
             const active =
               pathname === item.href || pathname.startsWith(`${item.href}/`);
 
@@ -164,7 +173,7 @@ export function Sidebar({
               <Link
                 key={item.href}
                 href={item.href}
-                title={item.label}
+                title={label}
                 onClick={() => {
                   setSettingsOpen(false);
                   setMobileOpen(false);
@@ -180,10 +189,10 @@ export function Sidebar({
                 <NavIcon src={item.iconSrc} active={active} />
                 {!collapsed ? (
                   <span className={active ? "font-display" : undefined}>
-                    {item.label}
+                    {label}
                   </span>
                 ) : (
-                  <span className="sr-only">{item.label}</span>
+                  <span className="sr-only">{label}</span>
                 )}
               </Link>
             );
@@ -191,7 +200,7 @@ export function Sidebar({
 
           <button
             type="button"
-            title="Settings"
+            title={text("settings")}
             data-no-collapse-toggle
             onClick={() => {
               setSettingsOpen((value) => !value);
@@ -211,10 +220,10 @@ export function Sidebar({
             />
             {!collapsed ? (
               <span className={settingsActive ? "font-display" : undefined}>
-                Settings
+                {text("settings")}
               </span>
             ) : (
-              <span className="sr-only">Settings</span>
+              <span className="sr-only">{text("settings")}</span>
             )}
           </button>
         </nav>

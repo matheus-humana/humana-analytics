@@ -3,6 +3,8 @@
 import { Suspense } from "react";
 
 import type { ChatLocale } from "@/lib/ai/analytics-bot-contract";
+import { formatCount } from "@/lib/i18n/format";
+import { periodLabel } from "@/lib/i18n/period-label";
 import { workspaceText, type WorkspaceMessageKey } from "@/lib/i18n/workspace-copy";
 import type { WorkspaceTab } from "@/lib/workspace/prefs";
 import type { WorkspaceProject } from "@/lib/workspace/load-workspace";
@@ -278,12 +280,8 @@ export function AnalyticsRail({
 }) {
   const column = repository ? "modeRepository" : "columnAnalytics";
   const label = `${workspaceText(locale, "expandColumn")} ${workspaceText(locale, column)}`;
-  const users =
-    summary == null
-      ? null
-      : new Intl.NumberFormat(locale === "en" ? "en-US" : "pt-BR").format(
-          summary.activeUsers
-        );
+  const users = summary == null ? null : formatCount(summary.activeUsers, locale);
+  const period = summary ? periodLabel(locale, summary.periodId) : "";
   return (
     <CollapsedRail label={label} onExpand={onExpand}>
       {repository ? (
@@ -294,13 +292,13 @@ export function AnalyticsRail({
       {users ? (
         <span
           className="max-w-full text-center text-[10px] font-semibold leading-tight text-accent tabular-nums"
-          title={`${workspaceText(locale, "analyticsUsers")} · ${summary?.periodLabel ?? ""}`}
+          title={`${workspaceText(locale, "analyticsUsers")} · ${period}`}
         >
           {users}
           <span className="sr-only">
             {" "}
             {workspaceText(locale, "analyticsUsers")}
-            {summary?.periodLabel ? ` · ${summary.periodLabel}` : ""}
+            {period ? ` · ${period}` : ""}
           </span>
         </span>
       ) : null}

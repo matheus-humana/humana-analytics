@@ -4,9 +4,11 @@ import {
   loadGa4DashboardSnapshot,
   type Ga4DashboardSnapshot,
 } from "@/lib/ga4/dashboard-cache";
+import { workspaceCopy } from "@/lib/i18n/workspace-copy";
 
 export type TrafficSummary = {
   activeUsers: number;
+  periodId: AnalyticsPeriodId;
   periodLabel: string;
 };
 
@@ -27,6 +29,7 @@ export async function loadTrafficPayload(period: AnalyticsPeriod): Promise<Traff
       error: null,
       summary: {
         activeUsers: ga4.overview.activeUsers,
+        periodId: period.id,
         periodLabel: ga4.periodLabel,
       },
       ga4,
@@ -35,7 +38,7 @@ export async function loadTrafficPayload(period: AnalyticsPeriod): Promise<Traff
     return {
       periodId: period.id,
       periodLabel: period.label,
-      error: error instanceof Error ? error.message : "Falha ao carregar GA4",
+      error: error instanceof Error ? error.message : workspaceCopy["pt-BR"].ga4LoadFailed,
       summary: null,
       ga4: null,
     };
@@ -46,7 +49,6 @@ export function WorkspaceTraffic({ payload }: { payload: TrafficPayload }) {
   return (
     <Ga4TrafficSection
       periodId={payload.periodId}
-      periodLabel={payload.periodLabel}
       initial={payload.ga4}
       initialError={payload.error}
     />

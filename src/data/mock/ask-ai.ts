@@ -1,10 +1,6 @@
-export const humanaAnalyticsSuggestions = [
-  "Quantos usuários ativos tivemos no período?",
-  "De onde veio o tráfego?",
-  "Quais eventos de conversão aconteceram?",
-  "Quais páginas tiveram mais visualizações?",
-  "Como estão as notas de PageSpeed?",
-  "Qual é a nota GEO da última varredura?",
-  "Quantas views o repositório teve no período?",
-  "Where did our visitors come from?",
-] as const;
+import type { ChatLocale } from "@/lib/ai/analytics-bot-contract";
+import { chatSuggestionKeys, workspaceText } from "@/lib/i18n/workspace-copy";
+
+export function humanaAnalyticsSuggestions(locale: ChatLocale): string[] {
+  return chatSuggestionKeys.map((key) => workspaceText(locale, key));
+}
