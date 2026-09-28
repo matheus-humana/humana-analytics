@@ -2,6 +2,7 @@
 
 import { useSyncExternalStore } from "react";
 
+import { Dropdown } from "@/components/ui/dropdown";
 import {
   ACCENT_PRESET_OPTIONS,
   type AccentPresetId,
@@ -26,7 +27,13 @@ type AppearanceSettingsProps = {
   compact?: boolean;
 };
 
-export function AppearanceSettings({ compact = false }: AppearanceSettingsProps) {
+export function AccentPicker({
+  label = "Cor de destaque",
+  previewLabel = "Prévia das cores",
+}: {
+  label?: string;
+  previewLabel?: string;
+}) {
   const preset = useSyncExternalStore(
     subscribeAccent,
     readStoredAccentPreset,
@@ -39,6 +46,54 @@ export function AppearanceSettings({ compact = false }: AppearanceSettingsProps)
     window.dispatchEvent(new Event(ACCENT_EVENT));
   }
 
+  return (
+    <div>
+      <p className="mb-2 text-sm font-medium text-foreground">{label}</p>
+      <Dropdown<AccentPresetId>
+        value={preset}
+        onChange={onChange}
+        ariaLabel={label}
+        className="w-full"
+        options={ACCENT_PRESET_OPTIONS.map(({ id, label: optionLabel }) => ({
+          value: id,
+          label: optionLabel,
+          icon: (
+            <span
+              aria-hidden
+              className={swatchClass}
+              style={{ backgroundColor: getAccentPresetSwatchHex(id) }}
+            />
+          ),
+        }))}
+      />
+
+      <ul className="mt-4 flex flex-wrap gap-2" aria-label={previewLabel}>
+        {ACCENT_PRESET_OPTIONS.map(({ id, label: optionLabel, swatchHex }) => {
+          const selected = id === preset;
+          return (
+            <li key={id}>
+              <button
+                type="button"
+                title={optionLabel}
+                aria-label={optionLabel}
+                aria-pressed={selected}
+                onClick={() => onChange(id)}
+                className={`flex size-8 items-center justify-center rounded-full border transition-shadow ${
+                  selected
+                    ? "border-foreground/40 ring-2 ring-accent/40 ring-offset-2 ring-offset-surface"
+                    : "border-border hover:border-foreground/30"
+                }`}
+                style={{ backgroundColor: swatchHex }}
+              />
+            </li>
+          );
+        })}
+      </ul>
+    </div>
+  );
+}
+
+export function AppearanceSettings({ compact = false }: AppearanceSettingsProps) {
   const body = (
     <>
       <div className={compact ? "mb-4" : "mb-5"}>
@@ -54,56 +109,7 @@ export function AppearanceSettings({ compact = false }: AppearanceSettingsProps)
         </p>
       </div>
 
-      <div>
-        <label
-          htmlFor="accent-preset"
-          className="mb-2 block text-sm font-medium text-foreground"
-        >
-          Cor de destaque
-        </label>
-        <div className="relative">
-          <span
-            aria-hidden
-            className={`${swatchClass} pointer-events-none absolute top-1/2 left-3 -translate-y-1/2`}
-            style={{ backgroundColor: getAccentPresetSwatchHex(preset) }}
-          />
-          <select
-            id="accent-preset"
-            value={preset}
-            onChange={(e) => onChange(e.target.value)}
-            className="w-full appearance-none rounded-lg border border-border bg-surface py-2.5 pr-3 pl-9 text-sm text-foreground outline-none transition-colors focus:border-accent focus:ring-2 focus:ring-accent/25"
-          >
-            {ACCENT_PRESET_OPTIONS.map(({ id, label }) => (
-              <option key={id} value={id}>
-                {label}
-              </option>
-            ))}
-          </select>
-        </div>
-
-        <ul className="mt-4 flex flex-wrap gap-2" aria-label="Prévia das cores">
-          {ACCENT_PRESET_OPTIONS.map(({ id, label, swatchHex }) => {
-            const selected = id === preset;
-            return (
-              <li key={id}>
-                <button
-                  type="button"
-                  title={label}
-                  aria-label={label}
-                  aria-pressed={selected}
-                  onClick={() => onChange(id)}
-                  className={`flex size-8 items-center justify-center rounded-full border transition-shadow ${
-                    selected
-                      ? "border-foreground/40 ring-2 ring-accent/40 ring-offset-2 ring-offset-surface"
-                      : "border-border hover:border-foreground/30"
-                  }`}
-                  style={{ backgroundColor: swatchHex }}
-                />
-              </li>
-            );
-          })}
-        </ul>
-      </div>
+      <AccentPicker />
     </>
   );
 

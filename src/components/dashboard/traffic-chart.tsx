@@ -1,10 +1,12 @@
+import { InfoTip } from "@/components/ui/info-tip";
 import type { TrafficPoint } from "@/data/mock/dashboard";
 
 type Props = {
   series: TrafficPoint[];
+  citation?: string;
 };
 
-export function TrafficChart({ series }: Props) {
+export function TrafficChart({ series, citation }: Props) {
   const maxUsers = Math.max(1, ...series.map((point) => point.users));
   const chartHeight = 180;
   const chartWidth = 560;
@@ -25,14 +27,7 @@ export function TrafficChart({ series }: Props) {
   });
 
   if (points.length === 0) {
-    return (
-      <section className="rounded-xl border border-border bg-surface p-5 shadow-sm shadow-black/5">
-        <h2 className="font-display text-base font-semibold text-foreground">
-          Traffic
-        </h2>
-        <p className="mt-3 text-sm text-muted">No traffic data for this period.</p>
-      </section>
-    );
+    return <p className="text-sm text-muted">Sem série diária neste período.</p>;
   }
 
   const linePath = points
@@ -44,14 +39,16 @@ export function TrafficChart({ series }: Props) {
   } L ${points[0].x} ${paddingY + plotHeight} Z`;
 
   return (
-    <section className="rounded-xl border border-border bg-surface p-5 shadow-sm shadow-black/5">
-      <div className="mb-5">
-        <h2 className="font-display text-base font-semibold text-foreground">
-          Tráfego
-        </h2>
-        <p className="mt-1 text-sm text-muted">
-          Usuários ativos no período selecionado
-        </p>
+    <section>
+      <div className="mb-2 flex items-center gap-1">
+        <h2 className="text-sm font-medium text-foreground">Usuários ativos</h2>
+        <InfoTip
+          text={
+            citation
+              ? `${citation} · Usuários ativos por dia`
+              : "Usuários ativos por dia"
+          }
+        />
       </div>
 
       <div className="overflow-x-auto">
@@ -63,8 +60,8 @@ export function TrafficChart({ series }: Props) {
         >
           <defs>
             <linearGradient id="trafficFill" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor="#6074c8" stopOpacity="0.22" />
-              <stop offset="100%" stopColor="#6074c8" stopOpacity="0.02" />
+              <stop offset="0%" stopColor="var(--accent)" stopOpacity="0.22" />
+              <stop offset="100%" stopColor="var(--accent)" stopOpacity="0.02" />
             </linearGradient>
           </defs>
 
@@ -77,7 +74,7 @@ export function TrafficChart({ series }: Props) {
                 x2={chartWidth - paddingX}
                 y1={y}
                 y2={y}
-                stroke="#e4e4e7"
+                stroke="var(--humana-surface)"
                 strokeWidth="1"
               />
             );
@@ -87,7 +84,7 @@ export function TrafficChart({ series }: Props) {
           <path
             d={linePath}
             fill="none"
-            stroke="#6074c8"
+            stroke="var(--accent)"
             strokeWidth="2.5"
             strokeLinecap="round"
             strokeLinejoin="round"
@@ -95,7 +92,7 @@ export function TrafficChart({ series }: Props) {
 
           {points.map((point, index) => (
             <g key={`${point.day}-${index}`}>
-              <circle cx={point.x} cy={point.y} r="3.5" fill="#6074c8" />
+              <circle cx={point.x} cy={point.y} r="3.5" fill="var(--accent)" />
               <text
                 x={point.x}
                 y={chartHeight + 18}

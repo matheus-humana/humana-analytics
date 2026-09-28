@@ -1,6 +1,18 @@
 @import "tailwindcss";
 @import "../styles/humana-tokens.css";
 
+/*
+ * Theme tokens in the shadcn/ui shape (CSS variables consumed by Tailwind).
+ * Brand hex codes come from Design System - HumanaAI/tokens.css, which matches
+ * the public site https://www.humana.ai (primary #6074c8 appears in its CSS).
+ *
+ * --muted stays the muted TEXT color so existing `text-muted` classes hold.
+ * shadcn's muted surface is --muted-bg (#f1f1f1), not a second gray.
+ *
+ * Semantic green/red are not in the Humana palette. They exist only for
+ * delta badges and connection dots, at sizes that clear WCAG AA on white:
+ * #166534 on #f0fdf4, #991b1b on #fef2f2.
+ */
 :root {
   --background: var(--humana-surface);
   --foreground: var(--humana-ink);
@@ -10,6 +22,27 @@
   --accent: var(--humana-blue);
   --accent-soft: color-mix(in srgb, var(--accent) 16%, white);
   --navy: var(--humana-navy);
+
+  --card: var(--humana-white);
+  --card-foreground: var(--humana-ink);
+  --popover: var(--humana-white);
+  --popover-foreground: var(--humana-ink);
+  --primary: var(--humana-blue);
+  --primary-foreground: var(--humana-white);
+  --secondary: var(--humana-surface);
+  --secondary-foreground: var(--humana-ink);
+  --muted-bg: var(--humana-surface);
+  --muted-foreground: var(--humana-gray);
+  --ring: var(--humana-blue);
+
+  --positive: #166534;
+  --positive-bg: #f0fdf4;
+  --negative: #991b1b;
+  --negative-bg: #fef2f2;
+  --warning: #a16207;
+  --warning-bg: #fefce8;
+  --warning-border: #eab308;
+  --status-on: #15803d;
 }
 
 /*
@@ -47,6 +80,25 @@ html[data-accent="orange"] {
   --color-accent: var(--accent);
   --color-accent-soft: var(--accent-soft);
   --color-navy: var(--navy);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted-bg: var(--muted-bg);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-ring: var(--ring);
+  --color-positive: var(--positive);
+  --color-positive-bg: var(--positive-bg);
+  --color-negative: var(--negative);
+  --color-negative-bg: var(--negative-bg);
+  --color-warning: var(--warning);
+  --color-warning-bg: var(--warning-bg);
+  --color-warning-border: var(--warning-border);
+  --color-status-on: var(--status-on);
   --font-sans: var(--font-montserrat), var(--humana-font-body);
   --font-display: var(--font-poppins), var(--humana-font-display);
   --font-mono: var(--font-geist-mono), ui-monospace, monospace;
@@ -56,7 +108,16 @@ body {
   background: var(--background);
   color: var(--foreground);
   font-family: var(--font-sans);
-  line-height: 1.6;
+  line-height: 1.5;
+}
+
+.ha-primary {
+  background: var(--accent);
+  color: var(--humana-white);
+}
+
+.ha-primary:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--accent) 82%, var(--humana-navy));
 }
 
 h1,

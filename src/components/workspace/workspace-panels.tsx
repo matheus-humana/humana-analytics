@@ -15,22 +15,24 @@ import { AskAiPanel } from "@/components/ask-ai/ask-ai-panel";
 import type { ChatLocale } from "@/lib/ai/analytics-bot-contract";
 import { workspaceText } from "@/lib/i18n/workspace-copy";
 import {
+  COLLAPSIBLE_PANEL_IDS,
   WORKSPACE_PANEL_IDS,
   type CollapsiblePanelId,
   type MobileColumn,
   type WorkspacePrefs,
   type WorkspaceTab,
 } from "@/lib/workspace/prefs";
-import type { ChatSignal, ConnectionSnapshot } from "@/lib/workspace/status-log";
+import type { ChatSignal } from "@/lib/workspace/status-log";
 import type { WorkspaceProject } from "@/lib/workspace/load-workspace";
 
+import { ComingSoon } from "@/components/ui/coming-soon";
+
 import {
-  ActionsColumn,
-  ActionsRail,
   AnalyticsColumn,
   AnalyticsRail,
   ContextColumn,
   ContextRail,
+  RepositoryColumn,
 } from "./column-views";
 import { IconChat } from "./icons";
 import type { GithubPanelData } from "@/lib/github/types";
@@ -49,8 +51,8 @@ type Props = {
   prefs: WorkspacePrefs;
   onPrefs: (partial: Partial<WorkspacePrefs>) => void;
   project: WorkspaceProject | null;
+  repository: WorkspaceProject | null;
   foreignProject: boolean;
-  connections: ConnectionSnapshot[];
   traffic: React.ReactNode;
   trafficSummary: TrafficSummary | null;
   github: GithubPanelData;
@@ -67,24 +69,57 @@ export function WorkspacePanels(props: Props) {
   return <DesktopWorkspace {...props} />;
 }
 
-function DesktopWorkspace({
-  userId,
+function MainColumn({
   locale,
   prefs,
   onPrefs,
-  project,
+  repository,
   foreignProject,
-  connections,
   traffic,
-  trafficSummary,
   github,
   seo,
-  onChatActivity,
-}: Props) {
+  onCollapse,
+}: Props & { onCollapse?: () => void }) {
+  if (prefs.mode === "repository") {
+    return (
+      <RepositoryColumn
+        locale={locale}
+        repository={repository}
+        github={github}
+        onCollapse={onCollapse}
+      />
+    );
+  }
+  return (
+    <AnalyticsColumn
+      locale={locale}
+      tab={prefs.tab}
+      onTab={(tab: WorkspaceTab) => onPrefs({ tab })}
+      onCollapse={onCollapse}
+      traffic={traffic}
+      blocked={foreignProject}
+      blockedTitle={workspaceText(locale, "otherProjectTitle")}
+      blockedBody={workspaceText(locale, "otherProjectBody")}
+      seo={seo}
+    />
+  );
+}
+
+function DesktopWorkspace(props: Props) {
+  const {
+    userId,
+    locale,
+    prefs,
+    onPrefs,
+    project,
+    foreignProject,
+    trafficSummary,
+    seo,
+    onChatActivity,
+  } = props;
   const groupRef = useGroupRef();
   const contextRef = usePanelRef();
   const analyticsRef = usePanelRef();
-  const actionsRef = usePanelRef();
   const layoutBeforeToggle = useRef<Layout | null>(null);
   const groupElementRef = useRef<HTMLDivElement | null>(null);
   const [groupWidth, setGroupWidth] = useState(1280);
@@ -103,9 +138,8 @@ function DesktopWorkspace({
     const refs = {
       context: contextRef,
       analytics: analyticsRef,
-      actions: actionsRef,
     };
-    for (const id of ["context", "analytics", "actions"] as const) {
+    for (const id of COLLAPSIBLE_PANEL_IDS) {
       const handle = refs[id].current;
       if (!handle) continue;
       if (!prefs.open[id] && !handle.isCollapsed()) handle.collapse();
@@ -116,12 +150,7 @@ function DesktopWorkspace({
   }, []);
 
   function toggle(id: CollapsiblePanelId) {
-    const handle =
-      id === "context"
-        ? contextRef.current
-        : id === "analytics"
-          ? analyticsRef.current
-          : actionsRef.current;
+    const handle = id === "context" ? contextRef.current : analyticsRef.current;
     const previousOpen = prefs.open;
     const opening = !previousOpen[id];
     layoutBeforeToggle.current = groupRef.current?.getLayout() ?? null;
@@ -183,16 +212,10 @@ function DesktopWorkspace({
           <ContextColumn
             locale={locale}
             project={project}
-            foreign={foreignProject}
-            connections={connections}
             onCollapse={() => toggle("context")}
           />
         ) : (
-          <ContextRail
-            locale={locale}
-            connections={foreignProject ? [] : connections}
-            onExpand={() => toggle("context")}
-          />
+          <ContextRail locale={locale} onExpand={() => toggle("context")} />
         )}
       </Panel>
       <PanelSeparator label={text("resizeColumns")} />
@@ -208,54 +231,14 @@ function DesktopWorkspace({
         style={{ overflow: "hidden" }}
       >
         {prefs.open.analytics ? (
-          <AnalyticsColumn
-            locale={locale}
-            tab={prefs.tab}
-            onTab={(tab: WorkspaceTab) => onPrefs({ tab })}
-            onCollapse={() => toggle("analytics")}
-            traffic={traffic}
-            blocked={foreignProject}
-            blockedTitle={text("otherProjectTitle")}
-            blockedBody={text("otherProjectBody")}
-            github={github}
-            seo={seo}
-            projectId={project?.id ?? null}
-          />
+          <MainColumn {...props} onCollapse={() => toggle("analytics")} />
         ) : (
           <AnalyticsRail
             locale={locale}
-            summary={foreignProject ? null : trafficSummary}
-            seo={foreignProject ? null : seo.rail}
+            repository={prefs.mode === "repository"}
+            summary={prefs.mode === "repository" || foreignProject ? null : trafficSummary}
+            seo={prefs.mode === "repository" || foreignProject ? null : seo.rail}
             onExpand={() => toggle("analytics")}
-          />
-        )}
-      </Panel>
-      <PanelSeparator label={text("resizeColumns")} />
-      <Panel
-        id="actions"
-        panelRef={actionsRef}
-        collapsible
-        collapsedSize={COLLAPSED_PX}
-        collapsedThreshold={140}
-        minSize={mins.actions}
-        onResize={onResize("actions")}
-        className="h-full bg-surface"
-        style={{ overflow: "hidden" }}
-      >
-        {prefs.open.actions ? (
-          <ActionsColumn
-            locale={locale}
-            seo={seo}
-            blocked={foreignProject}
-            blockedTitle={text("otherProjectTitle")}
-            blockedBody={text("otherProjectBody")}
-            onCollapse={() => toggle("actions")}
-          />
-        ) : (
-          <ActionsRail
-            locale={locale}
-            openCount={foreignProject ? null : seo.rail.openActions}
-            onExpand={() => toggle("actions")}
           />
         )}
       </Panel>
@@ -274,13 +257,12 @@ function DesktopWorkspace({
 
 function minimumsFor(width: number) {
   if (width >= 1280) {
-    return { context: 240, analytics: 360, actions: 220, chat: 360 };
+    return { context: 240, analytics: 420, chat: 360 };
   }
   const scale = Math.max(0.62, width / 1280);
   return {
     context: Math.round(240 * scale),
-    analytics: Math.max(220, Math.round(360 * scale)),
-    actions: Math.round(220 * scale),
+    analytics: Math.max(240, Math.round(420 * scale)),
     chat: Math.max(220, Math.round(360 * scale)),
   };
 }
@@ -289,7 +271,7 @@ function PanelSeparator({ label }: { label: string }) {
   return (
     <Separator
       aria-label={label}
-      className="w-2 bg-[#f1f1f1] outline-none transition-colors hover:bg-accent/40 focus-visible:bg-accent/50"
+      className="w-2 bg-secondary outline-none transition-colors hover:bg-accent/40 focus-visible:bg-accent/50"
     />
   );
 }
@@ -311,7 +293,7 @@ function rebalanceLayout(
   nextOpen: OpenState
 ): Layout {
   let collapsedSum = 0;
-  for (const id of ["context", "analytics", "actions"] as const) {
+  for (const id of COLLAPSIBLE_PANEL_IDS) {
     if (nextOpen[id]) continue;
     const measured = current[id] ?? 0;
     collapsedSum += measured > 0 && measured < 12 ? measured : 1;
@@ -345,26 +327,24 @@ function rebalanceLayout(
   return layout;
 }
 
-function MobileWorkspace({
-  locale,
-  prefs,
-  onPrefs,
-  project,
-  foreignProject,
-  connections,
-  traffic,
-  github,
-  seo,
-  onChatActivity,
-  mobileChatOpen,
-  onMobileChatOpen,
-}: Props) {
+function MobileWorkspace(props: Props) {
+  const {
+    locale,
+    prefs,
+    onPrefs,
+    project,
+    onChatActivity,
+    mobileChatOpen,
+    onMobileChatOpen,
+  } = props;
   const text = (key: Parameters<typeof workspaceText>[1]) =>
     workspaceText(locale, key);
   const columns: Array<{ id: MobileColumn; label: string }> = [
     { id: "context", label: text("columnContext") },
-    { id: "analytics", label: text("columnAnalytics") },
-    { id: "actions", label: text("columnActions") },
+    {
+      id: "analytics",
+      label: text(prefs.mode === "repository" ? "modeRepository" : "columnAnalytics"),
+    },
   ];
 
   return (
@@ -386,10 +366,8 @@ function MobileWorkspace({
                 onMobileChatOpen(false);
                 onPrefs({ mobileColumn: column.id });
               }}
-              className={`rounded-md px-3 py-1.5 text-sm font-medium ${
-                selected
-                  ? "bg-accent text-white"
-                  : "text-muted hover:bg-[#f1f1f1]"
+              className={`rounded-full px-3 py-1.5 text-sm font-medium ${
+                selected ? "ha-primary" : "text-muted hover:text-foreground"
               }`}
             >
               {column.label}
@@ -399,55 +377,25 @@ function MobileWorkspace({
       </div>
       <div className="min-h-0 flex-1 overflow-hidden">
         {prefs.mobileColumn === "context" ? (
-          <ContextColumn
-            locale={locale}
-            project={project}
-            foreign={foreignProject}
-            connections={connections}
-          />
+          <ContextColumn locale={locale} project={project} />
         ) : null}
-        {prefs.mobileColumn === "analytics" ? (
-          <AnalyticsColumn
-            locale={locale}
-            tab={prefs.tab}
-            onTab={(tab) => onPrefs({ tab })}
-            traffic={traffic}
-            blocked={foreignProject}
-            blockedTitle={text("otherProjectTitle")}
-            blockedBody={text("otherProjectBody")}
-            github={github}
-            seo={seo}
-            projectId={project?.id ?? null}
-          />
-        ) : null}
-        {prefs.mobileColumn === "actions" ? (
-          <ActionsColumn
-            locale={locale}
-            seo={seo}
-            blocked={foreignProject}
-            blockedTitle={text("otherProjectTitle")}
-            blockedBody={text("otherProjectBody")}
-          />
-        ) : null}
+        {prefs.mobileColumn === "analytics" ? <MainColumn {...props} /> : null}
       </div>
       <button
         type="button"
         onClick={() => onMobileChatOpen(true)}
-        className="fixed bottom-4 right-4 z-40 inline-flex items-center gap-2 rounded-full bg-accent px-4 py-3 font-display text-sm font-medium text-white shadow-lg shadow-black/15"
+        className="ha-primary fixed bottom-4 right-4 z-40 inline-flex items-center gap-2 rounded-full px-4 py-3 text-sm font-medium shadow-sm"
       >
         <IconChat className="h-5 w-5" />
         {text("openChat")}
       </button>
       {mobileChatOpen ? (
         <div className="fixed inset-0 z-50 flex flex-col bg-surface">
-          <header className="flex h-12 shrink-0 items-center justify-between border-b border-border px-3">
-            <h2 className="font-display text-sm font-semibold">
-              {text("columnChat")}
-            </h2>
+          <header className="flex h-12 shrink-0 items-center justify-end border-b border-secondary px-3">
             <button
               type="button"
               onClick={() => onMobileChatOpen(false)}
-              className="rounded-md border border-border px-2.5 py-1 text-sm text-foreground"
+              className="rounded-md px-2.5 py-1 text-sm text-foreground hover:bg-secondary"
             >
               {text("closeChat")}
             </button>
@@ -470,12 +418,10 @@ function ChatColumn({
 }) {
   return (
     <section className="flex h-full min-h-0 flex-col bg-surface">
-      <header className="flex h-11 shrink-0 items-center border-b border-border px-3">
-        <h2 className="font-display text-sm font-semibold text-foreground">
-          {workspaceText(locale, "columnChat")}
-        </h2>
-      </header>
-      <div className="min-h-0 flex-1">
+      <ComingSoon
+        title={workspaceText(locale, "chatComingSoon")}
+        body={workspaceText(locale, "chatComingSoonBody")}
+      >
         <Suspense
           fallback={
             <p className="px-3 py-3 text-sm text-muted">
@@ -495,7 +441,7 @@ function ChatColumn({
             }
           />
         </Suspense>
-      </div>
+      </ComingSoon>
     </section>
   );
 }
