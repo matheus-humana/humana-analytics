@@ -15,6 +15,7 @@ import {
   type GithubRepoReport,
 } from "@/lib/github/types";
 import { hasSnapshot } from "@/lib/github/report";
+import { Disclosure } from "@/components/ui/disclosure";
 import { EmptyLine } from "@/components/ui/empty-line";
 import { InfoTip } from "@/components/ui/info-tip";
 import { KpiCard, type KpiDelta } from "@/components/ui/kpi-card";
@@ -68,7 +69,9 @@ export function GithubPanel({
         />
       ))}
 
-      <CollectButton text={text} />
+      <Disclosure title={text("technicalDetails")}>
+        <CollectButton text={text} />
+      </Disclosure>
     </div>
   );
 }
@@ -242,8 +245,7 @@ function RepoSection({
           series={report.counterSeries.map((point) => point.releaseDownloads)}
         />
       </div>
-      <TrafficTable locale={locale} report={report} text={text} />
-      <div className="grid gap-6">
+      <div className="grid gap-2">
         <Breakdown
           title={text("githubReferrers")}
           info={windowFooter(text, report, locale)}
@@ -270,7 +272,10 @@ function RepoSection({
           totalLabel={text("githubCount")}
           uniqueLabel={text("githubUniques")}
         />
-        <AssetTable locale={locale} report={report} text={text} />
+        <Disclosure title={text("githubDetails")}>
+          <TrafficTable locale={locale} report={report} text={text} />
+          <AssetTable locale={locale} report={report} text={text} />
+        </Disclosure>
       </div>
     </section>
   );
@@ -378,16 +383,17 @@ function Breakdown({
 }) {
   const max = Math.max(1, ...rows.map((row) => row.total));
   return (
-    <RankList
-      title={title}
-      info={info}
-      empty={empty}
-      rows={rows.map((row) => ({
-        name: row.name,
-        value: `${totalLabel} ${formatCount(row.total, locale)} · ${uniqueLabel} ${formatCount(row.uniques, locale)}`,
-        width: (row.total / max) * 100,
-      }))}
-    />
+    <Disclosure title={`${title} (${rows.length})`}>
+      <RankList
+        info={info}
+        empty={empty}
+        rows={rows.map((row) => ({
+          name: row.name,
+          value: `${totalLabel} ${formatCount(row.total, locale)} · ${uniqueLabel} ${formatCount(row.uniques, locale)}`,
+          width: (row.total / max) * 100,
+        }))}
+      />
+    </Disclosure>
   );
 }
 

@@ -59,6 +59,7 @@ export default async function DashboardPage({ searchParams }: PageProps) {
     <WorkspaceScreen
       userId={user.id}
       userName={user.name?.trim() || "Conta"}
+      userEmail={user.email}
       model={model}
       trafficSummary={traffic.summary}
       traffic={<WorkspaceTraffic payload={traffic} />}

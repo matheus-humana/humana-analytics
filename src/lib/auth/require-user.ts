@@ -5,6 +5,7 @@ import { auth } from "@/lib/auth";
 export type SessionUser = {
   id: string;
   name: string | null;
+  email: string | null;
 };
 
 export async function getSessionUser(): Promise<SessionUser | null> {
@@ -14,6 +15,7 @@ export async function getSessionUser(): Promise<SessionUser | null> {
     return {
       id: session.user.id,
       name: session.user.name ?? null,
+      email: session.user.email ?? null,
     };
   } catch {
     return null;

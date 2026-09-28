@@ -4,6 +4,8 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 
 import { PeriodFilter } from "@/components/analytics/period-filter";
+import { Dropdown } from "@/components/ui/dropdown";
+import { IconArrowUp } from "@/components/workspace/icons";
 import { humanaAnalyticsSuggestions } from "@/data/mock/ask-ai";
 import {
   ASSISTANT_STATUS_PENDING,
@@ -545,19 +547,20 @@ function ColumnChat({
         >
           {text("chatNew")}
         </button>
-        <select
+        <Dropdown
           value={conversationId ?? ""}
-          onChange={(event) => onOpen(event.target.value)}
-          aria-label={text("chatNew")}
-          className="min-w-0 flex-1 bg-transparent text-xs text-muted outline-none"
-        >
-          <option value="">{text("chatEmpty")}</option>
-          {conversations.map((conversation) => (
-            <option key={conversation.id} value={conversation.id}>
-              {conversation.title}
-            </option>
-          ))}
-        </select>
+          onChange={onOpen}
+          ariaLabel={text("chatNew")}
+          size="sm"
+          className="min-w-0 flex-1 text-xs"
+          options={[
+            { value: "", label: text("chatEmpty") },
+            ...conversations.map((conversation) => ({
+              value: conversation.id,
+              label: conversation.title,
+            })),
+          ]}
+        />
       </div>
       <div className="min-h-0 flex-1 space-y-4 overflow-y-auto px-3 py-2" aria-live="polite">
         {loadingHistory ? (
@@ -625,10 +628,12 @@ function ColumnChat({
           <button
             type="button"
             onClick={() => onAsk()}
-            disabled={busy}
-            className="ha-primary shrink-0 rounded-full px-3 py-1.5 text-sm font-medium disabled:cursor-not-allowed disabled:opacity-50"
+            disabled={busy || !question.trim()}
+            aria-label={askLabel}
+            title={askLabel}
+            className="ha-primary flex h-8 w-8 shrink-0 items-center justify-center rounded-full disabled:cursor-not-allowed disabled:opacity-40"
           >
-            {askLabel}
+            <IconArrowUp className={`h-4 w-4 ${busy ? "animate-pulse" : ""}`} />
           </button>
         </div>
       </div>

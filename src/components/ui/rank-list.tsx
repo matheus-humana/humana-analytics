@@ -6,19 +6,23 @@ export function RankList({
   empty,
   rows,
 }: {
-  title: string;
+  title?: string;
   info?: string | null;
   empty: string;
   rows: Array<{ name: string; value: string; width: number }>;
 }) {
   return (
     <section className="min-w-0">
-      <div className="flex items-center gap-1">
-        <h3 className="text-sm font-medium text-foreground">{title}</h3>
-        {info ? <InfoTip text={info} /> : null}
-      </div>
-      {rows.length === 0 ? <p className="mt-2 text-sm text-muted">{empty}</p> : null}
-      <ul className="mt-3 space-y-2.5">
+      {title ? (
+        <div className="mb-3 flex items-center gap-1">
+          <h3 className="text-sm font-medium text-foreground">{title}</h3>
+          {info ? <InfoTip text={info} /> : null}
+        </div>
+      ) : info ? (
+        <p className="mb-3 text-xs text-muted">{info}</p>
+      ) : null}
+      {rows.length === 0 ? <p className="text-sm text-muted">{empty}</p> : null}
+      <ul className="space-y-2.5">
         {rows.map((row) => (
           <li key={row.name}>
             <div className="flex items-baseline justify-between gap-3 text-sm">

@@ -39,6 +39,9 @@
   --positive-bg: #f0fdf4;
   --negative: #991b1b;
   --negative-bg: #fef2f2;
+  --warning: #a16207;
+  --warning-bg: #fefce8;
+  --warning-border: #eab308;
   --status-on: #15803d;
 }
 
@@ -92,6 +95,9 @@ html[data-accent="orange"] {
   --color-positive-bg: var(--positive-bg);
   --color-negative: var(--negative);
   --color-negative-bg: var(--negative-bg);
+  --color-warning: var(--warning);
+  --color-warning-bg: var(--warning-bg);
+  --color-warning-border: var(--warning-border);
   --color-status-on: var(--status-on);
   --font-sans: var(--font-montserrat), var(--humana-font-body);
   --font-display: var(--font-poppins), var(--humana-font-display);

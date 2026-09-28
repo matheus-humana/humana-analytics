@@ -1,34 +1,30 @@
 "use client";
 
-import Link from "next/link";
 import { Suspense } from "react";
 
 import type { ChatLocale } from "@/lib/ai/analytics-bot-contract";
 import { workspaceText, type WorkspaceMessageKey } from "@/lib/i18n/workspace-copy";
 import type { WorkspaceTab } from "@/lib/workspace/prefs";
-import type { ConnectionSnapshot } from "@/lib/workspace/status-log";
 import type { WorkspaceProject } from "@/lib/workspace/load-workspace";
 
 import {
-  IconActions,
   IconAnalytics,
   IconChevron,
   IconContext,
 } from "./icons";
 import type { GithubPanelData } from "@/lib/github/types";
 import { formatScorePoints } from "@/lib/seo/explain";
-import { groupFindings } from "@/lib/seo/groups";
 import type { SeoWorkspace } from "@/lib/seo/view";
 
+import { ComingSoon } from "@/components/ui/coming-soon";
 import { EmptyLine } from "@/components/ui/empty-line";
 import { InfoTip } from "@/components/ui/info-tip";
 
 import { GithubPanel } from "./github-panel";
 import { GeoPanel } from "./geo-panel";
-import { FindingGroupCard, SeoPanel } from "./seo-panel";
+import { ProviderIcon } from "./provider-icons";
+import { SeoPanel } from "./seo-panel";
 import type { TrafficSummary } from "./workspace-traffic";
-
-type Copy = (key: WorkspaceMessageKey) => string;
 
 export function ColumnHeader({
   title,
@@ -65,17 +61,18 @@ export function ColumnHeader({
 export function ContextColumn({
   locale,
   project,
-  foreign,
-  connections,
   onCollapse,
 }: {
   locale: ChatLocale;
   project: WorkspaceProject | null;
-  foreign: boolean;
-  connections: ConnectionSnapshot[];
   onCollapse?: () => void;
 }) {
   const text = (key: WorkspaceMessageKey) => workspaceText(locale, key);
+  const sections: WorkspaceMessageKey[] = [
+    "contextDocuments",
+    "contextCompetitors",
+    "contextAudience",
+  ];
   return (
     <section className="flex h-full min-h-0 flex-col bg-surface">
       <ColumnHeader
@@ -83,89 +80,29 @@ export function ContextColumn({
         onCollapse={onCollapse}
         collapseLabel={`${text("collapseColumn")} ${text("columnContext")}`}
       />
-      <div className="min-h-0 flex-1 space-y-5 overflow-y-auto px-3 py-4">
-        {project ? (
-          <div>
-            <p className="text-sm font-medium text-foreground">{project.name}</p>
-            <p className="text-xs text-muted">
-              <span className="sr-only">{text("slug")}: </span>
-              {project.slug}
-            </p>
+      <div className="min-h-0 flex-1">
+        <ComingSoon title={text("chatComingSoon")} body={text("contextComingSoonBody")}>
+          <div className="space-y-5 px-3 py-4">
+            <div>
+              <p className="text-xs text-muted">{text("project")}</p>
+              <p className="mt-0.5 text-sm font-medium text-foreground">
+                {project?.name ?? text("projectUnavailable")}
+              </p>
+            </div>
+            {sections.map((key) => (
+              <div key={key} className="space-y-2">
+                <p className="text-sm font-medium text-foreground">{text(key)}</p>
+                <div className="space-y-1.5 rounded-xl border border-secondary p-3">
+                  <div className="h-2.5 w-4/5 rounded-full bg-secondary" />
+                  <div className="h-2.5 w-3/5 rounded-full bg-secondary" />
+                  <div className="h-2.5 w-2/3 rounded-full bg-secondary" />
+                </div>
+              </div>
+            ))}
           </div>
-        ) : (
-          <p className="text-sm text-muted">{text("projectUnavailable")}</p>
-        )}
-
-        <div>
-          <p className="text-xs text-muted">{text("connections")}</p>
-          {foreign ? (
-            <p className="mt-2 text-sm text-muted">{text("connectionsNotLoaded")}</p>
-          ) : (
-            <ul className="mt-1">
-              {connections.map((connection) => (
-                <ConnectionRow key={connection.provider} connection={connection} text={text} />
-              ))}
-            </ul>
-          )}
-          <div className="mt-4 flex items-center gap-1">
-            <Link
-              href="/data-sources"
-              className="text-sm text-foreground underline-offset-2 hover:underline"
-            >
-              {text("openDataSources")}
-            </Link>
-            <InfoTip text={text("futureSources")} />
-          </div>
-        </div>
+        </ComingSoon>
       </div>
     </section>
-  );
-}
-
-function providerName(provider: ConnectionSnapshot["provider"]): string {
-  if (provider === "ga4") return "GA4";
-  if (provider === "clarity") return "Clarity";
-  if (provider === "github") return "GitHub";
-  if (provider === "pagespeed") return "PageSpeed";
-  if (provider === "crawl") return "Crawl";
-  return "Vercel";
-}
-
-function connectionTitle(connection: ConnectionSnapshot, text: Copy): string {
-  const state = connection.status === "error"
-    ? text("statusError")
-    : connection.connected
-      ? text("statusConnected")
-      : text("statusDisconnected");
-  const detail = connection.detail?.trim();
-  return detail
-    ? `${providerName(connection.provider)} · ${state} · ${detail}`
-    : `${providerName(connection.provider)} · ${state}`;
-}
-
-function ConnectionRow({
-  connection,
-  text,
-}: {
-  connection: ConnectionSnapshot;
-  text: Copy;
-}) {
-  const error = connection.status === "error";
-  const on = connection.connected && !error;
-  const label = connectionTitle(connection, text);
-  return (
-    <li>
-      <span className="flex items-center gap-2 py-1" title={label}>
-        <span
-          className={`h-1.5 w-1.5 shrink-0 rounded-full ${
-            on ? "bg-status-on" : error ? "bg-negative" : "bg-border"
-          }`}
-          aria-hidden
-        />
-        <span className="text-sm text-foreground">{providerName(connection.provider)}</span>
-        <span className="sr-only">{label}</span>
-      </span>
-    </li>
   );
 }
 
@@ -178,9 +115,7 @@ export function AnalyticsColumn({
   blocked,
   blockedTitle,
   blockedBody,
-  github,
   seo,
-  projectId,
 }: {
   locale: ChatLocale;
   tab: WorkspaceTab;
@@ -190,16 +125,13 @@ export function AnalyticsColumn({
   blocked: boolean;
   blockedTitle: string;
   blockedBody: string;
-  github: GithubPanelData;
   seo: SeoWorkspace;
-  projectId: string | null;
 }) {
   const text = (key: WorkspaceMessageKey) => workspaceText(locale, key);
   const tabs: Array<{ id: WorkspaceTab; label: string }> = [
     { id: "traffic", label: text("tabTraffic") },
     { id: "seo", label: text("tabSeo") },
     { id: "geo", label: text("tabGeo") },
-    { id: "github", label: text("tabGithub") },
   ];
 
   return (
@@ -231,96 +163,59 @@ export function AnalyticsColumn({
         </div>
       </div>
       <div className="min-h-0 flex-1 overflow-y-auto px-3 py-4">
-        {tab === "traffic" ? (
-          blocked ? (
-            <EmptyState title={blockedTitle} body={blockedBody} />
-          ) : (
-            traffic
-          )
-        ) : null}
-        {tab === "seo" ? (
-          blocked ? (
-            <EmptyState title={blockedTitle} body={blockedBody} />
-          ) : (
-            <SeoPanel locale={locale} data={seo} />
-          )
-        ) : null}
-        {tab === "geo" ? (
-          blocked ? (
-            <EmptyState title={blockedTitle} body={blockedBody} />
-          ) : (
-            <GeoPanel locale={locale} data={seo} />
-          )
-        ) : null}
-        {tab === "github" ? (
-          <Suspense fallback={null}>
-            <GithubPanel locale={locale} data={github} selectedProjectId={projectId} />
-          </Suspense>
-        ) : null}
+        {blocked ? (
+          <EmptyState title={blockedTitle} body={blockedBody} />
+        ) : tab === "traffic" ? (
+          traffic
+        ) : tab === "seo" ? (
+          <SeoPanel locale={locale} data={seo} />
+        ) : (
+          <GeoPanel locale={locale} data={seo} />
+        )}
       </div>
     </section>
   );
 }
 
-export function ActionsColumn({
+export function RepositoryColumn({
   locale,
-  seo,
-  blocked,
-  blockedTitle,
-  blockedBody,
+  repository,
+  github,
   onCollapse,
 }: {
   locale: ChatLocale;
-  seo: SeoWorkspace;
-  blocked: boolean;
-  blockedTitle: string;
-  blockedBody: string;
+  repository: WorkspaceProject | null;
+  github: GithubPanelData;
   onCollapse?: () => void;
 }) {
   const text = (key: WorkspaceMessageKey) => workspaceText(locale, key);
   return (
     <section className="flex h-full min-h-0 flex-col bg-surface">
       <ColumnHeader
-        title={text("columnActions")}
+        title={text("modeRepository")}
         onCollapse={onCollapse}
-        collapseLabel={`${text("collapseColumn")} ${text("columnActions")}`}
-        info={text("actionsAuto")}
+        collapseLabel={`${text("collapseColumn")} ${text("modeRepository")}`}
       />
-      <div className="min-h-0 flex-1 space-y-5 overflow-y-auto px-3 py-4">
-        {blocked ? <EmptyLine title={blockedTitle} detail={blockedBody} /> : null}
-        {!blocked && !seo.configured ? (
-          <EmptyLine title={text("actionsEmptyTitle")} detail={text("seoMissingSite")} />
-        ) : null}
-        {!blocked && seo.configured ? (
-          <>
-            <section className="space-y-2">
-              <h3 className="text-sm font-medium text-foreground">
-                {text("actionsNeedAttention")}
-              </h3>
-              {seo.openFindings.length === 0 ? (
-                <p className="text-sm text-muted">
-                  {seo.crawl ? text("actionsNoneOpen") : text("seoNoCrawl")}
-                </p>
-              ) : (
-                groupFindings(seo.openFindings).map((group) => (
-                  <FindingGroupCard key={group.key} locale={locale} group={group} text={text} />
-                ))
-              )}
-            </section>
-            <section className="space-y-2">
-              <h3 className="text-sm font-medium text-foreground">
-                {text("actionsResolved")}
-              </h3>
-              {seo.resolvedFindings.length === 0 ? (
-                <p className="text-sm text-muted">{text("actionsNoneResolved")}</p>
-              ) : (
-                groupFindings(seo.resolvedFindings).map((group) => (
-                  <FindingGroupCard key={group.key} locale={locale} group={group} text={text} />
-                ))
-              )}
-            </section>
-          </>
-        ) : null}
+      <div className="min-h-0 flex-1 space-y-4 overflow-y-auto px-3 py-4">
+        <div className="flex items-start gap-3 rounded-xl border border-secondary bg-secondary/40 p-3">
+          <ProviderIcon provider="github" className="mt-0.5 h-5 w-5 shrink-0" />
+          <div className="min-w-0">
+            <p className="text-sm font-medium text-foreground">
+              {text("repoBannerTitle")}
+              {repository?.repo ? (
+                <span className="break-all font-normal text-muted"> · {repository.repo}</span>
+              ) : null}
+            </p>
+            <p className="mt-0.5 text-xs text-muted">{text("repoBannerBody")}</p>
+          </div>
+        </div>
+        {repository ? (
+          <Suspense fallback={null}>
+            <GithubPanel locale={locale} data={github} selectedProjectId={repository.id} />
+          </Suspense>
+        ) : (
+          <EmptyLine title={text("repositoryUnavailable")} detail={text("githubMissingToken")} />
+        )}
       </div>
     </section>
   );
@@ -355,30 +250,15 @@ export function CollapsedRail({
 
 export function ContextRail({
   locale,
-  connections,
   onExpand,
 }: {
   locale: ChatLocale;
-  connections: ConnectionSnapshot[];
   onExpand: () => void;
 }) {
   const label = `${workspaceText(locale, "expandColumn")} ${workspaceText(locale, "columnContext")}`;
   return (
     <CollapsedRail label={label} onExpand={onExpand}>
       <IconContext />
-      <span className="flex flex-col items-center gap-1">
-        {connections.map((connection) => (
-          <span
-            key={connection.provider}
-            title={connectionTitle(connection, (key) => workspaceText(locale, key))}
-            className={`h-1.5 w-1.5 rounded-full ${
-              connection.connected && connection.status !== "error"
-                ? "bg-status-on"
-                : "bg-border"
-            }`}
-          />
-        ))}
-      </span>
     </CollapsedRail>
   );
 }
@@ -387,14 +267,17 @@ export function AnalyticsRail({
   locale,
   summary,
   seo,
+  repository = false,
   onExpand,
 }: {
   locale: ChatLocale;
   summary: TrafficSummary | null;
   seo: { seoScore: number | null; geoScorePoints: number | null } | null;
+  repository?: boolean;
   onExpand: () => void;
 }) {
-  const label = `${workspaceText(locale, "expandColumn")} ${workspaceText(locale, "columnAnalytics")}`;
+  const column = repository ? "modeRepository" : "columnAnalytics";
+  const label = `${workspaceText(locale, "expandColumn")} ${workspaceText(locale, column)}`;
   const users =
     summary == null
       ? null
@@ -403,7 +286,11 @@ export function AnalyticsRail({
         );
   return (
     <CollapsedRail label={label} onExpand={onExpand}>
-      <IconAnalytics />
+      {repository ? (
+        <ProviderIcon provider="github" className="h-5 w-5" />
+      ) : (
+        <IconAnalytics />
+      )}
       {users ? (
         <span
           className="max-w-full text-center text-[10px] font-semibold leading-tight text-accent tabular-nums"
@@ -425,28 +312,6 @@ export function AnalyticsRail({
       {seo?.geoScorePoints != null ? (
         <span className="text-center text-[10px] font-semibold leading-tight text-accent tabular-nums" title={workspaceText(locale, "railGeo")}>
           {formatScorePoints(seo.geoScorePoints)}
-        </span>
-      ) : null}
-    </CollapsedRail>
-  );
-}
-
-export function ActionsRail({
-  locale,
-  openCount,
-  onExpand,
-}: {
-  locale: ChatLocale;
-  openCount: number | null;
-  onExpand: () => void;
-}) {
-  const label = `${workspaceText(locale, "expandColumn")} ${workspaceText(locale, "columnActions")}`;
-  return (
-    <CollapsedRail label={label} onExpand={onExpand}>
-      <IconActions />
-      {openCount != null ? (
-        <span className="text-[10px] font-semibold text-accent tabular-nums" title={workspaceText(locale, "railActions")}>
-          {openCount}
         </span>
       ) : null}
     </CollapsedRail>

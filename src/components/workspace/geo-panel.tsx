@@ -5,11 +5,13 @@ import { workspaceText, type WorkspaceMessageKey } from "@/lib/i18n/workspace-co
 import { explainBot, explainGeoRule, formatScorePoints } from "@/lib/seo/explain";
 import type { SeoWorkspace } from "@/lib/seo/view";
 
+import { Disclosure } from "@/components/ui/disclosure";
 import { EmptyLine } from "@/components/ui/empty-line";
 import { InfoTip } from "@/components/ui/info-tip";
 import { KpiCard } from "@/components/ui/kpi-card";
 
 import { SeoCollectButton } from "./seo-collect-button";
+import { FindingsSection } from "./seo-panel";
 
 type Copy = (key: WorkspaceMessageKey) => string;
 
@@ -33,22 +35,10 @@ export function GeoPanel({ locale, data }: { locale: ChatLocale; data: SeoWorksp
   const crawl = data.crawl;
   return (
     <div className="space-y-6">
-      <header className="flex items-center justify-between gap-2">
-        <div className="flex min-w-0 items-center gap-1">
-          <h3 className="truncate text-sm font-medium text-foreground">{text("geoHeading")}</h3>
-          <InfoTip text={text("geoIntro")} />
-        </div>
-        <SeoCollectButton
-          label={text("seoCollect")}
-          pendingLabel={text("seoCollecting")}
-          doneLabel={text("seoCollected")}
-          failedLabel={text("seoCollectFailed")}
-        />
+      <header className="flex min-w-0 items-center gap-1">
+        <h3 className="truncate text-sm font-medium text-foreground">{text("geoHeading")}</h3>
+        <InfoTip text={text("geoIntro")} />
       </header>
-
-      {data.crawlStatus === "error" && data.crawlDetail ? (
-        <EmptyLine title={text("statusError")} detail={data.crawlDetail} />
-      ) : null}
 
       <KpiCard
         label={text("geoScore")}
@@ -60,71 +50,88 @@ export function GeoPanel({ locale, data }: { locale: ChatLocale; data: SeoWorksp
         }
       />
 
+      <AiTrafficCard locale={locale} data={data} text={text} />
+
       {crawl ? (
-        <ul>
-          {crawl.checklist.map((rule) => {
-            const state = rule.passed
-              ? text("geoPassed")
-              : rule.earnedPoints > 0
-                ? text("geoPartial")
-                : text("geoFailed");
-            return (
-              <li key={rule.id} className="flex items-start justify-between gap-3 py-2">
-                <div className="min-w-0">
-                  <div className="flex items-center gap-1">
-                    <p className="text-sm text-foreground">{ruleName(locale, rule.id)}</p>
-                    <InfoTip
-                      text={`${explainGeoRule(locale, rule)} ${text("geoWeight")} ${formatScorePoints(rule.weightPoints)} · ${text("geoEarned")} ${formatScorePoints(rule.earnedPoints)}`}
-                    />
+        <Disclosure title={text("geoHowScored")}>
+          <ul>
+            {crawl.checklist.map((rule) => {
+              const state = rule.passed
+                ? text("geoPassed")
+                : rule.earnedPoints > 0
+                  ? text("geoPartial")
+                  : text("geoFailed");
+              return (
+                <li key={rule.id} className="flex items-start justify-between gap-3 py-2">
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-1">
+                      <p className="text-sm text-foreground">{ruleName(locale, rule.id)}</p>
+                      <InfoTip
+                        text={`${explainGeoRule(locale, rule)} ${text("geoWeight")} ${formatScorePoints(rule.weightPoints)} · ${text("geoEarned")} ${formatScorePoints(rule.earnedPoints)}`}
+                      />
+                    </div>
+                    <p className="text-xs text-muted">{state}</p>
                   </div>
-                  <p className="text-xs text-muted">{state}</p>
-                </div>
-                <p className="font-display text-lg font-semibold tabular-nums text-accent">
-                  {formatScorePoints(rule.earnedPoints)}
-                </p>
-              </li>
-            );
-          })}
-        </ul>
+                  <p className="font-display text-lg font-semibold tabular-nums text-accent">
+                    {formatScorePoints(rule.earnedPoints)}
+                  </p>
+                </li>
+              );
+            })}
+          </ul>
+        </Disclosure>
       ) : (
         <p className="text-sm text-muted">{text("geoNoScore")}</p>
       )}
 
-      {crawl ? (
-        <section className="space-y-2">
-          <div className="flex items-center gap-1">
-            <h4 className="text-sm font-medium text-foreground">{text("geoFiles")}</h4>
-            <InfoTip text={`${text("seoSourceCrawl")} · ${formatDay(crawl.day, locale)}`} />
-          </div>
-          <FileRow
-            name="robots.txt"
-            found={crawl.robotsFound}
-            bytes={crawl.robotsBytes}
-            text={text}
-          />
-          <FileRow name="llms.txt" found={crawl.llmsFound} bytes={crawl.llmsBytes} text={text} />
-          <FileRow
-            name="sitemap.xml"
-            found={crawl.sitemapFound}
-            bytes={null}
-            extra={crawl.sitemapFound ? String(crawl.sitemapUrls) : null}
-            text={text}
-          />
-        </section>
-      ) : null}
+      <Disclosure title={text("technicalDetails")}>
+        {data.crawlStatus === "error" && data.crawlDetail ? (
+          <EmptyLine title={text("statusError")} detail={data.crawlDetail} />
+        ) : null}
 
-      {crawl ? (
-        <section>
-          <h4 className="text-sm font-medium text-foreground">{text("geoAiBots")}</h4>
-          <ul className="mt-2 space-y-1 text-xs text-muted">
-            {crawl.aiBots.map((bot) => (
-              <li key={bot.bot}>{explainBot(locale, bot)}</li>
-            ))}
-          </ul>
-        </section>
-      ) : null}
+        {crawl ? (
+          <section className="space-y-2">
+            <div className="flex items-center gap-1">
+              <h4 className="text-sm font-medium text-foreground">{text("geoFiles")}</h4>
+              <InfoTip text={`${text("seoSourceCrawl")} · ${formatDay(crawl.day, locale)}`} />
+            </div>
+            <FileRow
+              name="robots.txt"
+              found={crawl.robotsFound}
+              bytes={crawl.robotsBytes}
+              text={text}
+            />
+            <FileRow name="llms.txt" found={crawl.llmsFound} bytes={crawl.llmsBytes} text={text} />
+            <FileRow
+              name="sitemap.xml"
+              found={crawl.sitemapFound}
+              bytes={null}
+              extra={crawl.sitemapFound ? String(crawl.sitemapUrls) : null}
+              text={text}
+            />
+          </section>
+        ) : null}
 
-      <AiTrafficCard locale={locale} data={data} text={text} />
+        {crawl ? (
+          <section>
+            <h4 className="text-sm font-medium text-foreground">{text("geoAiBots")}</h4>
+            <ul className="mt-2 space-y-1 text-xs text-muted">
+              {crawl.aiBots.map((bot) => (
+                <li key={bot.bot}>{explainBot(locale, bot)}</li>
+              ))}
+            </ul>
+          </section>
+        ) : null}
+
+        <SeoCollectButton
+          label={text("seoCollect")}
+          pendingLabel={text("seoCollecting")}
+          doneLabel={text("seoCollected")}
+          failedLabel={text("seoCollectFailed")}
+        />
+      </Disclosure>
+
+      <FindingsSection locale={locale} data={data} source="geo" />
     </div>
   );
 }

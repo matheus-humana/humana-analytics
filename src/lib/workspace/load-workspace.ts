@@ -24,7 +24,28 @@ export type WorkspaceProject = {
   id: string;
   name: string;
   slug: string;
+  kind: "project" | "repository";
+  /** `owner/name` for repository projects. */
+  repo: string | null;
 };
+
+const GITHUB_SLUG_PREFIX = "github-";
+const GITHUB_NAME_PREFIX = "GitHub ";
+
+function toWorkspaceProject(row: { id: string; name: string; slug: string }): WorkspaceProject {
+  const repository = row.slug.startsWith(GITHUB_SLUG_PREFIX);
+  return {
+    id: row.id,
+    name: row.name,
+    slug: row.slug,
+    kind: repository ? "repository" : "project",
+    repo: repository
+      ? row.name.startsWith(GITHUB_NAME_PREFIX)
+        ? row.name.slice(GITHUB_NAME_PREFIX.length)
+        : row.name
+      : null,
+  };
+}
 
 export type WorkspaceModel = {
   projects: WorkspaceProject[];
@@ -69,18 +90,10 @@ async function loadProjects(): Promise<{
       .where(eq(projects.organizationId, organization.id))
       .orderBy(asc(projects.name));
 
-    const list = rows.map((row) => ({
-      id: row.id,
-      name: row.name,
-      slug: row.slug,
-    }));
+    const list = rows.map(toWorkspaceProject);
 
     if (!list.some((project) => project.id === current.id)) {
-      list.unshift({
-        id: current.id,
-        name: current.name,
-        slug: current.slug,
-      });
+      list.unshift(toWorkspaceProject(current));
     }
 
     return { projects: list, currentProjectId: current.id };

@@ -2,6 +2,7 @@ import { Suspense } from "react";
 
 import { PeriodFilter } from "@/components/analytics/period-filter";
 import { SourceSwitcher } from "@/components/analytics/source-switcher";
+import { Disclosure } from "@/components/ui/disclosure";
 import { InfoTip } from "@/components/ui/info-tip";
 import { KpiCard } from "@/components/ui/kpi-card";
 import { RankList } from "@/components/ui/rank-list";
@@ -247,7 +248,7 @@ export function LiveGa4Dashboard({ data }: LiveDashboardProps) {
 
       <TrafficChart series={data.traffic} citation={citation} />
 
-      <div className="grid gap-6">
+      <Disclosure title="Tecnologia dos visitantes">
         <BreakdownList
           title="Navegador"
           subtitle={`${citation} · Active users`}
@@ -268,7 +269,7 @@ export function LiveGa4Dashboard({ data }: LiveDashboardProps) {
           subtitle={`${citation} · Active users`}
           items={data.screenResolutions}
         />
-      </div>
+      </Disclosure>
     </div>
   );
 }
