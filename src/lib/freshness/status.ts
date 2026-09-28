@@ -5,8 +5,9 @@ import type { ChatLocale } from "@/lib/ai/analytics-bot-contract";
  *
  * GA4 is polled while the tab is visible. A short server cache absorbs
  * overlapping tabs so the Data API is not called on every refresh.
- * GitHub, PageSpeed and the site crawl are daily snapshots (Vercel Cron
- * around 08:15–08:40 UTC). Those are never shown as live.
+ * GitHub, PageSpeed and the site crawl are snapshots stored per day (Vercel
+ * Cron: GitHub hourly at :15, PageSpeed and crawl daily around 08:20–08:40
+ * UTC). Those are never shown as live.
  *
  * Limits:
  * - GA4 server cache: 120 seconds

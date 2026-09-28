@@ -68,7 +68,7 @@ The MVP should support questions such as:
 | Provider           | Purpose                                  | Status |
 | ------------------ | ---------------------------------------- | ------ |
 | Google Analytics 4 | Site traffic, acquisition, events and pages | Live while the screen is open (polled) |
-| GitHub             | Repository views, clones, stars, release downloads | Daily snapshot |
+| GitHub             | Repository views, clones, stars, release downloads | Daily snapshot, collected hourly |
 | PageSpeed Insights | Lighthouse scores and Core Web Vitals | Daily snapshot |
 | SEO/GEO crawl      | On-page findings and the GEO checklist | Daily snapshot |
 

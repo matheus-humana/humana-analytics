@@ -138,14 +138,7 @@ export function LoginScreen({
         </section>
 
         <aside className="flex flex-col bg-[#151515] px-6 py-8 text-white sm:px-10 sm:py-12">
-          <Image
-            src="/brand/logo-branco-humana.svg"
-            alt=""
-            width={1223}
-            height={315}
-            className="h-8 w-auto"
-          />
-          <h2 className="mt-10 font-display text-3xl font-semibold tracking-tight">
+          <h2 className="font-display text-3xl font-semibold tracking-tight">
             Humana Analytics
           </h2>
           <p className="mt-1 font-display text-xl italic text-white/80">{text("tagline")}</p>

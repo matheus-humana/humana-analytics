@@ -57,7 +57,7 @@ Estrelas, forks, watchers e downloads são contadores atuais. Cada coleta grava 
 
 ## Cron e coleta manual
 
-`vercel.json` agenda `GET /api/github/collect` todo dia às **08:15 UTC** (`15 8 * * *`), depois do fechamento do dia UTC no GitHub.
+`vercel.json` agenda `GET /api/github/collect` **de hora em hora**, no minuto 15 (`15 * * * *`). O GitHub libera clones e views com atraso (de horas a 1–2 dias); a coleta horária grava esses dias assim que aparecem na API. Cada coleta faz poucas chamadas e sobrescreve o snapshot do dia, sem duplicar linhas.
 
 Na Vercel:
 
