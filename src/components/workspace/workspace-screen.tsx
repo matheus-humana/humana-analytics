@@ -243,18 +243,14 @@ function StatusLog({
         onClick={onToggle}
         aria-expanded={open}
         aria-label={open ? collapseLabel : expandLabel}
-        className="flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-left text-sm text-muted hover:bg-[#f1f1f1] hover:text-foreground"
+        className="flex w-full items-center gap-2 rounded-md px-2 py-1 text-left text-xs text-muted hover:text-foreground"
       >
-        <span className="shrink-0 text-xs font-medium uppercase tracking-wide">
-          {label}
-        </span>
-        <span className="min-w-0 flex-1 truncate text-foreground/80">
-          {line ?? empty}
-        </span>
+        <span className="shrink-0">{label}</span>
+        <span className="min-w-0 flex-1 truncate">{line ?? empty}</span>
         <IconChevron direction="down" className={`h-4 w-4 shrink-0 ${open ? "-rotate-90" : ""}`} />
       </button>
       {open ? (
-        <div className="absolute left-0 right-0 top-full z-40 mt-1 max-h-64 overflow-y-auto rounded-lg border border-border bg-[#f8f8f8] p-3 shadow-lg shadow-black/10">
+        <div className="absolute left-0 right-0 top-full z-40 mt-1 max-h-64 overflow-y-auto rounded-lg border border-border bg-popover p-3 shadow-sm">
           {items.length === 0 ? (
             <p className="font-mono text-xs text-muted">{empty}</p>
           ) : (
@@ -298,9 +294,9 @@ function UserMenu({
         aria-expanded={open}
         aria-controls={menuId}
         aria-label={text("userMenu")}
-        className="flex items-center gap-2 rounded-lg py-1 pl-1 pr-2 hover:bg-[#f1f1f1]"
+        className="flex items-center gap-2 rounded-lg py-1 pl-1 pr-2 hover:bg-secondary"
       >
-        <span className="flex h-8 w-8 items-center justify-center rounded-full bg-accent text-sm font-semibold text-white">
+        <span className="flex h-8 w-8 items-center justify-center rounded-full bg-foreground text-sm font-medium text-white">
           {initial}
         </span>
         <span className="hidden max-w-[8rem] truncate text-sm text-foreground sm:block">
@@ -335,13 +331,13 @@ function UserMenu({
           <div className="mt-3 flex flex-col gap-1 border-t border-border pt-3">
             <Link
               href="/data-sources"
-              className="rounded-md px-2 py-1.5 text-sm text-foreground hover:bg-[#f1f1f1]"
+              className="rounded-md px-2 py-1.5 text-sm text-foreground hover:bg-secondary"
             >
               {text("dataSources")}
             </Link>
             <Link
               href="/ask-ai"
-              className="rounded-md px-2 py-1.5 text-sm text-foreground hover:bg-[#f1f1f1]"
+              className="rounded-md px-2 py-1.5 text-sm text-foreground hover:bg-secondary"
             >
               {text("fullChat")}
             </Link>
@@ -352,7 +348,7 @@ function UserMenu({
           <form action={signOutAction} className="mt-3 border-t border-border pt-3">
             <button
               type="submit"
-              className="w-full rounded-md px-2 py-1.5 text-left text-sm text-foreground hover:bg-[#f1f1f1]"
+              className="w-full rounded-md px-2 py-1.5 text-left text-sm text-foreground hover:bg-secondary"
             >
               {text("signOut")}
             </button>
@@ -377,8 +373,8 @@ function LocaleButton({
       type="button"
       onClick={onClick}
       aria-pressed={active}
-      className={`rounded-md px-2.5 py-1 text-xs font-medium ${
-        active ? "bg-accent text-white" : "border border-border text-muted"
+      className={`rounded-full px-2.5 py-1 text-xs font-medium ${
+        active ? "ha-primary" : "text-muted"
       }`}
     >
       {children}

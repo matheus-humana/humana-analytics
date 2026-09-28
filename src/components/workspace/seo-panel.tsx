@@ -9,6 +9,10 @@ import type { FindingGroup } from "@/lib/seo/groups";
 import type { FindingView, ScoreCard, SeoWorkspace } from "@/lib/seo/view";
 import type { VitalOrigin } from "@/lib/seo/types";
 
+import { EmptyLine } from "@/components/ui/empty-line";
+import { InfoTip } from "@/components/ui/info-tip";
+import { KpiCard } from "@/components/ui/kpi-card";
+
 import { SeoCollectButton } from "./seo-collect-button";
 
 type Copy = (key: WorkspaceMessageKey) => string;
@@ -26,21 +30,19 @@ export function SeoPanel({ locale, data }: { locale: ChatLocale; data: SeoWorksp
 
   if (!data.configured) {
     return (
-      <div className="space-y-4">
-        <Notice
-          title={text("seoHeading")}
-          body={configMessage(data.detail, text)}
-        />
-      </div>
+      <EmptyLine title={text("seoHeading")} detail={configMessage(data.detail, text)} />
     );
   }
 
+  const sourceLine = [text("seoIntro"), data.siteUrl].filter(Boolean).join(" ");
+
   return (
-    <div className="space-y-4">
-      <header className="space-y-2">
-        <h3 className="font-display text-base font-semibold text-foreground">{text("seoHeading")}</h3>
-        <p className="text-sm leading-relaxed text-muted">{text("seoIntro")}</p>
-        <p className="text-xs text-muted">{data.siteUrl}</p>
+    <div className="space-y-6">
+      <header className="flex items-center justify-between gap-2">
+        <div className="flex min-w-0 items-center gap-1">
+          <h3 className="truncate text-sm font-medium text-foreground">{text("seoHeading")}</h3>
+          <InfoTip text={sourceLine} />
+        </div>
         <SeoCollectButton
           label={text("seoCollect")}
           pendingLabel={text("seoCollecting")}
@@ -50,10 +52,10 @@ export function SeoPanel({ locale, data }: { locale: ChatLocale; data: SeoWorksp
       </header>
 
       {data.pagespeedStatus === "error" && data.pagespeedDetail ? (
-        <Notice title={text("statusError")} body={data.pagespeedDetail} />
+        <EmptyLine title={text("statusError")} detail={data.pagespeedDetail} />
       ) : null}
       {data.crawlStatus === "error" && data.crawlDetail ? (
-        <Notice title={text("statusError")} body={data.crawlDetail} />
+        <EmptyLine title={text("statusError")} detail={data.crawlDetail} />
       ) : null}
 
       {pages.length > 1 ? (
@@ -62,7 +64,7 @@ export function SeoPanel({ locale, data }: { locale: ChatLocale; data: SeoWorksp
           <select
             value={selected}
             onChange={(event) => setPageUrl(event.target.value)}
-            className="mt-1 w-full rounded-lg border border-border bg-surface px-2 py-1.5 text-sm text-foreground"
+            className="mt-1 w-full rounded-lg border border-secondary bg-surface px-2 py-1.5 text-sm text-foreground"
           >
             {pages.map((url) => (
               <option key={url} value={url}>
@@ -73,26 +75,46 @@ export function SeoPanel({ locale, data }: { locale: ChatLocale; data: SeoWorksp
         </label>
       ) : null}
 
-      <section className="space-y-3 rounded-xl border border-border p-3">
-        <StrategyScores locale={locale} title={text("seoMobile")} score={mobile} text={text} />
-        <StrategyScores locale={locale} title={text("seoDesktop")} score={desktop} text={text} />
+      <section className="space-y-4">
+        {mobile ? (
+          <StrategyScores
+            locale={locale}
+            title={text("seoMobile")}
+            strategy="mobile"
+            score={mobile}
+            text={text}
+            series={series}
+          />
+        ) : null}
+        {desktop ? (
+          <StrategyScores
+            locale={locale}
+            title={text("seoDesktop")}
+            strategy="desktop"
+            score={desktop}
+            text={text}
+            series={series}
+          />
+        ) : null}
         {!mobile && !desktop ? (
           <p className="text-sm text-muted">{text("seoNoPagespeed")}</p>
         ) : null}
       </section>
 
-      <section className="space-y-2">
-        <h4 className="font-display text-sm font-semibold text-foreground">{text("seoCwv")}</h4>
+      <section className="space-y-3">
+        <h4 className="text-sm font-medium text-foreground">{text("seoCwv")}</h4>
         <VitalRow locale={locale} label={text("seoMobile")} score={mobile} text={text} />
         <VitalRow locale={locale} label={text("seoDesktop")} score={desktop} text={text} />
       </section>
 
       {series.length > 0 ? (
         <section>
-          <h4 className="font-display text-sm font-semibold text-foreground">{text("seoSeries")}</h4>
-          <p className="mt-1 text-xs text-muted">
-            {formatDay(data.periodFrom, locale)}–{formatDay(data.periodTo, locale)}
-          </p>
+          <div className="flex items-center gap-1">
+            <h4 className="text-sm font-medium text-foreground">{text("seoSeries")}</h4>
+            <InfoTip
+              text={`${formatDay(data.periodFrom, locale)}–${formatDay(data.periodTo, locale)}`}
+            />
+          </div>
           <table className="mt-2 w-full text-left text-xs">
             <thead className="text-muted">
               <tr>
@@ -115,7 +137,18 @@ export function SeoPanel({ locale, data }: { locale: ChatLocale; data: SeoWorksp
       ) : null}
 
       <section>
-        <h4 className="font-display text-sm font-semibold text-foreground">{text("seoPageHealth")}</h4>
+        <div className="flex items-center gap-1">
+          <h4 className="text-sm font-medium text-foreground">{text("seoPageHealth")}</h4>
+          {data.crawl ? (
+            <InfoTip
+              text={`${text("seoSourceCrawl")} · ${formatDay(data.crawl.day, locale)}${
+                data.crawl.complete
+                  ? ""
+                  : ` · ${text("seoPartial")} ${data.crawl.pagesFetched}/${data.crawl.pagesPlanned}`
+              }`}
+            />
+          ) : null}
+        </div>
         {health ? (
           <dl className="mt-2 space-y-1 text-sm">
             <Health label={text("seoHttp")} value={String(health.httpStatus)} />
@@ -138,18 +171,10 @@ export function SeoPanel({ locale, data }: { locale: ChatLocale; data: SeoWorksp
         ) : (
           <p className="mt-2 text-sm text-muted">{text("seoNoCrawl")}</p>
         )}
-        {data.crawl ? (
-          <p className="mt-2 text-xs text-muted">
-            {text("seoSourceCrawl")} · {formatDay(data.crawl.day, locale)}
-            {data.crawl.complete
-              ? ""
-              : ` · ${text("seoPartial")} ${data.crawl.pagesFetched}/${data.crawl.pagesPlanned}`}
-          </p>
-        ) : null}
       </section>
 
       <section className="space-y-2">
-        <h4 className="font-display text-sm font-semibold text-foreground">{text("seoProblems")}</h4>
+        <h4 className="text-sm font-medium text-foreground">{text("seoProblems")}</h4>
         {problems.length === 0 ? (
           <p className="text-sm text-muted">
             {data.crawl ? text("seoNoProblems") : text("seoNoCrawl")}
@@ -159,7 +184,7 @@ export function SeoPanel({ locale, data }: { locale: ChatLocale; data: SeoWorksp
         )}
       </section>
 
-      <Notice title={text("seoSearchConsoleTitle")} body={text("seoSearchConsoleBody")} />
+      <EmptyLine title={text("seoSearchConsoleTitle")} detail={text("seoSearchConsoleBody")} />
     </div>
   );
 }
@@ -178,20 +203,24 @@ export function FindingGroupCard({
     group.count === 1
       ? text("actionsOnePage")
       : `${group.count} ${text("actionsPages")}`;
+  const meta = `${group.source === "geo" ? "GEO" : "SEO"} · ${formatDay(group.lastSeenOn, locale)}`;
   return (
-    <article className="rounded-xl border border-border px-3 py-2">
-      <div className="flex items-center justify-between gap-2">
-        <p className="text-sm font-medium text-foreground">{copy?.title ?? group.code}</p>
-        <span className="text-xs text-muted">
+    <article className="py-2">
+      <div className="flex items-start justify-between gap-2">
+        <p className="text-sm text-foreground">{copy?.title ?? group.code}</p>
+        <span className="shrink-0 text-xs text-muted">
           {group.severity === "critical" ? text("seoCritical") : text("seoWarning")}
         </span>
       </div>
-      <p className="mt-1 text-xs leading-relaxed text-muted">{copy?.fix}</p>
+      <div className="mt-1 flex items-start gap-1">
+        <p className="text-xs text-muted">{copy?.fix}</p>
+        <InfoTip text={meta} />
+      </div>
       {group.detail ? (
         <p className="mt-1 text-xs text-foreground">{findingDetail(group.code, group.detail, text)}</p>
       ) : null}
-      <p className="mt-2 text-xs font-medium text-foreground">{countLabel}</p>
-      <ul className="mt-1 max-h-36 space-y-1 overflow-y-auto text-[11px] text-muted">
+      <p className="mt-2 text-sm font-medium tabular-nums text-accent">{countLabel}</p>
+      <ul className="mt-1 max-h-28 space-y-1 overflow-y-auto text-xs text-muted">
         {group.pages.map((page) => (
           <li key={`${page.url}:${page.detail}`}>
             {page.url}
@@ -201,9 +230,6 @@ export function FindingGroupCard({
           </li>
         ))}
       </ul>
-      <p className="mt-1 text-[11px] text-muted">
-        {group.source === "geo" ? "GEO" : "SEO"} · {formatDay(group.lastSeenOn, locale)}
-      </p>
     </article>
   );
 }
@@ -218,19 +244,19 @@ export function FindingCard({
   text: Copy;
 }) {
   const copy = explainFinding(locale, item.code);
+  const meta = `${item.source === "geo" ? "GEO" : "SEO"} · ${item.pageUrl} · ${formatDay(item.lastSeenOn, locale)}`;
   return (
-    <article className="rounded-xl border border-border px-3 py-2">
-      <div className="flex items-center justify-between gap-2">
-        <p className="text-sm font-medium text-foreground">{copy?.title ?? item.code}</p>
-        <span className="text-xs text-muted">
+    <article className="py-2">
+      <div className="flex items-start justify-between gap-2">
+        <p className="text-sm text-foreground">{copy?.title ?? item.code}</p>
+        <span className="shrink-0 text-xs text-muted">
           {item.severity === "critical" ? text("seoCritical") : text("seoWarning")}
         </span>
       </div>
-      <p className="mt-1 text-xs leading-relaxed text-muted">{copy?.fix}</p>
-      {item.detail ? <p className="mt-1 text-xs text-foreground">{item.detail}</p> : null}
-      <p className="mt-1 text-[11px] text-muted">
-        {item.source === "geo" ? "GEO" : "SEO"} · {item.pageUrl} · {formatDay(item.lastSeenOn, locale)}
-      </p>
+      <div className="mt-1 flex items-start gap-1">
+        <p className="text-xs text-muted">{copy?.fix}</p>
+        <InfoTip text={item.detail ? `${item.detail} · ${meta}` : meta} />
+      </div>
     </article>
   );
 }
@@ -246,51 +272,62 @@ function findingDetail(code: string, detail: string, text: Copy): string {
 function StrategyScores({
   locale,
   title,
+  strategy,
   score,
   text,
+  series,
 }: {
   locale: ChatLocale;
   title: string;
+  strategy: "mobile" | "desktop";
   score: ScoreCard | null;
   text: Copy;
+  series: SeoWorkspace["series"];
 }) {
+  const citation = score
+    ? `${text("seoSourcePagespeed")} · ${score.pageUrl} · ${formatDay(score.day, locale)}`
+    : text("seoNoPagespeed");
   return (
     <div>
-      <div className="mb-2 flex items-baseline justify-between gap-2">
-        <h4 className="font-display text-sm font-semibold text-foreground">{title}</h4>
-        {score ? (
-          <p className="text-[11px] text-muted">
-            {text("seoSourcePagespeed")} · {formatDay(score.day, locale)}
-          </p>
-        ) : null}
-      </div>
-      <div className="grid grid-cols-4 gap-2">
-        <ScoreRing label={text("seoPerformance")} score={score?.performance ?? null} />
-        <ScoreRing label={text("seoAccessibility")} score={score?.accessibility ?? null} />
-        <ScoreRing label={text("seoBestPractices")} score={score?.bestPractices ?? null} />
-        <ScoreRing label={text("seoSeo")} score={score?.seo ?? null} />
+      <h4 className="mb-1 text-xs text-muted">{title}</h4>
+      <div className="grid grid-cols-2 gap-1">
+        <KpiCard
+          label={`${text("seoPerformance")} · ${title}`}
+          value={score?.performance == null ? "—" : String(score.performance)}
+          citation={citation}
+          series={metricSeries(series, strategy, "performance")}
+        />
+        <KpiCard
+          label={`${text("seoAccessibility")} · ${title}`}
+          value={score?.accessibility == null ? "—" : String(score.accessibility)}
+          citation={citation}
+        />
+        <KpiCard
+          label={`${text("seoBestPractices")} · ${title}`}
+          value={score?.bestPractices == null ? "—" : String(score.bestPractices)}
+          citation={citation}
+        />
+        <KpiCard
+          label={`${text("seoSeo")} · ${title}`}
+          value={score?.seo == null ? "—" : String(score.seo)}
+          citation={citation}
+          series={metricSeries(series, strategy, "seo")}
+        />
       </div>
     </div>
   );
 }
 
-function ScoreRing({ label, score }: { label: string; score: number | null }) {
-  const angle = score == null ? 0 : Math.round((score / 100) * 360);
-  return (
-    <div className="flex flex-col items-center gap-1">
-      <div
-        className="grid h-14 w-14 place-items-center rounded-full"
-        style={{
-          background: `conic-gradient(var(--accent) ${angle}deg, #f1f1f1 ${angle}deg)`,
-        }}
-      >
-        <div className="grid h-10 w-10 place-items-center rounded-full bg-surface text-xs font-semibold text-foreground">
-          {score == null ? "—" : score}
-        </div>
-      </div>
-      <p className="text-center text-[10px] leading-tight text-muted">{label}</p>
-    </div>
-  );
+function metricSeries(
+  series: SeoWorkspace["series"],
+  strategy: "mobile" | "desktop",
+  key: "performance" | "seo"
+): Array<number | null> {
+  return series
+    .filter((point) => point.strategy === strategy)
+    .slice()
+    .sort((a, b) => a.day.localeCompare(b.day))
+    .map((point) => point[key]);
 }
 
 function VitalRow({
@@ -306,13 +343,34 @@ function VitalRow({
 }) {
   if (!score) return null;
   return (
-    <div className="rounded-xl border border-border px-3 py-2">
-      <p className="text-xs font-medium text-foreground">{label}</p>
-      <ul className="mt-1 space-y-1 text-xs text-muted">
-        <Vital locale={locale} name={text("seoLcp")} value={formatMs(score.lcpMs)} origin={score.lcpOrigin} rating={rate("lcp", score.lcpMs)} text={text} />
-        <Vital locale={locale} name={text("seoCls")} value={formatCls(score.clsThousandths)} origin={score.clsOrigin} rating={rate("cls", score.clsThousandths)} text={text} />
-        <Vital locale={locale} name={text("seoInp")} value={formatMs(score.inpMs)} origin={score.inpOrigin} rating={rate("inp", score.inpMs)} text={text} />
-      </ul>
+    <div className="grid grid-cols-3 gap-1">
+      <Vital
+        locale={locale}
+        name={`${text("seoLcp")} · ${label}`}
+        value={formatMs(score.lcpMs)}
+        origin={score.lcpOrigin}
+        rating={rate("lcp", score.lcpMs)}
+        text={text}
+        source={`${text("seoSourcePagespeed")} · ${formatDay(score.day, locale)}`}
+      />
+      <Vital
+        locale={locale}
+        name={`${text("seoCls")} · ${label}`}
+        value={formatCls(score.clsThousandths)}
+        origin={score.clsOrigin}
+        rating={rate("cls", score.clsThousandths)}
+        text={text}
+        source={`${text("seoSourcePagespeed")} · ${formatDay(score.day, locale)}`}
+      />
+      <Vital
+        locale={locale}
+        name={`${text("seoInp")} · ${label}`}
+        value={formatMs(score.inpMs)}
+        origin={score.inpOrigin}
+        rating={rate("inp", score.inpMs)}
+        text={text}
+        source={`${text("seoSourcePagespeed")} · ${formatDay(score.day, locale)}`}
+      />
     </div>
   );
 }
@@ -324,6 +382,7 @@ function Vital({
   origin,
   rating,
   text,
+  source,
 }: {
   locale: ChatLocale;
   name: string;
@@ -331,16 +390,14 @@ function Vital({
   origin: VitalOrigin | null;
   rating: "good" | "ni" | "poor" | null;
   text: Copy;
+  source: string;
 }) {
   const ratingLabel =
     rating === "good" ? text("seoGood") : rating === "ni" ? text("seoNeedsImprovement") : rating === "poor" ? text("seoPoor") : null;
-  return (
-    <li>
-      {name}: {value ?? "—"}
-      {ratingLabel ? ` · ${ratingLabel}` : ""}
-      {origin ? ` · ${explainVitalOrigin(locale, origin)}` : ""}
-    </li>
-  );
+  const citation = [source, ratingLabel, origin ? explainVitalOrigin(locale, origin) : null]
+    .filter(Boolean)
+    .join(" · ");
+  return <KpiCard label={name} value={value ?? "—"} citation={citation} />;
 }
 
 function Health({ label, value }: { label: string; value: string }) {
@@ -392,15 +449,6 @@ function configMessage(detail: string | null, text: Copy): string {
   if (detail === "invalid_site_url") return text("seoInvalidSite");
   if (!detail || detail === "missing_site_url") return text("seoMissingSite");
   return detail;
-}
-
-function Notice({ title, body }: { title: string; body: string }) {
-  return (
-    <div className="rounded-xl border border-dashed border-border bg-[#f8f8f8] px-4 py-5">
-      <p className="font-display text-sm font-semibold text-foreground">{title}</p>
-      <p className="mt-2 text-sm leading-relaxed text-muted">{body}</p>
-    </div>
-  );
 }
 
 function formatMs(value: number | null): string | null {

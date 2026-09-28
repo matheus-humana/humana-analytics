@@ -295,107 +295,29 @@ export function AskAiPanel({
         : text("chatAsk");
 
     return (
-      <div className="flex h-full min-h-0 flex-col">
-        <div className="flex shrink-0 items-center justify-between gap-2 border-b border-border px-3 py-2">
-          <p className="text-xs text-muted">{text("chatPeriod")}</p>
-          <PeriodFilter value={periodId as AnalyticsPeriodId} />
-        </div>
-        <div className="flex shrink-0 items-center gap-2 px-3 py-2">
-          <button
-            type="button"
-            onClick={startNewConversation}
-            className="shrink-0 rounded-lg border border-border px-2.5 py-1.5 text-xs text-foreground transition-colors hover:border-accent hover:bg-accent-soft"
-          >
-            {text("chatNew")}
-          </button>
-          <select
-            value={conversationId ?? ""}
-            onChange={(event) => {
-              const id = event.target.value;
-              if (!id) {
-                startNewConversation();
-                return;
-              }
-              void openConversation(id);
-            }}
-            aria-label={text("chatNew")}
-            className="min-w-0 flex-1 rounded-lg border border-border bg-white px-2 py-1.5 text-xs text-foreground"
-          >
-            <option value="">{text("chatEmpty")}</option>
-            {conversations.map((conversation) => (
-              <option key={conversation.id} value={conversation.id}>
-                {conversation.title}
-              </option>
-            ))}
-          </select>
-        </div>
-        <div className="min-h-0 flex-1 space-y-3 overflow-y-auto px-3 py-2" aria-live="polite">
-          {loadingHistory ? (
-            <p className="text-sm text-muted">{text("chatLoading")}</p>
-          ) : null}
-          {messages.map((message, index) => {
-            const pendingBubble = isPendingBubble(message, assistantStatus);
-            return (
-              <article key={`${message.role}-${index}`}>
-                <p className="text-xs font-medium uppercase tracking-wide text-muted">
-                  {message.role === "user" ? text("chatYou") : text("chatAssistant")}
-                </p>
-                {message.role === "assistant" ? (
-                  <AssistantBody content={message.content} pending={pendingBubble} />
-                ) : (
-                  <p className="mt-1 whitespace-pre-wrap text-sm leading-relaxed text-foreground">
-                    {message.content}
-                  </p>
-                )}
-              </article>
-            );
-          })}
-          {error ? (
-            <div className="rounded-lg border border-[#cccccc] bg-[#f1f1f1] px-3 py-2 text-sm text-[#151515]">
-              {error}
-            </div>
-          ) : null}
-        </div>
-        <div className="shrink-0 border-t border-border px-3 py-3">
-          <label htmlFor="ask-ai-question" className="sr-only">
-            {text("chatPrompt")}
-          </label>
-          <div className="flex gap-2">
-            <input
-              id="ask-ai-question"
-              value={question}
-              onChange={(event) => setQuestion(event.target.value)}
-              onKeyDown={(event) => {
-                if (event.key === "Enter") void handleAsk();
-              }}
-              placeholder={text("chatPlaceholder")}
-              disabled={busy}
-              className="w-full rounded-lg border border-border bg-white px-3 py-2 text-sm text-foreground outline-none ring-accent placeholder:text-muted focus:ring-2 disabled:opacity-60"
-            />
-            <button
-              type="button"
-              onClick={() => void handleAsk()}
-              disabled={busy}
-              className="shrink-0 rounded-lg bg-accent px-3 py-2 font-display text-sm font-medium text-white transition-colors hover:bg-[#4f61b0] disabled:cursor-not-allowed disabled:opacity-50"
-            >
-              {askLabel}
-            </button>
-          </div>
-          <div className="mt-2 flex flex-wrap gap-1.5">
-            {humanaAnalyticsSuggestions.map((suggestion) => (
-              <button
-                key={suggestion}
-                type="button"
-                disabled={busy}
-                onClick={() => void handleAsk(suggestion)}
-                className="rounded-full border border-border bg-[#f1f1f1] px-2.5 py-1 text-left text-xs text-foreground transition-colors hover:border-accent hover:bg-accent-soft disabled:opacity-50"
-              >
-                {suggestion}
-              </button>
-            ))}
-          </div>
-        </div>
-      </div>
+      <ColumnChat
+        text={text}
+        periodId={periodId as AnalyticsPeriodId}
+        askLabel={askLabel}
+        question={question}
+        setQuestion={setQuestion}
+        busy={busy}
+        onAsk={(value) => void handleAsk(value)}
+        onNew={startNewConversation}
+        conversationId={conversationId}
+        conversations={conversations}
+        onOpen={(id) => {
+          if (!id) {
+            startNewConversation();
+            return;
+          }
+          void openConversation(id);
+        }}
+        loadingHistory={loadingHistory}
+        messages={messages}
+        assistantStatus={assistantStatus}
+        error={error}
+      />
     );
   }
 
@@ -485,7 +407,7 @@ export function AskAiPanel({
               type="button"
               onClick={() => void handleAsk()}
               disabled={busy}
-              className="rounded-lg bg-accent px-4 py-2.5 font-display text-sm font-medium text-white transition-colors hover:bg-[#4f61b0] disabled:cursor-not-allowed disabled:opacity-50"
+              className="ha-primary rounded-lg px-4 py-2.5 text-sm font-medium disabled:cursor-not-allowed disabled:opacity-50"
             >
               {loading ? "Enviando…" : awaitingReply ? (pendingLabel ?? THINKING_PT) : "Perguntar"}
             </button>
@@ -563,6 +485,157 @@ export function AskAiPanel({
   );
 }
 
+function ColumnChat({
+  text,
+  periodId,
+  askLabel,
+  question,
+  setQuestion,
+  busy,
+  onAsk,
+  onNew,
+  conversationId,
+  conversations,
+  onOpen,
+  loadingHistory,
+  messages,
+  assistantStatus,
+  error,
+}: {
+  text: (key: Parameters<typeof workspaceText>[1]) => string;
+  periodId: AnalyticsPeriodId;
+  askLabel: string;
+  question: string;
+  setQuestion: (value: string) => void;
+  busy: boolean;
+  onAsk: (value?: string) => void;
+  onNew: () => void;
+  conversationId: string | null;
+  conversations: ConversationSummary[];
+  onOpen: (id: string) => void;
+  loadingHistory: boolean;
+  messages: ChatMessage[];
+  assistantStatus: string;
+  error: string | null;
+}) {
+  const [suggestionPage, setSuggestionPage] = useState(0);
+  const pageSize = 3;
+  const suggestionStart = (suggestionPage * pageSize) % humanaAnalyticsSuggestions.length;
+  const suggestions = Array.from({ length: pageSize }, (_, index) => {
+    return humanaAnalyticsSuggestions[
+      (suggestionStart + index) % humanaAnalyticsSuggestions.length
+    ];
+  });
+
+  return (
+    <div className="flex h-full min-h-0 flex-col bg-surface">
+      <header className="flex h-11 shrink-0 items-center justify-between gap-2 border-b border-secondary px-3">
+        <h2 className="shrink-0 text-sm font-medium text-foreground">
+          {text("columnChat")}
+        </h2>
+        <div className="min-w-0 overflow-x-auto">
+          <PeriodFilter value={periodId} />
+        </div>
+      </header>
+      <div className="flex shrink-0 items-center gap-2 px-3 py-2">
+        <button
+          type="button"
+          onClick={onNew}
+          className="shrink-0 text-xs text-foreground underline-offset-2 hover:underline"
+        >
+          {text("chatNew")}
+        </button>
+        <select
+          value={conversationId ?? ""}
+          onChange={(event) => onOpen(event.target.value)}
+          aria-label={text("chatNew")}
+          className="min-w-0 flex-1 bg-transparent text-xs text-muted outline-none"
+        >
+          <option value="">{text("chatEmpty")}</option>
+          {conversations.map((conversation) => (
+            <option key={conversation.id} value={conversation.id}>
+              {conversation.title}
+            </option>
+          ))}
+        </select>
+      </div>
+      <div className="min-h-0 flex-1 space-y-4 overflow-y-auto px-3 py-2" aria-live="polite">
+        {loadingHistory ? (
+          <p className="text-sm text-muted">{text("chatLoading")}</p>
+        ) : null}
+        {messages.map((message, index) => {
+          const pendingBubble = isPendingBubble(message, assistantStatus);
+          if (message.role === "user") {
+            return (
+              <div key={`${message.role}-${index}`} className="flex justify-end">
+                <p className="max-w-[85%] whitespace-pre-wrap rounded-2xl bg-secondary px-3 py-2 text-sm text-foreground">
+                  <span className="sr-only">{text("chatYou")}: </span>
+                  {message.content}
+                </p>
+              </div>
+            );
+          }
+          return (
+            <article key={`${message.role}-${index}`} className="text-sm text-foreground">
+              <span className="sr-only">{text("chatAssistant")}</span>
+              <AssistantBody content={message.content} pending={pendingBubble} plain />
+            </article>
+          );
+        })}
+        {error ? <p className="text-sm text-foreground">{error}</p> : null}
+      </div>
+      <div className="shrink-0 px-3 pb-3 pt-1">
+        {messages.length === 0 ? (
+          <div className="mb-2 flex flex-col gap-1.5">
+            {suggestions.map((suggestion) => (
+              <button
+                key={suggestion}
+                type="button"
+                disabled={busy}
+                onClick={() => onAsk(suggestion)}
+                className="truncate rounded-lg px-1 py-0.5 text-left text-xs text-muted hover:text-foreground disabled:opacity-50"
+              >
+                {suggestion}
+              </button>
+            ))}
+            <button
+              type="button"
+              onClick={() => setSuggestionPage((value) => value + 1)}
+              className="w-fit px-1 text-left text-xs text-muted underline-offset-2 hover:underline"
+            >
+              {text("chatSuggestionsMore")}
+            </button>
+          </div>
+        ) : null}
+        <label htmlFor="ask-ai-question" className="sr-only">
+          {text("chatPrompt")}
+        </label>
+        <div className="flex items-end gap-2 rounded-2xl border border-border bg-white px-3 py-2">
+          <input
+            id="ask-ai-question"
+            value={question}
+            onChange={(event) => setQuestion(event.target.value)}
+            onKeyDown={(event) => {
+              if (event.key === "Enter") onAsk();
+            }}
+            placeholder={text("chatPlaceholder")}
+            disabled={busy}
+            className="w-full bg-transparent py-1 text-sm text-foreground outline-none placeholder:text-muted disabled:opacity-60"
+          />
+          <button
+            type="button"
+            onClick={() => onAsk()}
+            disabled={busy}
+            className="ha-primary shrink-0 rounded-full px-3 py-1.5 text-sm font-medium disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            {askLabel}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function isPendingBubble(message: ChatMessage, assistantStatus: string) {
   return (
     message.pending === true ||
@@ -575,17 +648,19 @@ function isPendingBubble(message: ChatMessage, assistantStatus: string) {
 function AssistantBody({
   content,
   pending,
+  plain = false,
 }: {
   content: string;
   pending: boolean;
+  plain?: boolean;
 }) {
   if (pending) {
-    return <p className="mt-1 text-sm italic text-muted">{content}</p>;
+    return <p className={`${plain ? "" : "mt-1"} text-sm italic text-muted`}>{content}</p>;
   }
 
   const { text, images } = splitAssistantContent(content);
   return (
-    <div className="mt-1 space-y-2">
+    <div className={plain ? "space-y-2" : "mt-1 space-y-2"}>
       {text ? (
         <p className="whitespace-pre-wrap text-sm leading-relaxed text-foreground">
           {text}

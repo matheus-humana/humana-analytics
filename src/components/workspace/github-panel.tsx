@@ -4,7 +4,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { useState } from "react";
 
 import type { ChatLocale } from "@/lib/ai/analytics-bot-contract";
-import type { AnalyticsPeriodId } from "@/lib/analytics/period";
+import { ANALYTICS_PERIODS, type AnalyticsPeriodId } from "@/lib/analytics/period";
 import { workspaceText, type WorkspaceMessageKey } from "@/lib/i18n/workspace-copy";
 import {
   GITHUB_INVALID_REPO,
@@ -13,9 +13,12 @@ import {
   type GithubPanelData,
   type GithubPanelRepo,
   type GithubRepoReport,
-  type GithubTrafficPoint,
 } from "@/lib/github/types";
 import { hasSnapshot } from "@/lib/github/report";
+import { EmptyLine } from "@/components/ui/empty-line";
+import { InfoTip } from "@/components/ui/info-tip";
+import { KpiCard, type KpiDelta } from "@/components/ui/kpi-card";
+import { RankList } from "@/components/ui/rank-list";
 
 type Copy = (key: WorkspaceMessageKey) => string;
 
@@ -32,29 +35,37 @@ export function GithubPanel({
   const repos = visibleRepos(data.repos, selectedProjectId);
   const configMessage = configCopy(data.detail, text);
 
+  const periodLabel = periodShort(data.periodId, text);
+
   return (
-    <div className="space-y-4">
-      <header className="space-y-2">
-        <h3 className="font-display text-base font-semibold text-foreground">
-          {text("githubHeading")}
-        </h3>
-        <p className="text-sm leading-relaxed text-muted">{text("githubIntro")}</p>
+    <div className="space-y-6">
+      <div className="flex flex-wrap items-center gap-2">
         <PeriodSwitch periodId={data.periodId} text={text} />
-      </header>
+        <InfoTip text={text("githubIntro")} />
+      </div>
 
       {!data.configured ? (
-        <EmptyState
+        <EmptyLine
           title={text("githubDisconnectedTitle")}
-          body={configMessage ?? text("githubMissingToken")}
+          detail={configMessage ?? text("githubMissingToken")}
         />
       ) : null}
 
       {data.configured && repos.length === 0 ? (
-        <EmptyState title={text("githubDisconnectedTitle")} body={data.detail ?? text("githubCollectFailed")} />
+        <EmptyLine
+          title={text("githubDisconnectedTitle")}
+          detail={data.detail ?? text("githubCollectFailed")}
+        />
       ) : null}
 
       {repos.map((repo) => (
-        <RepoSection key={repo.repo} locale={locale} repo={repo} text={text} />
+        <RepoSection
+          key={repo.repo}
+          locale={locale}
+          repo={repo}
+          text={text}
+          periodLabel={periodLabel}
+        />
       ))}
 
       <CollectButton text={text} />
@@ -103,7 +114,11 @@ function PeriodSwitch({
   }
 
   return (
-    <div className="flex flex-wrap gap-1" role="group" aria-label={text("chatPeriod")}>
+    <div
+      className="inline-flex items-center rounded-full bg-secondary p-0.5"
+      role="group"
+      aria-label={text("chatPeriod")}
+    >
       {options.map((option) => {
         const active = option.id === periodId;
         return (
@@ -112,8 +127,8 @@ function PeriodSwitch({
             type="button"
             aria-pressed={active}
             onClick={() => select(option.id)}
-            className={`rounded-md px-2.5 py-1 text-xs font-medium ${
-              active ? "bg-accent text-white" : "text-muted hover:bg-[#f1f1f1] hover:text-foreground"
+            className={`rounded-full px-2.5 py-1 text-xs font-medium ${
+              active ? "ha-primary" : "text-muted hover:text-foreground"
             }`}
           >
             {option.label}
@@ -124,20 +139,29 @@ function PeriodSwitch({
   );
 }
 
+function periodShort(periodId: AnalyticsPeriodId, text: Copy): string {
+  if (periodId === "7d") return text("githubPeriod7");
+  if (periodId === "28d") return text("githubPeriod28");
+  if (periodId === "90d") return text("githubPeriod90");
+  return ANALYTICS_PERIODS[periodId].shortLabel;
+}
+
 function RepoSection({
   locale,
   repo,
   text,
+  periodLabel,
 }: {
   locale: ChatLocale;
   repo: GithubPanelRepo;
   text: Copy;
+  periodLabel: string;
 }) {
   if (!repo.ok || !repo.report) {
     return (
-      <EmptyState
+      <EmptyLine
         title={`${text("githubDisconnectedTitle")} · ${repo.repo}`}
-        body={repo.message ?? text("githubCollectFailed")}
+        detail={repo.message ?? text("githubCollectFailed")}
       />
     );
   }
@@ -146,83 +170,83 @@ function RepoSection({
     return (
       <section className="space-y-2">
         <RepoTitle repo={repo} text={text} />
-        <EmptyState title={text("githubEmptyTitle")} body={text("githubEmptyBody")} />
+        <EmptyLine title={text("githubEmptyTitle")} detail={text("githubEmptyBody")} />
       </section>
     );
   }
 
   const report = repo.report;
+  const periodCite = periodFooter(text, report, locale);
+  const windowCite = `${text("githubUniquesNote")} ${windowFooter(text, report, locale)}`;
+  const counterCite = `${text("githubCounterHint")}. ${counterFooter(text, report, locale)}`;
   return (
-    <section className="space-y-4">
+    <section className="space-y-6">
       <RepoTitle repo={repo} text={text} />
-      <div className="grid grid-cols-2 gap-2">
+      <div className="grid grid-cols-2 gap-x-2 gap-y-1">
         <Metric
-          label={text("githubViews")}
+          label={`${text("githubViews")} · ${periodLabel}`}
           value={report.views}
           locale={locale}
-          hint={text("githubPeriodSum")}
+          citation={`${text("githubPeriodSum")}. ${periodCite}`}
           delta={delta(report.views, report.previousViews)}
           deltaLabel={text("githubVsPrevious")}
-          footer={periodFooter(text, report, locale)}
+          series={report.traffic.map((point) => point.views)}
         />
         <Metric
-          label={text("githubClones")}
+          label={`${text("githubClones")} · ${periodLabel}`}
           value={report.clones}
           locale={locale}
-          hint={text("githubPeriodSum")}
+          citation={`${text("githubPeriodSum")}. ${periodCite}`}
           delta={delta(report.clones, report.previousClones)}
           deltaLabel={text("githubVsPrevious")}
-          footer={periodFooter(text, report, locale)}
+          series={report.traffic.map((point) => point.clones)}
         />
         <Metric
-          label={text("githubUniqueViews")}
+          label={`${text("githubUniqueViews")} · ${text("githubWindowShort")}`}
           value={report.uniqueViews14d}
           locale={locale}
-          hint={text("githubWindow14")}
-          footer={windowFooter(text, report, locale)}
+          citation={windowCite}
         />
         <Metric
-          label={text("githubUniqueClones")}
+          label={`${text("githubUniqueClones")} · ${text("githubWindowShort")}`}
           value={report.uniqueClones14d}
           locale={locale}
-          hint={text("githubWindow14")}
-          footer={windowFooter(text, report, locale)}
+          citation={windowCite}
         />
         <Metric
           label={text("githubStars")}
           value={report.counters?.stars ?? null}
           locale={locale}
-          hint={text("githubCounterHint")}
-          footer={counterFooter(text, report, locale)}
+          citation={counterCite}
+          series={report.counterSeries.map((point) => point.stars)}
         />
         <Metric
           label={text("githubForks")}
           value={report.counters?.forks ?? null}
           locale={locale}
-          hint={text("githubCounterHint")}
-          footer={counterFooter(text, report, locale)}
+          citation={counterCite}
+          series={report.counterSeries.map((point) => point.forks)}
         />
         <Metric
           label={text("githubWatchers")}
           value={report.counters?.watchers ?? null}
           locale={locale}
-          hint={text("githubCounterHint")}
-          footer={counterFooter(text, report, locale)}
+          citation={counterCite}
+          series={report.counterSeries.map((point) => point.watchers)}
         />
         <Metric
           label={text("githubDownloads")}
           value={report.counters?.releaseDownloads ?? null}
           locale={locale}
-          hint={text("githubCounterHint")}
-          footer={counterFooter(text, report, locale)}
+          citation={`${text("githubDownloadsNote")} ${counterCite}`}
+          series={report.counterSeries.map((point) => point.releaseDownloads)}
         />
       </div>
-      <p className="text-xs leading-relaxed text-muted">{text("githubUniquesNote")}</p>
-      <TrafficChart locale={locale} report={report} text={text} />
-      <div className="grid gap-3">
+      <TrafficTable locale={locale} report={report} text={text} />
+      <div className="grid gap-6">
         <Breakdown
           title={text("githubReferrers")}
-          footer={windowFooter(text, report, locale)}
+          info={windowFooter(text, report, locale)}
           empty={text("githubNoRows")}
           rows={report.referrers.map((item) => ({
             name: item.referrer,
@@ -235,7 +259,7 @@ function RepoSection({
         />
         <Breakdown
           title={text("githubPaths")}
-          footer={windowFooter(text, report, locale)}
+          info={windowFooter(text, report, locale)}
           empty={text("githubNoRows")}
           rows={report.paths.map((item) => ({
             name: item.path,
@@ -248,19 +272,16 @@ function RepoSection({
         />
         <AssetTable locale={locale} report={report} text={text} />
       </div>
-      <p className="text-xs leading-relaxed text-muted">{text("githubDownloadsNote")}</p>
     </section>
   );
 }
 
 function RepoTitle({ repo, text }: { repo: GithubPanelRepo; text: Copy }) {
+  const note = `${text("githubSeparateProject")}${repo.projectName ? ` · ${repo.projectName}` : ""}`;
   return (
-    <div>
-      <p className="font-display text-sm font-semibold text-foreground">{repo.repo}</p>
-      <p className="text-xs text-muted">
-        {text("githubSeparateProject")}
-        {repo.projectName ? ` · ${repo.projectName}` : ""}
-      </p>
+    <div className="flex items-center gap-1">
+      <p className="truncate text-sm font-medium text-foreground">{repo.repo}</p>
+      <InfoTip text={note} />
     </div>
   );
 }
@@ -269,37 +290,33 @@ function Metric({
   label,
   value,
   locale,
-  hint,
-  footer,
+  citation,
   delta,
   deltaLabel,
+  series,
 }: {
   label: string;
   value: number | null;
   locale: ChatLocale;
-  hint: string;
-  footer: string;
+  citation: string;
   delta?: number | null;
   deltaLabel?: string;
+  series?: Array<number | null>;
 }) {
+  const change = delta != null && deltaLabel ? toDelta(delta, deltaLabel, locale) : null;
+  const cited = change ? `${change.text} ${change.label}. ${citation}` : citation;
   return (
-    <article className="rounded-xl border border-border bg-surface p-3">
-      <p className="text-xs text-muted">{label}</p>
-      <p className="mt-2 font-display text-2xl font-semibold tracking-tight text-accent">
-        {formatCount(value, locale)}
-      </p>
-      {delta != null && deltaLabel ? (
-        <p className="mt-1 text-xs text-foreground">
-          {formatDelta(delta, locale)} {deltaLabel}
-        </p>
-      ) : null}
-      <p className="mt-2 text-[11px] leading-snug text-muted">{hint}</p>
-      <p className="mt-2 text-[11px] leading-snug text-muted">{footer}</p>
-    </article>
+    <KpiCard
+      label={label}
+      value={formatCount(value, locale)}
+      citation={cited}
+      delta={change}
+      series={series}
+    />
   );
 }
 
-function TrafficChart({
+function TrafficTable({
   locale,
   report,
   text,
@@ -309,12 +326,12 @@ function TrafficChart({
   text: Copy;
 }) {
   return (
-    <section className="rounded-xl border border-border bg-surface p-3">
-      <h4 className="font-display text-sm font-semibold text-foreground">{text("githubSeriesTitle")}</h4>
-      <p className="mt-1 text-xs text-muted">{text("githubSeriesHint")}</p>
-      <p className="mt-2 text-[11px] text-muted">{periodFooter(text, report, locale)}</p>
-      <SeriesSvg points={report.traffic} />
-      <div className="mt-3 overflow-x-auto">
+    <section>
+      <div className="flex items-center gap-1">
+        <h4 className="text-sm font-medium text-foreground">{text("githubSeriesTitle")}</h4>
+        <InfoTip text={`${text("githubSeriesHint")} ${periodFooter(text, report, locale)}`} />
+      </div>
+      <div className="mt-2 overflow-x-auto">
         <table className="w-full text-left text-xs">
           <thead>
             <tr className="text-muted">
@@ -342,38 +359,9 @@ function TrafficChart({
   );
 }
 
-function SeriesSvg({ points }: { points: GithubTrafficPoint[] }) {
-  const width = 320;
-  const height = 120;
-  const pad = 8;
-  const known = points.flatMap((point) => [point.views, point.clones].filter((value): value is number => value != null));
-  const max = Math.max(1, ...known);
-  const xAt = (index: number) =>
-    points.length <= 1 ? width / 2 : pad + (index / (points.length - 1)) * (width - pad * 2);
-  const yAt = (value: number) => pad + (1 - value / max) * (height - pad * 2);
-  const line = (key: "views" | "clones") =>
-    points
-      .map((point, index) => {
-        const value = point[key];
-        if (value == null) return null;
-        return `${index === 0 || points[index - 1]?.[key] == null ? "M" : "L"} ${xAt(index)} ${yAt(value)}`;
-      })
-      .filter(Boolean)
-      .join(" ");
-
-  if (known.length === 0) return null;
-
-  return (
-    <svg viewBox={`0 0 ${width} ${height}`} className="mt-3 h-28 w-full" role="img">
-      <path d={line("views")} fill="none" stroke="var(--accent)" strokeWidth="2" />
-      <path d={line("clones")} fill="none" stroke="var(--navy)" strokeWidth="2" />
-    </svg>
-  );
-}
-
 function Breakdown({
   title,
-  footer,
+  info,
   empty,
   rows,
   locale,
@@ -381,7 +369,7 @@ function Breakdown({
   uniqueLabel,
 }: {
   title: string;
-  footer: string;
+  info: string;
   empty: string;
   rows: Array<{ name: string; total: number; uniques: number }>;
   locale: ChatLocale;
@@ -390,27 +378,16 @@ function Breakdown({
 }) {
   const max = Math.max(1, ...rows.map((row) => row.total));
   return (
-    <section className="rounded-xl border border-border bg-surface p-3">
-      <h4 className="font-display text-sm font-semibold text-foreground">{title}</h4>
-      {rows.length === 0 ? <p className="mt-2 text-sm text-muted">{empty}</p> : null}
-      <ul className="mt-3 space-y-3">
-        {rows.map((row) => (
-          <li key={row.name}>
-            <div className="flex items-center justify-between gap-2 text-xs">
-              <span className="truncate font-medium text-foreground">{row.name}</span>
-              <span className="shrink-0 text-muted">
-                {totalLabel} {formatCount(row.total, locale)} · {uniqueLabel}{" "}
-                {formatCount(row.uniques, locale)}
-              </span>
-            </div>
-            <div className="mt-1 h-1.5 overflow-hidden rounded-full bg-[#f1f1f1]">
-              <div className="h-full rounded-full bg-accent" style={{ width: `${(row.total / max) * 100}%` }} />
-            </div>
-          </li>
-        ))}
-      </ul>
-      <p className="mt-3 text-[11px] leading-snug text-muted">{footer}</p>
-    </section>
+    <RankList
+      title={title}
+      info={info}
+      empty={empty}
+      rows={rows.map((row) => ({
+        name: row.name,
+        value: `${totalLabel} ${formatCount(row.total, locale)} · ${uniqueLabel} ${formatCount(row.uniques, locale)}`,
+        width: (row.total / max) * 100,
+      }))}
+    />
   );
 }
 
@@ -424,8 +401,13 @@ function AssetTable({
   text: Copy;
 }) {
   return (
-    <section className="rounded-xl border border-border bg-surface p-3">
-      <h4 className="font-display text-sm font-semibold text-foreground">{text("githubAssets")}</h4>
+    <section>
+      <div className="flex items-center gap-1">
+        <h4 className="text-sm font-medium text-foreground">{text("githubAssets")}</h4>
+        <InfoTip
+          text={`${text("githubDownloadsNote")} ${counterFooter(text, report, locale)}`}
+        />
+      </div>
       {report.assets.length === 0 ? (
         <p className="mt-2 text-sm text-muted">{text("githubNoRows")}</p>
       ) : (
@@ -450,7 +432,6 @@ function AssetTable({
           </table>
         </div>
       )}
-      <p className="mt-3 text-[11px] leading-snug text-muted">{counterFooter(text, report, locale)}</p>
     </section>
   );
 }
@@ -490,7 +471,7 @@ function CollectButton({ text }: { text: Copy }) {
         type="button"
         onClick={() => void collect()}
         disabled={pending}
-        className="rounded-lg bg-accent px-3 py-1.5 font-display text-sm font-medium text-white transition-colors hover:bg-[#4f61b0] disabled:cursor-not-allowed disabled:opacity-50"
+        className="ha-primary rounded-lg px-3 py-1.5 text-sm font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-50"
       >
         {pending ? text("githubCollecting") : text("githubCollect")}
       </button>
@@ -513,15 +494,6 @@ function windowFooter(text: Copy, report: GithubRepoReport, locale: ChatLocale):
 function counterFooter(text: Copy, report: GithubRepoReport, locale: ChatLocale): string {
   const day = report.counters ? formatDay(report.counters.day, locale) : formatDay(report.to, locale);
   return `${text("githubSource")} · ${report.repo} · ${day}`;
-}
-
-function EmptyState({ title, body }: { title: string; body: string }) {
-  return (
-    <div className="rounded-xl border border-dashed border-border bg-[#f8f8f8] px-4 py-5">
-      <p className="font-display text-sm font-semibold text-foreground">{title}</p>
-      <p className="mt-2 text-sm leading-relaxed text-muted">{body}</p>
-    </div>
-  );
 }
 
 function explainCollectError(error: string, text: Copy): string {
@@ -562,4 +534,12 @@ function formatDelta(value: number, locale: ChatLocale): string {
     signDisplay: "exceptZero",
   }).format(value);
   return `${formatted}%`;
+}
+
+function toDelta(value: number, label: string, locale: ChatLocale): KpiDelta {
+  return {
+    text: formatDelta(value, locale),
+    label,
+    direction: value > 0 ? "up" : value < 0 ? "down" : "flat",
+  };
 }

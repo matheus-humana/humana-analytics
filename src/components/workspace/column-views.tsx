@@ -20,6 +20,9 @@ import { formatScorePoints } from "@/lib/seo/explain";
 import { groupFindings } from "@/lib/seo/groups";
 import type { SeoWorkspace } from "@/lib/seo/view";
 
+import { EmptyLine } from "@/components/ui/empty-line";
+import { InfoTip } from "@/components/ui/info-tip";
+
 import { GithubPanel } from "./github-panel";
 import { GeoPanel } from "./geo-panel";
 import { FindingGroupCard, SeoPanel } from "./seo-panel";
@@ -31,21 +34,24 @@ export function ColumnHeader({
   title,
   onCollapse,
   collapseLabel,
+  info,
 }: {
   title: string;
   onCollapse?: () => void;
   collapseLabel: string;
+  info?: string;
 }) {
   return (
-    <header className="flex h-11 shrink-0 items-center justify-between gap-2 border-b border-border px-3">
-      <h2 className="truncate font-display text-sm font-semibold text-foreground">
-        {title}
-      </h2>
+    <header className="flex h-11 shrink-0 items-center justify-between gap-2 border-b border-secondary px-3">
+      <div className="flex min-w-0 items-center gap-1">
+        <h2 className="truncate text-sm font-medium text-foreground">{title}</h2>
+        {info ? <InfoTip text={info} /> : null}
+      </div>
       {onCollapse ? (
         <button
           type="button"
           onClick={onCollapse}
-          className="rounded-md p-1 text-muted transition-colors hover:bg-[#f1f1f1] hover:text-foreground"
+          className="rounded-md p-1 text-muted transition-colors hover:bg-secondary hover:text-foreground"
           aria-label={collapseLabel}
           title={collapseLabel}
         >
@@ -77,17 +83,13 @@ export function ContextColumn({
         onCollapse={onCollapse}
         collapseLabel={`${text("collapseColumn")} ${text("columnContext")}`}
       />
-      <div className="min-h-0 flex-1 space-y-5 overflow-y-auto px-3 py-3">
+      <div className="min-h-0 flex-1 space-y-5 overflow-y-auto px-3 py-4">
         {project ? (
           <div>
-            <p className="text-xs font-medium uppercase tracking-wide text-muted">
-              {text("project")}
-            </p>
-            <p className="mt-1 font-display text-base font-semibold text-foreground">
-              {project.name}
-            </p>
-            <p className="mt-1 text-xs text-muted">
-              {text("slug")}: {project.slug}
+            <p className="text-sm font-medium text-foreground">{project.name}</p>
+            <p className="text-xs text-muted">
+              <span className="sr-only">{text("slug")}: </span>
+              {project.slug}
             </p>
           </div>
         ) : (
@@ -95,35 +97,25 @@ export function ContextColumn({
         )}
 
         <div>
-          <p className="text-xs font-medium uppercase tracking-wide text-muted">
-            {text("connections")}
-          </p>
+          <p className="text-xs text-muted">{text("connections")}</p>
           {foreign ? (
             <p className="mt-2 text-sm text-muted">{text("connectionsNotLoaded")}</p>
           ) : (
-            <ul className="mt-2 space-y-2">
+            <ul className="mt-1">
               {connections.map((connection) => (
-                <li
-                  key={connection.provider}
-                  className="flex items-center justify-between gap-2 rounded-lg border border-border px-3 py-2"
-                >
-                  <span className="text-sm font-medium text-foreground">
-                    {providerName(connection.provider)}
-                  </span>
-                  <ConnectionPill connection={connection} text={text} />
-                </li>
+                <ConnectionRow key={connection.provider} connection={connection} text={text} />
               ))}
             </ul>
           )}
-          <p className="mt-3 text-xs leading-relaxed text-muted">
-            {text("futureSources")}
-          </p>
-          <Link
-            href="/data-sources"
-            className="mt-3 inline-flex rounded-lg border border-border px-3 py-1.5 text-sm text-foreground transition-colors hover:border-accent hover:bg-accent-soft"
-          >
-            {text("openDataSources")}
-          </Link>
+          <div className="mt-4 flex items-center gap-1">
+            <Link
+              href="/data-sources"
+              className="text-sm text-foreground underline-offset-2 hover:underline"
+            >
+              {text("openDataSources")}
+            </Link>
+            <InfoTip text={text("futureSources")} />
+          </div>
         </div>
       </div>
     </section>
@@ -151,7 +143,7 @@ function connectionTitle(connection: ConnectionSnapshot, text: Copy): string {
     : `${providerName(connection.provider)} · ${state}`;
 }
 
-function ConnectionPill({
+function ConnectionRow({
   connection,
   text,
 }: {
@@ -160,28 +152,20 @@ function ConnectionPill({
 }) {
   const error = connection.status === "error";
   const on = connection.connected && !error;
-  const label = error
-    ? text("statusError")
-    : on
-      ? text("statusConnected")
-      : text("statusDisconnected");
+  const label = connectionTitle(connection, text);
   return (
-    <span
-      title={connectionTitle(connection, text)}
-      className={`inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-xs ${
-        on
-          ? "bg-accent-soft text-accent"
-          : error
-            ? "bg-[#f1f1f1] text-foreground"
-            : "bg-[#f1f1f1] text-muted"
-      }`}
-    >
-      <span
-        className={`h-1.5 w-1.5 rounded-full ${on ? "bg-accent" : "bg-muted"}`}
-        aria-hidden
-      />
-      {label}
-    </span>
+    <li>
+      <span className="flex items-center gap-2 py-1" title={label}>
+        <span
+          className={`h-1.5 w-1.5 shrink-0 rounded-full ${
+            on ? "bg-status-on" : error ? "bg-negative" : "bg-border"
+          }`}
+          aria-hidden
+        />
+        <span className="text-sm text-foreground">{providerName(connection.provider)}</span>
+        <span className="sr-only">{label}</span>
+      </span>
+    </li>
   );
 }
 
@@ -225,28 +209,28 @@ export function AnalyticsColumn({
         onCollapse={onCollapse}
         collapseLabel={`${text("collapseColumn")} ${text("columnAnalytics")}`}
       />
-      <div className="flex shrink-0 gap-1 border-b border-border px-3 py-2" role="tablist">
-        {tabs.map((item) => {
-          const selected = item.id === tab;
-          return (
-            <button
-              key={item.id}
-              type="button"
-              role="tab"
-              aria-selected={selected}
-              onClick={() => onTab(item.id)}
-              className={`rounded-md px-2.5 py-1 text-xs font-medium transition-colors ${
-                selected
-                  ? "bg-accent text-white"
-                  : "text-muted hover:bg-[#f1f1f1] hover:text-foreground"
-              }`}
-            >
-              {item.label}
-            </button>
-          );
-        })}
+      <div className="flex shrink-0 border-b border-secondary px-3 py-2" role="tablist">
+        <div className="inline-flex rounded-full bg-secondary p-0.5">
+          {tabs.map((item) => {
+            const selected = item.id === tab;
+            return (
+              <button
+                key={item.id}
+                type="button"
+                role="tab"
+                aria-selected={selected}
+                onClick={() => onTab(item.id)}
+                className={`rounded-full px-2.5 py-1 text-xs font-medium transition-colors ${
+                  selected ? "ha-primary" : "text-muted hover:text-foreground"
+                }`}
+              >
+                {item.label}
+              </button>
+            );
+          })}
+        </div>
       </div>
-      <div className="min-h-0 flex-1 overflow-y-auto px-3 py-3">
+      <div className="min-h-0 flex-1 overflow-y-auto px-3 py-4">
         {tab === "traffic" ? (
           blocked ? (
             <EmptyState title={blockedTitle} body={blockedBody} />
@@ -300,17 +284,17 @@ export function ActionsColumn({
         title={text("columnActions")}
         onCollapse={onCollapse}
         collapseLabel={`${text("collapseColumn")} ${text("columnActions")}`}
+        info={text("actionsAuto")}
       />
-      <div className="min-h-0 flex-1 space-y-4 overflow-y-auto px-3 py-3">
-        {blocked ? <EmptyState title={blockedTitle} body={blockedBody} /> : null}
+      <div className="min-h-0 flex-1 space-y-5 overflow-y-auto px-3 py-4">
+        {blocked ? <EmptyLine title={blockedTitle} detail={blockedBody} /> : null}
         {!blocked && !seo.configured ? (
-          <EmptyState title={text("actionsEmptyTitle")} body={text("seoMissingSite")} />
+          <EmptyLine title={text("actionsEmptyTitle")} detail={text("seoMissingSite")} />
         ) : null}
         {!blocked && seo.configured ? (
           <>
-            <p className="text-xs leading-relaxed text-muted">{text("actionsAuto")}</p>
             <section className="space-y-2">
-              <h3 className="font-display text-sm font-semibold text-foreground">
+              <h3 className="text-sm font-medium text-foreground">
                 {text("actionsNeedAttention")}
               </h3>
               {seo.openFindings.length === 0 ? (
@@ -324,7 +308,7 @@ export function ActionsColumn({
               )}
             </section>
             <section className="space-y-2">
-              <h3 className="font-display text-sm font-semibold text-foreground">
+              <h3 className="text-sm font-medium text-foreground">
                 {text("actionsResolved")}
               </h3>
               {seo.resolvedFindings.length === 0 ? (
@@ -343,12 +327,7 @@ export function ActionsColumn({
 }
 
 export function EmptyState({ title, body }: { title: string; body: string }) {
-  return (
-    <div className="rounded-xl border border-dashed border-border bg-[#f8f8f8] px-4 py-5">
-      <p className="font-display text-sm font-semibold text-foreground">{title}</p>
-      <p className="mt-2 text-sm leading-relaxed text-muted">{body}</p>
-    </div>
-  );
+  return <EmptyLine title={title} detail={body} />;
 }
 
 export function CollapsedRail({
@@ -366,7 +345,7 @@ export function CollapsedRail({
       onClick={onExpand}
       title={label}
       aria-label={label}
-      className="flex h-full w-full flex-col items-center gap-3 bg-surface px-1 py-3 text-muted transition-colors hover:bg-[#f8f8f8] hover:text-foreground"
+      className="flex h-full w-full flex-col items-center gap-3 bg-surface px-1 py-3 text-muted transition-colors hover:bg-secondary hover:text-foreground"
     >
       <IconChevron direction="right" className="h-4 w-4 shrink-0" />
       {children}
@@ -394,7 +373,7 @@ export function ContextRail({
             title={connectionTitle(connection, (key) => workspaceText(locale, key))}
             className={`h-1.5 w-1.5 rounded-full ${
               connection.connected && connection.status !== "error"
-                ? "bg-accent"
+                ? "bg-status-on"
                 : "bg-border"
             }`}
           />
@@ -427,7 +406,7 @@ export function AnalyticsRail({
       <IconAnalytics />
       {users ? (
         <span
-          className="max-w-full text-center text-[10px] font-semibold leading-tight text-foreground"
+          className="max-w-full text-center text-[10px] font-semibold leading-tight text-accent tabular-nums"
           title={`${workspaceText(locale, "analyticsUsers")} · ${summary?.periodLabel ?? ""}`}
         >
           {users}
@@ -439,12 +418,12 @@ export function AnalyticsRail({
         </span>
       ) : null}
       {seo?.seoScore != null ? (
-        <span className="text-center text-[10px] font-semibold leading-tight text-foreground" title={workspaceText(locale, "railSeo")}>
+        <span className="text-center text-[10px] font-semibold leading-tight text-accent tabular-nums" title={workspaceText(locale, "railSeo")}>
           {seo.seoScore}
         </span>
       ) : null}
       {seo?.geoScorePoints != null ? (
-        <span className="text-center text-[10px] font-semibold leading-tight text-foreground" title={workspaceText(locale, "railGeo")}>
+        <span className="text-center text-[10px] font-semibold leading-tight text-accent tabular-nums" title={workspaceText(locale, "railGeo")}>
           {formatScorePoints(seo.geoScorePoints)}
         </span>
       ) : null}
@@ -466,7 +445,7 @@ export function ActionsRail({
     <CollapsedRail label={label} onExpand={onExpand}>
       <IconActions />
       {openCount != null ? (
-        <span className="text-[10px] font-semibold text-foreground" title={workspaceText(locale, "railActions")}>
+        <span className="text-[10px] font-semibold text-accent tabular-nums" title={workspaceText(locale, "railActions")}>
           {openCount}
         </span>
       ) : null}

@@ -45,7 +45,7 @@ export function SourceSwitcher({ value }: Props) {
 
   return (
     <div
-      className={`inline-flex items-center gap-1 rounded-lg border border-border bg-surface p-1 ${
+      className={`inline-flex items-center rounded-full bg-secondary p-0.5 ${
         pending ? "opacity-70" : ""
       }`}
       role="group"
@@ -59,10 +59,8 @@ export function SourceSwitcher({ value }: Props) {
             type="button"
             onClick={() => select(source)}
             disabled={pending}
-            className={`rounded-md px-3 py-1.5 text-xs font-medium transition-colors sm:text-sm ${
-              active
-                ? "bg-accent text-white"
-                : "text-muted hover:bg-[#f1f1f1] hover:text-foreground"
+            className={`rounded-full px-2.5 py-1 text-xs font-medium transition-colors ${
+              active ? "ha-primary" : "text-muted hover:text-foreground"
             }`}
           >
             {LABELS[source]}
