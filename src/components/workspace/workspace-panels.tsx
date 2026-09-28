@@ -289,7 +289,7 @@ function PanelSeparator({ label }: { label: string }) {
   return (
     <Separator
       aria-label={label}
-      className="w-2 bg-[#f1f1f1] outline-none transition-colors hover:bg-accent/40 focus-visible:bg-accent/50"
+      className="w-2 bg-secondary outline-none transition-colors hover:bg-accent/40 focus-visible:bg-accent/50"
     />
   );
 }
@@ -386,10 +386,8 @@ function MobileWorkspace({
                 onMobileChatOpen(false);
                 onPrefs({ mobileColumn: column.id });
               }}
-              className={`rounded-md px-3 py-1.5 text-sm font-medium ${
-                selected
-                  ? "bg-accent text-white"
-                  : "text-muted hover:bg-[#f1f1f1]"
+              className={`rounded-full px-3 py-1.5 text-sm font-medium ${
+                selected ? "ha-primary" : "text-muted hover:text-foreground"
               }`}
             >
               {column.label}
@@ -433,21 +431,18 @@ function MobileWorkspace({
       <button
         type="button"
         onClick={() => onMobileChatOpen(true)}
-        className="fixed bottom-4 right-4 z-40 inline-flex items-center gap-2 rounded-full bg-accent px-4 py-3 font-display text-sm font-medium text-white shadow-lg shadow-black/15"
+        className="ha-primary fixed bottom-4 right-4 z-40 inline-flex items-center gap-2 rounded-full px-4 py-3 text-sm font-medium shadow-sm"
       >
         <IconChat className="h-5 w-5" />
         {text("openChat")}
       </button>
       {mobileChatOpen ? (
         <div className="fixed inset-0 z-50 flex flex-col bg-surface">
-          <header className="flex h-12 shrink-0 items-center justify-between border-b border-border px-3">
-            <h2 className="font-display text-sm font-semibold">
-              {text("columnChat")}
-            </h2>
+          <header className="flex h-12 shrink-0 items-center justify-end border-b border-secondary px-3">
             <button
               type="button"
               onClick={() => onMobileChatOpen(false)}
-              className="rounded-md border border-border px-2.5 py-1 text-sm text-foreground"
+              className="rounded-md px-2.5 py-1 text-sm text-foreground hover:bg-secondary"
             >
               {text("closeChat")}
             </button>
@@ -470,11 +465,6 @@ function ChatColumn({
 }) {
   return (
     <section className="flex h-full min-h-0 flex-col bg-surface">
-      <header className="flex h-11 shrink-0 items-center border-b border-border px-3">
-        <h2 className="font-display text-sm font-semibold text-foreground">
-          {workspaceText(locale, "columnChat")}
-        </h2>
-      </header>
       <div className="min-h-0 flex-1">
         <Suspense
           fallback={

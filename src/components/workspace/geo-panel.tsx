@@ -5,6 +5,10 @@ import { workspaceText, type WorkspaceMessageKey } from "@/lib/i18n/workspace-co
 import { explainBot, explainGeoRule, formatScorePoints } from "@/lib/seo/explain";
 import type { SeoWorkspace } from "@/lib/seo/view";
 
+import { EmptyLine } from "@/components/ui/empty-line";
+import { InfoTip } from "@/components/ui/info-tip";
+import { KpiCard } from "@/components/ui/kpi-card";
+
 import { SeoCollectButton } from "./seo-collect-button";
 
 type Copy = (key: WorkspaceMessageKey) => string;
@@ -13,9 +17,9 @@ export function GeoPanel({ locale, data }: { locale: ChatLocale; data: SeoWorksp
   const text = (key: WorkspaceMessageKey) => workspaceText(locale, key);
   if (!data.configured) {
     return (
-      <Notice
+      <EmptyLine
         title={text("geoHeading")}
-        body={
+        detail={
           data.detail === "invalid_site_url"
             ? text("seoInvalidSite")
             : !data.detail || data.detail === "missing_site_url"
@@ -28,10 +32,12 @@ export function GeoPanel({ locale, data }: { locale: ChatLocale; data: SeoWorksp
 
   const crawl = data.crawl;
   return (
-    <div className="space-y-4">
-      <header className="space-y-2">
-        <h3 className="font-display text-base font-semibold text-foreground">{text("geoHeading")}</h3>
-        <p className="text-sm leading-relaxed text-muted">{text("geoIntro")}</p>
+    <div className="space-y-6">
+      <header className="flex items-center justify-between gap-2">
+        <div className="flex min-w-0 items-center gap-1">
+          <h3 className="truncate text-sm font-medium text-foreground">{text("geoHeading")}</h3>
+          <InfoTip text={text("geoIntro")} />
+        </div>
         <SeoCollectButton
           label={text("seoCollect")}
           pendingLabel={text("seoCollecting")}
@@ -41,24 +47,21 @@ export function GeoPanel({ locale, data }: { locale: ChatLocale; data: SeoWorksp
       </header>
 
       {data.crawlStatus === "error" && data.crawlDetail ? (
-        <Notice title={text("statusError")} body={data.crawlDetail} />
+        <EmptyLine title={text("statusError")} detail={data.crawlDetail} />
       ) : null}
 
-      <section className="rounded-xl border border-border p-3">
-        <p className="text-xs uppercase tracking-wide text-muted">{text("geoScore")}</p>
-        <p className="mt-1 font-display text-3xl font-semibold text-foreground">
-          {crawl ? formatScorePoints(crawl.geoScorePoints) : "—"}
-          <span className="text-base font-medium text-muted"> / 10</span>
-        </p>
-        <p className="mt-1 text-xs text-muted">
-          {crawl
-            ? `${text("seoSourceCrawl")} · ${formatDay(crawl.day, locale)}`
-            : text("geoNoScore")}
-        </p>
-      </section>
+      <KpiCard
+        label={text("geoScore")}
+        value={crawl ? `${formatScorePoints(crawl.geoScorePoints)} / 10` : "—"}
+        citation={
+          crawl
+            ? `${text("seoSourceCrawl")} · ${crawl.siteUrl} · ${formatDay(crawl.day, locale)}`
+            : text("geoNoScore")
+        }
+      />
 
       {crawl ? (
-        <ul className="space-y-2">
+        <ul>
           {crawl.checklist.map((rule) => {
             const state = rule.passed
               ? text("geoPassed")
@@ -66,17 +69,18 @@ export function GeoPanel({ locale, data }: { locale: ChatLocale; data: SeoWorksp
                 ? text("geoPartial")
                 : text("geoFailed");
             return (
-              <li key={rule.id} className="rounded-xl border border-border px-3 py-2">
-                <div className="flex items-center justify-between gap-2">
-                  <p className="text-sm font-medium text-foreground">{ruleName(locale, rule.id)}</p>
-                  <span className="text-xs text-muted">{state}</span>
+              <li key={rule.id} className="flex items-start justify-between gap-3 py-2">
+                <div className="min-w-0">
+                  <div className="flex items-center gap-1">
+                    <p className="text-sm text-foreground">{ruleName(locale, rule.id)}</p>
+                    <InfoTip
+                      text={`${explainGeoRule(locale, rule)} ${text("geoWeight")} ${formatScorePoints(rule.weightPoints)} · ${text("geoEarned")} ${formatScorePoints(rule.earnedPoints)}`}
+                    />
+                  </div>
+                  <p className="text-xs text-muted">{state}</p>
                 </div>
-                <p className="mt-1 text-xs text-muted">
-                  {text("geoWeight")} {formatScorePoints(rule.weightPoints)} · {text("geoEarned")}{" "}
+                <p className="font-display text-lg font-semibold tabular-nums text-accent">
                   {formatScorePoints(rule.earnedPoints)}
-                </p>
-                <p className="mt-1 text-xs leading-relaxed text-foreground">
-                  {explainGeoRule(locale, rule)}
                 </p>
               </li>
             );
@@ -88,7 +92,10 @@ export function GeoPanel({ locale, data }: { locale: ChatLocale; data: SeoWorksp
 
       {crawl ? (
         <section className="space-y-2">
-          <h4 className="font-display text-sm font-semibold text-foreground">{text("geoFiles")}</h4>
+          <div className="flex items-center gap-1">
+            <h4 className="text-sm font-medium text-foreground">{text("geoFiles")}</h4>
+            <InfoTip text={`${text("seoSourceCrawl")} · ${formatDay(crawl.day, locale)}`} />
+          </div>
           <FileRow
             name="robots.txt"
             found={crawl.robotsFound}
@@ -103,16 +110,13 @@ export function GeoPanel({ locale, data }: { locale: ChatLocale; data: SeoWorksp
             extra={crawl.sitemapFound ? String(crawl.sitemapUrls) : null}
             text={text}
           />
-          <p className="text-xs text-muted">
-            {text("seoSourceCrawl")} · {formatDay(crawl.day, locale)}
-          </p>
         </section>
       ) : null}
 
       {crawl ? (
         <section>
-          <h4 className="font-display text-sm font-semibold text-foreground">{text("geoAiBots")}</h4>
-          <ul className="mt-2 space-y-1 text-xs text-foreground">
+          <h4 className="text-sm font-medium text-foreground">{text("geoAiBots")}</h4>
+          <ul className="mt-2 space-y-1 text-xs text-muted">
             {crawl.aiBots.map((bot) => (
               <li key={bot.bot}>{explainBot(locale, bot)}</li>
             ))}
@@ -135,17 +139,39 @@ function AiTrafficCard({
   text: Copy;
 }) {
   const traffic = data.aiTraffic;
+  const citation = [
+    text("geoAiTrafficBody"),
+    "GA4",
+    traffic.from && traffic.to
+      ? `${formatDay(traffic.from, locale)}–${formatDay(traffic.to, locale)}`
+      : null,
+    traffic.queriedSources.length > 0
+      ? `${text("geoHosts")}: ${traffic.queriedSources.join(", ")}`
+      : null,
+  ]
+    .filter(Boolean)
+    .join(" · ");
   return (
-    <section className="rounded-xl border border-border p-3">
-      <h4 className="font-display text-sm font-semibold text-foreground">{text("geoAiTraffic")}</h4>
-      <p className="mt-1 text-xs leading-relaxed text-muted">{text("geoAiTrafficBody")}</p>
+    <section className="space-y-3">
+      <div className="flex items-center gap-1">
+        <h4 className="text-sm font-medium text-foreground">{text("geoAiTraffic")}</h4>
+        <InfoTip text={citation} />
+      </div>
       {traffic.connected && traffic.sessions != null && traffic.activeUsers != null ? (
-        <div className="mt-3 grid grid-cols-2 gap-2">
-          <Metric label={text("geoSessions")} value={formatNumber(traffic.sessions, locale)} />
-          <Metric label={text("geoUsers")} value={formatNumber(traffic.activeUsers, locale)} />
+        <div className="grid grid-cols-2 gap-1">
+          <KpiCard
+            label={text("geoSessions")}
+            value={formatNumber(traffic.sessions, locale)}
+            citation={citation}
+          />
+          <KpiCard
+            label={text("geoUsers")}
+            value={formatNumber(traffic.activeUsers, locale)}
+            citation={citation}
+          />
         </div>
       ) : (
-        <p className="mt-2 text-sm text-muted">{traffic.error || text("geoAiDisconnected")}</p>
+        <p className="text-sm text-muted">{traffic.error || text("geoAiDisconnected")}</p>
       )}
       {traffic.rows.length > 0 ? (
         <table className="mt-3 w-full text-left text-xs">
@@ -167,25 +193,7 @@ function AiTrafficCard({
           </tbody>
         </table>
       ) : null}
-      <p className="mt-2 text-[11px] leading-relaxed text-muted">
-        GA4
-        {traffic.from && traffic.to
-          ? ` · ${formatDay(traffic.from, locale)}–${formatDay(traffic.to, locale)}`
-          : ""}
-        {traffic.queriedSources.length > 0
-          ? ` · ${text("geoHosts")}: ${traffic.queriedSources.join(", ")}`
-          : ""}
-      </p>
     </section>
-  );
-}
-
-function Notice({ title, body }: { title: string; body: string }) {
-  return (
-    <div className="rounded-xl border border-dashed border-border bg-[#f8f8f8] px-4 py-5">
-      <p className="font-display text-sm font-semibold text-foreground">{title}</p>
-      <p className="mt-2 text-sm leading-relaxed text-muted">{body}</p>
-    </div>
   );
 }
 
@@ -208,15 +216,6 @@ function FileRow({
       {found && bytes != null ? ` · ${bytes} ${text("geoBytes")}` : ""}
       {extra ? ` · ${extra}` : ""}
     </p>
-  );
-}
-
-function Metric({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="rounded-lg border border-border px-2 py-2">
-      <p className="text-[11px] text-muted">{label}</p>
-      <p className="mt-1 text-lg font-semibold text-foreground">{value}</p>
-    </div>
   );
 }
 

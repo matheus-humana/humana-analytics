@@ -74,6 +74,16 @@ export function IconActions({ className = "h-5 w-5" }: IconProps) {
   );
 }
 
+export function IconInfo({ className = "h-3.5 w-3.5" }: IconProps) {
+  return (
+    <svg viewBox="0 0 20 20" className={className} aria-hidden>
+      <circle cx="10" cy="10" r="7" fill="none" stroke="currentColor" strokeWidth="1.4" />
+      <path d="M10 9v5" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
+      <circle cx="10" cy="6.5" r="0.8" fill="currentColor" />
+    </svg>
+  );
+}
+
 export function IconChat({ className = "h-5 w-5" }: IconProps) {
   return (
     <svg viewBox="0 0 24 24" className={className} aria-hidden>

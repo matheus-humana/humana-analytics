@@ -2,6 +2,9 @@ import { Suspense } from "react";
 
 import { PeriodFilter } from "@/components/analytics/period-filter";
 import { SourceSwitcher } from "@/components/analytics/source-switcher";
+import { InfoTip } from "@/components/ui/info-tip";
+import { KpiCard } from "@/components/ui/kpi-card";
+import { RankList } from "@/components/ui/rank-list";
 import type { DashboardSource } from "@/lib/analytics/dashboard-source";
 import type { Ga4DashboardData, Ga4NamedCount } from "@/lib/ga4/fetch-report";
 import { TrafficChart } from "@/components/dashboard/traffic-chart";
@@ -73,48 +76,20 @@ export function DashboardHeader({
 
   return (
     <div className="space-y-3">
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-        <div>
-          <div
-            className={`mb-2 inline-flex items-center rounded-full border px-2.5 py-1 text-xs ${
-              live
-                ? "border-accent bg-accent-soft text-accent"
-                : "border-border bg-surface text-muted"
-            }`}
-          >
-            {badge}
-          </div>
-          <h1 className="font-display text-2xl font-semibold tracking-tight text-foreground sm:text-3xl">
-            {title}
-          </h1>
-          <p className="mt-2 max-w-2xl text-sm text-muted sm:text-base">
-            {subtitle}
-          </p>
-        </div>
-
-        <div className="flex flex-col items-start gap-2 sm:items-end">
-          <Suspense
-            fallback={
-              <div className="h-9 w-40 animate-pulse rounded-lg bg-[#f1f1f1]" />
-            }
-          >
-            <SourceSwitcher value={source} />
-          </Suspense>
-          <Suspense
-            fallback={
-              <div className="h-9 w-56 animate-pulse rounded-lg bg-[#f1f1f1]" />
-            }
-          >
-            <PeriodFilter value={periodId} />
-          </Suspense>
-          <p className="text-xs text-muted">{periodLabel}</p>
-        </div>
+      <div className="flex flex-wrap items-center gap-2">
+        <Suspense fallback={<div className="h-7 w-36 animate-pulse rounded-full bg-secondary" />}>
+          <SourceSwitcher value={source} />
+        </Suspense>
+        <Suspense fallback={<div className="h-7 w-52 animate-pulse rounded-full bg-secondary" />}>
+          <PeriodFilter value={periodId} />
+        </Suspense>
+        <InfoTip text={`${badge}. ${title}. ${subtitle} ${periodLabel}`} />
       </div>
 
       {error ? (
-        <div className="rounded-lg border border-[#cccccc] bg-[#f1f1f1] px-4 py-3 text-sm text-[#151515]">
+        <p className="text-sm text-foreground">
           {errorPrefix}: {error}
-        </div>
+        </p>
       ) : null}
     </div>
   );
@@ -122,107 +97,95 @@ export function DashboardHeader({
 
 type OverviewProps = {
   data: Ga4DashboardData["overview"];
+  citation: string;
+  usersSeries?: Array<number | null>;
 };
 
-export function OverviewHero({ data }: OverviewProps) {
+export function OverviewHero({ data, citation, usersSeries }: OverviewProps) {
   const hero = [
-    { label: "Usuários ativos", value: formatNumber(data.activeUsers) },
+    { label: "Usuários ativos", value: formatNumber(data.activeUsers), series: usersSeries },
     { label: "Novos usuários", value: formatNumber(data.newUsers) },
-    {
-      label: "Sessões engajadas",
-      value: formatNumber(data.engagedSessions),
-    },
+    { label: "Sessões engajadas", value: formatNumber(data.engagedSessions) },
   ];
 
   return (
-    <section className="grid gap-4 sm:grid-cols-3">
+    <section className="grid gap-1 sm:grid-cols-3">
       {hero.map((item) => (
-        <article
+        <KpiCard
           key={item.label}
-          className="rounded-xl border border-border bg-surface p-5 shadow-sm shadow-black/5"
-        >
-          <p className="text-sm text-muted">{item.label}</p>
-          <p className="mt-3 font-display text-3xl font-semibold tracking-tight text-accent">
-            {item.value}
-          </p>
-        </article>
+          label={item.label}
+          value={item.value}
+          citation={citation}
+          series={item.series}
+        />
       ))}
     </section>
   );
 }
 
-export function NavigationMetrics({ data }: OverviewProps) {
+export function NavigationMetrics({ data, citation }: OverviewProps) {
   const items = [
     { label: "Visualizações", value: formatNumber(data.views) },
     {
-      label: "Visualizações por usuário ativo",
+      label: "Views / usuário",
       value: data.viewsPerActiveUser.toFixed(2).replace(".", ","),
     },
     {
-      label: "Tempo médio de engajamento",
+      label: "Engajamento médio",
       value: formatDuration(data.averageEngagementSeconds),
     },
-    { label: "Taxa de rejeição", value: formatPercent(data.bounceRate) },
+    { label: "Rejeição", value: formatPercent(data.bounceRate) },
   ];
 
   return (
-    <section className="rounded-xl border border-border bg-surface p-5 shadow-sm shadow-black/5">
-      <h2 className="font-display text-base font-semibold text-foreground">
-        Navegação
-      </h2>
-      <div className="mt-5 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+    <section>
+      <h2 className="mb-1 text-sm font-medium text-foreground">Navegação</h2>
+      <div className="grid gap-1 sm:grid-cols-2">
         {items.map((item) => (
-          <div key={item.label} className="rounded-lg border border-border p-4">
-            <p className="text-xs text-muted">{item.label}</p>
-            <p className="mt-2 text-2xl font-semibold text-foreground">
-              {item.value}
-            </p>
-          </div>
+          <KpiCard key={item.label} label={item.label} value={item.value} citation={citation} />
         ))}
       </div>
     </section>
   );
 }
 
-export function EventsCard({ eventCount }: { eventCount: number }) {
+export function EventsCard({
+  eventCount,
+  citation,
+}: {
+  eventCount: number;
+  citation: string;
+}) {
   return (
-    <section className="rounded-xl border border-border bg-surface p-5 shadow-sm shadow-black/5">
-      <h2 className="font-display text-base font-semibold text-foreground">
-        Eventos
-      </h2>
-      <p className="mt-1 text-sm text-muted">Contagem no período</p>
-      <p className="mt-6 font-display text-4xl font-semibold tracking-tight text-accent">
-        {formatNumber(eventCount)}
-      </p>
-    </section>
+    <KpiCard
+      label="Eventos"
+      value={formatNumber(eventCount)}
+      citation={`${citation} · Contagem no período`}
+    />
   );
 }
 
 export function ConversionsSection({
   items,
+  citation,
 }: {
   items: Ga4DashboardData["conversions"];
+  citation: string;
 }) {
   return (
-    <section className="rounded-xl border border-border bg-surface p-5 shadow-sm shadow-black/5">
-      <h2 className="font-display text-base font-semibold text-foreground">
-        Conversões e interações
-      </h2>
-      <p className="mt-1 text-sm text-muted">
-        Eventos do site via GA4 (contato, newsletter, demo, download, login)
-      </p>
-      <div className="mt-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
+    <section>
+      <div className="mb-1 flex items-center gap-1">
+        <h2 className="text-sm font-medium text-foreground">Conversões</h2>
+        <InfoTip text={`Eventos do site via GA4. ${citation}`} />
+      </div>
+      <div className="grid gap-1 sm:grid-cols-2">
         {items.map((item) => (
-          <div
+          <KpiCard
             key={item.eventName}
-            className="rounded-lg border border-border p-4"
-            title={item.eventName}
-          >
-            <p className="font-display text-2xl font-semibold tracking-tight text-accent">
-              {formatNumber(item.count)}
-            </p>
-            <p className="mt-1 text-xs text-muted">{item.label}</p>
-          </div>
+            label={item.label}
+            value={formatNumber(item.count)}
+            citation={`${citation} · ${item.eventName}`}
+          />
         ))}
       </div>
     </section>
@@ -246,43 +209,16 @@ export function BreakdownList({
   const max = Math.max(1, ...items.map((item) => item.value));
 
   return (
-    <section className="rounded-xl border border-border bg-surface p-5 shadow-sm shadow-black/5">
-      <h2 className="font-display text-base font-semibold text-foreground">
-        {title}
-      </h2>
-      <p className="mt-1 text-sm text-muted">{subtitle}</p>
-
-      <ul className="mt-5 space-y-4">
-        {items.length === 0 ? (
-          <li className="text-sm text-muted">Sem dados no período.</li>
-        ) : (
-          items.map((item) => {
-            const width = (item.value / max) * 100;
-            const share = sharePercent(item.value, total);
-
-            return (
-              <li key={item.name}>
-                <div className="mb-2 flex items-center justify-between gap-3 text-sm">
-                  <span className="truncate font-medium text-foreground">
-                    {item.name}
-                  </span>
-                  <span className="shrink-0 text-muted">
-                    {formatNumber(item.value)}
-                    {valueSuffix} · {share.toFixed(1).replace(".", ",")}%
-                  </span>
-                </div>
-                <div className="h-2 overflow-hidden rounded-full bg-[#f1f1f1]">
-                  <div
-                    className="h-full rounded-full bg-accent"
-                    style={{ width: `${width}%` }}
-                  />
-                </div>
-              </li>
-            );
-          })
-        )}
-      </ul>
-    </section>
+    <RankList
+      title={title}
+      info={subtitle}
+      empty="Sem dados no período."
+      rows={items.map((item) => ({
+        name: item.name,
+        value: `${formatNumber(item.value)}${valueSuffix} · ${sharePercent(item.value, total).toFixed(1).replace(".", ",")}%`,
+        width: (item.value / max) * 100,
+      }))}
+    />
   );
 }
 
@@ -291,43 +227,45 @@ type LiveDashboardProps = {
 };
 
 export function LiveGa4Dashboard({ data }: LiveDashboardProps) {
+  const citation = `GA4 · ${data.propertyId} · ${data.periodLabel}`;
+  const usersSeries = data.traffic.map((point) => point.users);
   return (
     <div className="space-y-6">
-      <OverviewHero data={data.overview} />
-      <NavigationMetrics data={data.overview} />
-      <ConversionsSection items={data.conversions} />
+      <OverviewHero data={data.overview} citation={citation} usersSeries={usersSeries} />
+      <NavigationMetrics data={data.overview} citation={citation} />
+      <ConversionsSection items={data.conversions} citation={citation} />
 
-      <div className="grid gap-4 lg:grid-cols-[1.4fr_0.8fr]">
+      <div className="grid gap-6">
         <BreakdownList
           title="Principais páginas"
-          subtitle="Visualizações por caminho"
+          subtitle={`${citation} · Visualizações por caminho`}
           items={data.topPages}
           valueSuffix=" views"
         />
-        <EventsCard eventCount={data.overview.eventCount} />
+        <EventsCard eventCount={data.overview.eventCount} citation={citation} />
       </div>
 
-      <TrafficChart series={data.traffic} />
+      <TrafficChart series={data.traffic} citation={citation} />
 
-      <div className="grid gap-4 lg:grid-cols-2">
+      <div className="grid gap-6">
         <BreakdownList
-          title="Usuários por navegador"
-          subtitle="Active users"
+          title="Navegador"
+          subtitle={`${citation} · Active users`}
           items={data.browsers}
         />
         <BreakdownList
-          title="Usuários por sistema operacional"
-          subtitle="Active users"
+          title="Sistema"
+          subtitle={`${citation} · Active users`}
           items={data.operatingSystems}
         />
         <BreakdownList
-          title="Usuários por categoria de plataforma"
-          subtitle="Active users"
+          title="Plataforma"
+          subtitle={`${citation} · Active users`}
           items={data.platforms}
         />
         <BreakdownList
-          title="Usuários por resolução de tela"
-          subtitle="Active users"
+          title="Resolução"
+          subtitle={`${citation} · Active users`}
           items={data.screenResolutions}
         />
       </div>

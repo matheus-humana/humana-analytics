@@ -34,7 +34,7 @@ export function PeriodFilter({ value }: Props) {
 
   return (
     <div
-      className={`inline-flex flex-wrap items-center gap-1 rounded-lg border border-border bg-surface p-1 ${
+      className={`inline-flex items-center rounded-full bg-secondary p-0.5 ${
         pending ? "opacity-70" : ""
       }`}
       role="group"
@@ -49,10 +49,8 @@ export function PeriodFilter({ value }: Props) {
             onClick={() => select(option.id)}
             disabled={pending}
             title={option.label}
-            className={`rounded-md px-2.5 py-1.5 text-xs font-medium transition-colors sm:text-sm ${
-              active
-                ? "bg-accent text-white"
-                : "text-muted hover:bg-[#f1f1f1] hover:text-foreground"
+            className={`rounded-full px-2 py-1 text-xs font-medium whitespace-nowrap transition-colors ${
+              active ? "ha-primary" : "text-muted hover:text-foreground"
             }`}
           >
             {option.shortLabel}

@@ -43,7 +43,7 @@ export function SeoCollectButton({
         type="button"
         onClick={() => void collect()}
         disabled={pending}
-        className="rounded-lg bg-accent px-3 py-1.5 font-display text-sm font-medium text-white transition-colors hover:bg-[#4f61b0] disabled:cursor-not-allowed disabled:opacity-60"
+        className="ha-primary rounded-lg px-3 py-1.5 text-sm font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-60"
       >
         {pending ? pendingLabel : label}
       </button>
