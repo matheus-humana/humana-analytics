@@ -8,6 +8,8 @@ export const analyticsToolDefinitions = [
   ...seoToolDefinitions,
 ];
 
+// Clarity and Vercel clients were removed. These names stay refused so a
+// model cannot treat them as traffic sources.
 const DISABLED_TOOLS = new Set([
   "get_clarity_overview",
   "get_clarity_friction",

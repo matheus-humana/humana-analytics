@@ -2,7 +2,9 @@
 
 import { useSyncExternalStore } from "react";
 
+import { useLocale } from "@/components/i18n/locale-provider";
 import { Dropdown } from "@/components/ui/dropdown";
+import { workspaceText, type WorkspaceMessageKey } from "@/lib/i18n/workspace-copy";
 import {
   ACCENT_PRESET_OPTIONS,
   type AccentPresetId,
@@ -11,6 +13,17 @@ import {
   persistAndApplyAccentPreset,
   readStoredAccentPreset,
 } from "@/lib/ui/accent-preset";
+
+const ACCENT_LABELS: Record<AccentPresetId, WorkspaceMessageKey> = {
+  default: "accentDefault",
+  blue: "accentBlue",
+  indigo: "accentIndigo",
+  violet: "accentViolet",
+  emerald: "accentEmerald",
+  rose: "accentRose",
+  amber: "accentAmber",
+  orange: "accentOrange",
+};
 
 const swatchClass =
   "size-3.5 shrink-0 rounded-full border border-border shadow-sm";
@@ -28,12 +41,16 @@ type AppearanceSettingsProps = {
 };
 
 export function AccentPicker({
-  label = "Cor de destaque",
-  previewLabel = "Prévia das cores",
+  label,
+  previewLabel,
 }: {
   label?: string;
   previewLabel?: string;
 }) {
+  const { locale } = useLocale();
+  const text = (key: WorkspaceMessageKey) => workspaceText(locale, key);
+  const heading = label ?? text("accentColor");
+  const preview = previewLabel ?? text("accentPreview");
   const preset = useSyncExternalStore(
     subscribeAccent,
     readStoredAccentPreset,
@@ -48,15 +65,15 @@ export function AccentPicker({
 
   return (
     <div>
-      <p className="mb-2 text-sm font-medium text-foreground">{label}</p>
+      <p className="mb-2 text-sm font-medium text-foreground">{heading}</p>
       <Dropdown<AccentPresetId>
         value={preset}
         onChange={onChange}
-        ariaLabel={label}
+        ariaLabel={heading}
         className="w-full"
-        options={ACCENT_PRESET_OPTIONS.map(({ id, label: optionLabel }) => ({
+        options={ACCENT_PRESET_OPTIONS.map(({ id }) => ({
           value: id,
-          label: optionLabel,
+          label: text(ACCENT_LABELS[id]),
           icon: (
             <span
               aria-hidden
@@ -67,9 +84,10 @@ export function AccentPicker({
         }))}
       />
 
-      <ul className="mt-4 flex flex-wrap gap-2" aria-label={previewLabel}>
-        {ACCENT_PRESET_OPTIONS.map(({ id, label: optionLabel, swatchHex }) => {
+      <ul className="mt-4 flex flex-wrap gap-2" aria-label={preview}>
+        {ACCENT_PRESET_OPTIONS.map(({ id, swatchHex }) => {
           const selected = id === preset;
+          const optionLabel = text(ACCENT_LABELS[id]);
           return (
             <li key={id}>
               <button
@@ -94,6 +112,8 @@ export function AccentPicker({
 }
 
 export function AppearanceSettings({ compact = false }: AppearanceSettingsProps) {
+  const { locale } = useLocale();
+  const text = (key: WorkspaceMessageKey) => workspaceText(locale, key);
   const body = (
     <>
       <div className={compact ? "mb-4" : "mb-5"}>
@@ -102,11 +122,9 @@ export function AppearanceSettings({ compact = false }: AppearanceSettingsProps)
             compact ? "text-sm" : "text-base"
           }`}
         >
-          Aparência
+          {text("settingsAppearance")}
         </h2>
-        <p className="mt-1 text-sm text-muted">
-          Personalize a cor de destaque. A escolha fica salva neste navegador.
-        </p>
+        <p className="mt-1 text-sm text-muted">{text("appearanceBody")}</p>
       </div>
 
       <AccentPicker />

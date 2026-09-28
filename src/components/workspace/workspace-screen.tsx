@@ -2,18 +2,16 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { useEffect, useId, useState } from "react";
+import { useId, useState } from "react";
 
+import { useLocale } from "@/components/i18n/locale-provider";
 import {
   SettingsDialog,
   type SettingsTab,
 } from "@/components/settings/settings-dialog";
 import { Dropdown } from "@/components/ui/dropdown";
 import { signOutAction } from "@/lib/auth/sign-out-action";
-import {
-  normalizeChatLocale,
-  type ChatLocale,
-} from "@/lib/ai/analytics-bot-contract";
+import type { ChatLocale } from "@/lib/ai/analytics-bot-contract";
 import { workspaceText } from "@/lib/i18n/workspace-copy";
 import type {
   WorkspaceModel,
@@ -27,8 +25,6 @@ import {
 } from "@/lib/workspace/browser-store";
 import {
   parseWorkspacePrefs,
-  guestLocaleKey,
-  workspaceLocaleKey,
   workspacePrefsKey,
   type WorkspaceMode,
   type WorkspacePrefs,
@@ -66,10 +62,7 @@ export function WorkspaceScreen({
   github,
   seo,
 }: Props) {
-  const storedLocale = useLocalString(workspaceLocaleKey(userId));
-  const guestLocale = useLocalString(guestLocaleKey());
-  const locale =
-    normalizeChatLocale(storedLocale) ?? normalizeChatLocale(guestLocale) ?? "pt-BR";
+  const { locale, setLocale: setSharedLocale } = useLocale();
   const storedPrefs = useLocalString(workspacePrefsKey(userId));
   const prefs = parseWorkspacePrefs(storedPrefs);
   const mobile = useMediaQuery("(max-width: 1023px)");
@@ -79,10 +72,6 @@ export function WorkspaceScreen({
   const [settingsTab, setSettingsTab] = useState<SettingsTab>("appearance");
   const [mobileChatOpen, setMobileChatOpen] = useState(false);
   const [sessionSignals, setSessionSignals] = useState<ChatSignal[]>([]);
-
-  useEffect(() => {
-    document.documentElement.lang = locale === "en" ? "en" : "pt-BR";
-  }, [locale]);
 
   function updatePrefs(partial: Partial<WorkspacePrefs>) {
     const next = { ...prefs, ...partial, open: partial.open ?? prefs.open };
@@ -94,11 +83,7 @@ export function WorkspaceScreen({
   }
 
   function setLocale(next: ChatLocale) {
-    try {
-      writeLocalString(workspaceLocaleKey(userId), next);
-    } catch {
-      // ignore
-    }
+    setSharedLocale(next, userId);
   }
 
   const text = (key: Parameters<typeof workspaceText>[1]) =>

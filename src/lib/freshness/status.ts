@@ -5,26 +5,31 @@ import type { ChatLocale } from "@/lib/ai/analytics-bot-contract";
  *
  * GA4 is polled while the tab is visible. A short server cache absorbs
  * overlapping tabs so the Data API is not called on every refresh.
- * GitHub, PageSpeed and the site crawl are snapshots stored per day (Vercel
- * Cron: GitHub hourly at :15, PageSpeed and crawl daily around 08:20–08:40
- * UTC). Those are never shown as live.
+ * GitHub is collected hourly (`15 * * * *`). PageSpeed (`40 8 * * *`) and the
+ * site crawl (`20 8 * * *`) stay daily. None of those are shown as live.
+ * GitHub's own traffic API can still publish clones and views hours or days
+ * late; the badge only describes our collect.
  *
  * Limits:
  * - GA4 server cache: 120 seconds
  * - GA4 poll while the tab is visible: 3 minutes
  * - Live (green pulse): last successful GA4 read is at most 10 minutes old
  * - Live stale (amber, no pulse): older than 10 minutes, or the latest read failed
- * - Snapshot fresh (blue, no pulse): last collect is at most 36 hours old
- * - Snapshot stale (amber): older than 36 hours, or the source reported an error
+ * - Hourly fresh (blue, no pulse): last GitHub collect is at most 3 hours old
+ * - Hourly stale (amber): older than 3 hours, or the latest collect failed
+ * - Daily fresh (blue, no pulse): last collect is at most 36 hours old
+ * - Daily stale (amber): older than 36 hours, or the source reported an error
  * - Unavailable (gray): no timestamp, or a timestamp more than 2 minutes in the future
  */
 export const GA4_CACHE_SECONDS = 120;
 export const GA4_POLL_INTERVAL_MS = 3 * 60 * 1000;
 export const LIVE_FRESH_MS = 10 * 60 * 1000;
+/** Hourly cron plus slack for a missed run. Amber after this age. */
+export const HOURLY_FRESH_MS = 3 * 60 * 60 * 1000;
 export const SNAPSHOT_FRESH_MS = 36 * 60 * 60 * 1000;
 const FUTURE_SKEW_MS = 2 * 60 * 1000;
 
-export type FreshnessCadence = "live" | "snapshot";
+export type FreshnessCadence = "live" | "hourly" | "snapshot";
 export type FreshnessKind = "live" | "snapshot" | "stale" | "unavailable";
 export type FreshnessTone = "green" | "blue" | "amber" | "gray";
 
@@ -56,7 +61,35 @@ export function describeFreshness(input: FreshnessInput): FreshnessView {
   if (input.cadence === "live") {
     return describeLive(age, input.ok, input);
   }
+  if (input.cadence === "hourly") {
+    return describeHourly(age, input.ok, input.locale);
+  }
   return describeSnapshot(age, input.ok, observed, input);
+}
+
+function describeHourly(
+  age: number,
+  ok: boolean,
+  locale: ChatLocale
+): FreshnessView {
+  const when = relative(age, locale);
+  if (!ok || age > HOURLY_FRESH_MS) {
+    return {
+      kind: "stale",
+      tone: "amber",
+      pulse: false,
+      label:
+        locale === "en"
+          ? `Out of date · last collect ${when}`
+          : `Desatualizado · última coleta ${when}`,
+    };
+  }
+  return {
+    kind: "snapshot",
+    tone: "blue",
+    pulse: false,
+    label: locale === "en" ? `Updated ${when}` : `Atualizado ${when}`,
+  };
 }
 
 function describeLive(
@@ -131,13 +164,13 @@ function unavailable(cadence: FreshnessCadence, locale: ChatLocale): FreshnessVi
     tone: "gray",
     pulse: false,
     label:
-      cadence === "snapshot"
+      cadence === "live"
         ? locale === "en"
-          ? "No snapshot yet"
-          : "Sem coleta"
-        : locale === "en"
           ? "No update yet"
-          : "Sem atualização",
+          : "Sem atualização"
+        : locale === "en"
+          ? "No snapshot yet"
+          : "Sem coleta",
   };
 }
 

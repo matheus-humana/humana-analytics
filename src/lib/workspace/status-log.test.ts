@@ -98,7 +98,7 @@ test("PageSpeed and crawl errors are shown as returned", () => {
     "pt-BR"
   );
   assert.match(log.line ?? "", /PageSpeed · erro · Quota exceeded/);
-  assert.match(log.items.map((item) => item.text).join("\n"), /Crawl · desconectado · falta SITE_URL/);
+  assert.match(log.items.map((item) => item.text).join("\n"), /Varredura · desconectado · falta SITE_URL/);
 });
 
 test("no connections and no chat events stay empty", () => {

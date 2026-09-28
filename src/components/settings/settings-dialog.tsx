@@ -33,36 +33,12 @@ type Props = {
 
 const PROVIDERS: Record<
   ConnectionProvider,
-  { name: string; description: Record<ChatLocale, string> }
+  { name: string | WorkspaceMessageKey; description: WorkspaceMessageKey }
 > = {
-  ga4: {
-    name: "Google Analytics 4",
-    description: {
-      "pt-BR": "Visitantes, páginas mais vistas e conversões do site.",
-      en: "Visitors, top pages, and site conversions.",
-    },
-  },
-  github: {
-    name: "GitHub",
-    description: {
-      "pt-BR": "Views, clones, estrelas e downloads do repositório.",
-      en: "Repository views, clones, stars, and downloads.",
-    },
-  },
-  pagespeed: {
-    name: "PageSpeed Insights",
-    description: {
-      "pt-BR": "Notas de desempenho, acessibilidade e SEO das páginas.",
-      en: "Performance, accessibility, and SEO scores for pages.",
-    },
-  },
-  crawl: {
-    name: "Varredura do site",
-    description: {
-      "pt-BR": "Leitura das páginas do site para os achados de SEO e a nota GEO.",
-      en: "Reads the site's pages for SEO findings and the GEO score.",
-    },
-  },
+  ga4: { name: "Google Analytics 4", description: "connGa4" },
+  github: { name: "GitHub", description: "connGithub" },
+  pagespeed: { name: "PageSpeed Insights", description: "connPagespeed" },
+  crawl: { name: "connCrawlName", description: "connCrawl" },
 };
 
 export function SettingsDialog({
@@ -268,7 +244,9 @@ function ConnectionCard({
         </span>
         <div className="min-w-0 flex-1">
           <div className="flex items-center justify-between gap-2">
-            <p className="truncate text-sm font-medium text-foreground">{info.name}</p>
+            <p className="truncate text-sm font-medium text-foreground">
+              {info.name === "connCrawlName" ? text(info.name) : info.name}
+            </p>
             <span
               className={`inline-flex shrink-0 items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-medium ${
                 on
@@ -287,7 +265,7 @@ function ConnectionCard({
               {state}
             </span>
           </div>
-          <p className="mt-1 text-xs leading-relaxed text-muted">{info.description[locale]}</p>
+          <p className="mt-1 text-xs leading-relaxed text-muted">{text(info.description)}</p>
         </div>
       </div>
       <details className="group mt-2">

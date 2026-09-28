@@ -1,12 +1,17 @@
 import { InfoTip } from "@/components/ui/info-tip";
+import type { ChatLocale } from "@/lib/ai/analytics-bot-contract";
 import type { TrafficPoint } from "@/data/mock/dashboard";
+import { formatWeekdayShort } from "@/lib/i18n/format";
+import { workspaceText } from "@/lib/i18n/workspace-copy";
 
 type Props = {
   series: TrafficPoint[];
   citation?: string;
+  locale: ChatLocale;
 };
 
-export function TrafficChart({ series, citation }: Props) {
+export function TrafficChart({ series, citation, locale }: Props) {
+  const text = (key: Parameters<typeof workspaceText>[1]) => workspaceText(locale, key);
   const maxUsers = Math.max(1, ...series.map((point) => point.users));
   const chartHeight = 180;
   const chartWidth = 560;
@@ -23,11 +28,11 @@ export function TrafficChart({ series, citation }: Props) {
         : (index / (series.length - 1)) * plotWidth);
     const y =
       paddingY + plotHeight - (point.users / maxUsers) * plotHeight;
-    return { ...point, x, y };
+    return { ...point, x, y, label: formatWeekdayShort(point.day, locale) };
   });
 
   if (points.length === 0) {
-    return <p className="text-sm text-muted">Sem série diária neste período.</p>;
+    return <p className="text-sm text-muted">{text("ga4ChartEmpty")}</p>;
   }
 
   const linePath = points
@@ -41,13 +46,9 @@ export function TrafficChart({ series, citation }: Props) {
   return (
     <section>
       <div className="mb-2 flex items-center gap-1">
-        <h2 className="text-sm font-medium text-foreground">Usuários ativos</h2>
+        <h2 className="text-sm font-medium text-foreground">{text("ga4ActiveUsers")}</h2>
         <InfoTip
-          text={
-            citation
-              ? `${citation} · Usuários ativos por dia`
-              : "Usuários ativos por dia"
-          }
+          text={citation ? `${citation} · ${text("ga4ChartTip")}` : text("ga4ChartTip")}
         />
       </div>
 
@@ -56,7 +57,7 @@ export function TrafficChart({ series, citation }: Props) {
           viewBox={`0 0 ${chartWidth} ${chartHeight + 28}`}
           className="h-56 w-full min-w-[28rem]"
           role="img"
-          aria-label="Users over the last 7 days"
+          aria-label={text("ga4ChartAria")}
         >
           <defs>
             <linearGradient id="trafficFill" x1="0" y1="0" x2="0" y2="1">
@@ -99,7 +100,7 @@ export function TrafficChart({ series, citation }: Props) {
                 textAnchor="middle"
                 className="fill-[#5f5f5f] text-[11px]"
               >
-                {point.day}
+                {point.label}
               </text>
             </g>
           ))}

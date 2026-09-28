@@ -1,9 +1,9 @@
 import { NextResponse } from "next/server";
 
 /**
- * Microsoft Clarity is not a product source. The client remains in
- * src/lib/clarity and src/lib/analytics/clarity-source.ts, and the
- * database tables are unchanged. This route no longer calls the API.
+ * Microsoft Clarity is not a product source. The client was removed.
+ * The provider value, migrations, and any historical rows stay in the
+ * database. This route no longer calls the API.
  */
 export async function POST() {
   return NextResponse.json(

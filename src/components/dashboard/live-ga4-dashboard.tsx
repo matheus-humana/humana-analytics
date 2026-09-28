@@ -1,21 +1,31 @@
 import { Suspense, type ReactNode } from "react";
 
 import { PeriodFilter } from "@/components/analytics/period-filter";
+import { TrafficChart } from "@/components/dashboard/traffic-chart";
 import { Disclosure } from "@/components/ui/disclosure";
 import { InfoTip } from "@/components/ui/info-tip";
 import { KpiCard } from "@/components/ui/kpi-card";
 import { RankList } from "@/components/ui/rank-list";
-import type { Ga4DashboardData, Ga4NamedCount } from "@/lib/ga4/fetch-report";
-import { TrafficChart } from "@/components/dashboard/traffic-chart";
+import type { ChatLocale } from "@/lib/ai/analytics-bot-contract";
 import type { AnalyticsPeriodId } from "@/lib/analytics/period";
+import type { Ga4DashboardData, Ga4NamedCount } from "@/lib/ga4/fetch-report";
+import {
+  formatCount,
+  formatDecimal,
+  formatRatePercent,
+  formatShare,
+} from "@/lib/i18n/format";
+import { localizeKnownCopy } from "@/lib/i18n/known-copy";
+import { periodLabel } from "@/lib/i18n/period-label";
+import { workspaceCopy, workspaceText, type WorkspaceMessageKey } from "@/lib/i18n/workspace-copy";
 
-function formatNumber(value: number): string {
-  return value.toLocaleString("pt-BR");
-}
-
-function formatPercent(rate: number): string {
-  return `${(rate * 100).toFixed(2)}%`;
-}
+const CONVERSION_LABELS: Record<string, WorkspaceMessageKey> = {
+  contact: "conversionContact",
+  sign_up: "conversionSignUp",
+  generate_lead: "conversionLead",
+  file_download: "conversionDownload",
+  app_login: "conversionLogin",
+};
 
 function formatDuration(seconds: number): string {
   if (seconds < 60) return `${seconds} s`;
@@ -24,24 +34,18 @@ function formatDuration(seconds: number): string {
   return rest === 0 ? `${minutes} min` : `${minutes} min ${rest} s`;
 }
 
-function sharePercent(value: number, total: number): number {
-  if (total <= 0) return 0;
-  return Math.round((value / total) * 1000) / 10;
-}
-
 type HeaderProps = {
-  periodLabel: string;
+  locale: ChatLocale;
   periodId: AnalyticsPeriodId;
   error?: string | null;
   freshness?: ReactNode;
 };
 
-export function DashboardHeader({
-  periodLabel,
-  periodId,
-  error,
-  freshness,
-}: HeaderProps) {
+export function DashboardHeader({ locale, periodId, error, freshness }: HeaderProps) {
+  const text = (key: WorkspaceMessageKey) => workspaceText(locale, key);
+  const period = periodLabel(locale, periodId);
+  const shownError = error ? formatGa4Error(error, locale, text) : null;
+
   return (
     <div className="space-y-3">
       <div className="flex flex-wrap items-center gap-2">
@@ -49,31 +53,47 @@ export function DashboardHeader({
           <PeriodFilter value={periodId} />
         </Suspense>
         {freshness}
-        <InfoTip
-          text={`Google Analytics 4. Aquisição e comportamento. ${periodLabel}`}
-        />
+        <InfoTip text={`${text("ga4Tip")} ${period}`} />
       </div>
 
-      {error ? (
-        <p className="text-sm text-foreground">
-          Não foi possível carregar o GA4: {error}
-        </p>
-      ) : null}
+      {shownError ? <p className="text-sm text-foreground">{shownError}</p> : null}
     </div>
   );
 }
 
+function formatGa4Error(
+  error: string,
+  locale: ChatLocale,
+  text: (key: WorkspaceMessageKey) => string
+): string {
+  const known = localizeKnownCopy(error, locale);
+  if (
+    known !== error ||
+    error === workspaceCopy["pt-BR"].ga4LoadFailed ||
+    error === workspaceCopy.en.ga4LoadFailed
+  ) {
+    return known;
+  }
+  return `${text("ga4LoadError")}: ${known}`;
+}
+
 type OverviewProps = {
+  locale: ChatLocale;
   data: Ga4DashboardData["overview"];
   citation: string;
   usersSeries?: Array<number | null>;
 };
 
-export function OverviewHero({ data, citation, usersSeries }: OverviewProps) {
+export function OverviewHero({ locale, data, citation, usersSeries }: OverviewProps) {
+  const text = (key: WorkspaceMessageKey) => workspaceText(locale, key);
   const hero = [
-    { label: "Usuários ativos", value: formatNumber(data.activeUsers), series: usersSeries },
-    { label: "Novos usuários", value: formatNumber(data.newUsers) },
-    { label: "Sessões engajadas", value: formatNumber(data.engagedSessions) },
+    {
+      label: text("ga4ActiveUsers"),
+      value: formatCount(data.activeUsers, locale),
+      series: usersSeries,
+    },
+    { label: text("ga4NewUsers"), value: formatCount(data.newUsers, locale) },
+    { label: text("ga4EngagedSessions"), value: formatCount(data.engagedSessions, locale) },
   ];
 
   return (
@@ -91,23 +111,24 @@ export function OverviewHero({ data, citation, usersSeries }: OverviewProps) {
   );
 }
 
-export function NavigationMetrics({ data, citation }: OverviewProps) {
+export function NavigationMetrics({ locale, data, citation }: OverviewProps) {
+  const text = (key: WorkspaceMessageKey) => workspaceText(locale, key);
   const items = [
-    { label: "Visualizações", value: formatNumber(data.views) },
+    { label: text("ga4Views"), value: formatCount(data.views, locale) },
     {
-      label: "Views / usuário",
-      value: data.viewsPerActiveUser.toFixed(2).replace(".", ","),
+      label: text("ga4ViewsPerUser"),
+      value: formatDecimal(data.viewsPerActiveUser, locale),
     },
     {
-      label: "Engajamento médio",
+      label: text("ga4AvgEngagement"),
       value: formatDuration(data.averageEngagementSeconds),
     },
-    { label: "Rejeição", value: formatPercent(data.bounceRate) },
+    { label: text("ga4Bounce"), value: formatRatePercent(data.bounceRate, locale) },
   ];
 
   return (
     <section>
-      <h2 className="mb-1 text-sm font-medium text-foreground">Navegação</h2>
+      <h2 className="mb-1 text-sm font-medium text-foreground">{text("ga4Navigation")}</h2>
       <div className="grid gap-1 sm:grid-cols-2">
         {items.map((item) => (
           <KpiCard key={item.label} label={item.label} value={item.value} citation={citation} />
@@ -118,49 +139,59 @@ export function NavigationMetrics({ data, citation }: OverviewProps) {
 }
 
 export function EventsCard({
+  locale,
   eventCount,
   citation,
 }: {
+  locale: ChatLocale;
   eventCount: number;
   citation: string;
 }) {
+  const text = (key: WorkspaceMessageKey) => workspaceText(locale, key);
   return (
     <KpiCard
-      label="Eventos"
-      value={formatNumber(eventCount)}
-      citation={`${citation} · Contagem no período`}
+      label={text("ga4Events")}
+      value={formatCount(eventCount, locale)}
+      citation={`${citation} · ${text("ga4CountInPeriod")}`}
     />
   );
 }
 
 export function ConversionsSection({
+  locale,
   items,
   citation,
 }: {
+  locale: ChatLocale;
   items: Ga4DashboardData["conversions"];
   citation: string;
 }) {
+  const text = (key: WorkspaceMessageKey) => workspaceText(locale, key);
   return (
     <section>
       <div className="mb-1 flex items-center gap-1">
-        <h2 className="text-sm font-medium text-foreground">Conversões</h2>
-        <InfoTip text={`Eventos do site via GA4. ${citation}`} />
+        <h2 className="text-sm font-medium text-foreground">{text("ga4Conversions")}</h2>
+        <InfoTip text={`${text("ga4ConversionTip")} ${citation}`} />
       </div>
       <div className="grid gap-1 sm:grid-cols-2">
-        {items.map((item) => (
-          <KpiCard
-            key={item.eventName}
-            label={item.label}
-            value={formatNumber(item.count)}
-            citation={`${citation} · ${item.eventName}`}
-          />
-        ))}
+        {items.map((item) => {
+          const key = CONVERSION_LABELS[item.eventName];
+          return (
+            <KpiCard
+              key={item.eventName}
+              label={key ? text(key) : item.eventName}
+              value={formatCount(item.count, locale)}
+              citation={`${citation} · ${item.eventName}`}
+            />
+          );
+        })}
       </div>
     </section>
   );
 }
 
 type BreakdownProps = {
+  locale: ChatLocale;
   title: string;
   subtitle: string;
   items: Ga4NamedCount[];
@@ -168,6 +199,7 @@ type BreakdownProps = {
 };
 
 export function BreakdownList({
+  locale,
   title,
   subtitle,
   items,
@@ -180,10 +212,10 @@ export function BreakdownList({
     <RankList
       title={title}
       info={subtitle}
-      empty="Sem dados no período."
+      empty={workspaceText(locale, "ga4Empty")}
       rows={items.map((item) => ({
         name: item.name,
-        value: `${formatNumber(item.value)}${valueSuffix} · ${sharePercent(item.value, total).toFixed(1).replace(".", ",")}%`,
+        value: `${formatCount(item.value, locale)}${valueSuffix} · ${formatShare(item.value, total, locale)}%`,
         width: (item.value / max) * 100,
       }))}
     />
@@ -192,48 +224,62 @@ export function BreakdownList({
 
 type LiveDashboardProps = {
   data: Ga4DashboardData;
+  locale: ChatLocale;
+  periodId: AnalyticsPeriodId;
 };
 
-export function LiveGa4Dashboard({ data }: LiveDashboardProps) {
-  const citation = `GA4 · ${data.propertyId} · ${data.periodLabel}`;
+export function LiveGa4Dashboard({ data, locale, periodId }: LiveDashboardProps) {
+  const text = (key: WorkspaceMessageKey) => workspaceText(locale, key);
+  const citation = `GA4 · ${data.propertyId} · ${periodLabel(locale, periodId)}`;
   const usersSeries = data.traffic.map((point) => point.users);
+  const users = text("ga4ActiveUsers");
   return (
     <div className="space-y-6">
-      <OverviewHero data={data.overview} citation={citation} usersSeries={usersSeries} />
-      <NavigationMetrics data={data.overview} citation={citation} />
-      <ConversionsSection items={data.conversions} citation={citation} />
+      <OverviewHero
+        locale={locale}
+        data={data.overview}
+        citation={citation}
+        usersSeries={usersSeries}
+      />
+      <NavigationMetrics locale={locale} data={data.overview} citation={citation} />
+      <ConversionsSection locale={locale} items={data.conversions} citation={citation} />
 
       <div className="grid gap-6">
         <BreakdownList
-          title="Principais páginas"
-          subtitle={`${citation} · Visualizações por caminho`}
+          locale={locale}
+          title={text("ga4TopPages")}
+          subtitle={`${citation} · ${text("ga4ViewsByPath")}`}
           items={data.topPages}
-          valueSuffix=" views"
+          valueSuffix={text("ga4ViewsSuffix")}
         />
-        <EventsCard eventCount={data.overview.eventCount} citation={citation} />
+        <EventsCard locale={locale} eventCount={data.overview.eventCount} citation={citation} />
       </div>
 
-      <TrafficChart series={data.traffic} citation={citation} />
+      <TrafficChart locale={locale} series={data.traffic} citation={citation} />
 
-      <Disclosure title="Tecnologia dos visitantes">
+      <Disclosure title={text("ga4VisitorTech")}>
         <BreakdownList
-          title="Navegador"
-          subtitle={`${citation} · Active users`}
+          locale={locale}
+          title={text("ga4Browser")}
+          subtitle={`${citation} · ${users}`}
           items={data.browsers}
         />
         <BreakdownList
-          title="Sistema"
-          subtitle={`${citation} · Active users`}
+          locale={locale}
+          title={text("ga4Os")}
+          subtitle={`${citation} · ${users}`}
           items={data.operatingSystems}
         />
         <BreakdownList
-          title="Plataforma"
-          subtitle={`${citation} · Active users`}
+          locale={locale}
+          title={text("ga4Platform")}
+          subtitle={`${citation} · ${users}`}
           items={data.platforms}
         />
         <BreakdownList
-          title="Resolução"
-          subtitle={`${citation} · Active users`}
+          locale={locale}
+          title={text("ga4Resolution")}
+          subtitle={`${citation} · ${users}`}
           items={data.screenResolutions}
         />
       </Disclosure>

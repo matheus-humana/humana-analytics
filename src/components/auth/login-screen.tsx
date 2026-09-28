@@ -4,13 +4,8 @@ import Image from "next/image";
 
 import { signOutAction } from "@/lib/auth/sign-out-action";
 import { signInWithGoogle } from "@/lib/auth/sign-in-google";
-import {
-  normalizeChatLocale,
-  type ChatLocale,
-} from "@/lib/ai/analytics-bot-contract";
+import { useLocale } from "@/components/i18n/locale-provider";
 import { loginText, type LoginMessageKey } from "@/lib/i18n/login-copy";
-import { useLocalString, writeLocalString } from "@/lib/workspace/browser-store";
-import { guestLocaleKey } from "@/lib/workspace/prefs";
 import { ProviderIcon } from "@/components/workspace/provider-icons";
 import type { ConnectionProvider } from "@/lib/workspace/status-log";
 
@@ -36,17 +31,8 @@ export function LoginScreen({
   blockedSession,
   allowedDomains,
 }: Props) {
-  const stored = useLocalString(guestLocaleKey());
-  const locale: ChatLocale = normalizeChatLocale(stored) ?? "pt-BR";
+  const { locale, setLocale } = useLocale();
   const text = (key: LoginMessageKey) => loginText(locale, key);
-
-  function setLocale(next: ChatLocale) {
-    try {
-      writeLocalString(guestLocaleKey(), next);
-    } catch {
-      // The toggle still updates this render through the store when it works.
-    }
-  }
 
   return (
     <main className="flex min-h-dvh items-center justify-center bg-background px-4 py-6 sm:py-10">
