@@ -19,6 +19,7 @@ import {
 } from "@/lib/ai/conversations";
 import { redactSensitive } from "@/lib/ai/redact";
 import { requireSessionUser } from "@/lib/auth/require-user";
+import { workspaceCopy } from "@/lib/i18n/workspace-copy";
 import { loadGithubBridgeSummary } from "@/lib/github/chat";
 import { loadSeoBridgeSummary } from "@/lib/seo/chat";
 
@@ -152,7 +153,7 @@ export async function POST(request: NextRequest) {
       usage: result.usage,
     });
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Falha no Humana Analytics";
+    const message = error instanceof Error ? error.message : workspaceCopy["pt-BR"].askFailed;
     const status = message.includes("OPENAI_API_KEY") ? 503 : 500;
     return NextResponse.json(
       { ok: false, error: redactSensitive(message) },

@@ -4,23 +4,27 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 
 import { PeriodFilter } from "@/components/analytics/period-filter";
+import { useLocale } from "@/components/i18n/locale-provider";
 import { Dropdown } from "@/components/ui/dropdown";
 import { IconArrowUp } from "@/components/workspace/icons";
-import { humanaAnalyticsSuggestions } from "@/data/mock/ask-ai";
 import {
   ASSISTANT_STATUS_PENDING,
   isThinkingPlaceholder,
   splitAssistantContent,
-  THINKING_PT,
   thinkingLabel,
   type ChatLocale,
 } from "@/lib/ai/analytics-bot-contract";
 import {
-  DEFAULT_ANALYTICS_PERIOD,
   resolveAnalyticsPeriod,
   type AnalyticsPeriodId,
 } from "@/lib/analytics/period";
-import { workspaceText } from "@/lib/i18n/workspace-copy";
+import { localizeKnownCopy } from "@/lib/i18n/known-copy";
+import { periodLabel } from "@/lib/i18n/period-label";
+import {
+  chatSuggestionKeys,
+  workspaceText,
+  type WorkspaceMessageKey,
+} from "@/lib/i18n/workspace-copy";
 
 type UsageInfo = {
   model: string;
@@ -59,6 +63,10 @@ export function AskAiPanel({
   locale?: ChatLocale;
   onActivity?: (kind: "question" | "reply") => void;
 } = {}) {
+  const { locale: contextLocale } = useLocale();
+  const activeLocale = locale ?? contextLocale;
+  const text = (key: WorkspaceMessageKey) => workspaceText(activeLocale, key);
+  const suggestions = chatSuggestionKeys.map((key) => text(key));
   const router = useRouter();
   const searchParams = useSearchParams();
   const onActivityRef = useRef(onActivity);
@@ -180,13 +188,13 @@ export function AskAiPanel({
         conversation?: ConversationDetail;
       };
       if (!response.ok || !data.ok) {
-        setError(data.error ?? "Não foi possível abrir a conversa.");
+        setError(data.error ?? "chatOpenFailed");
         return;
       }
       setAssistantStatus(data.conversation?.assistantStatus ?? "idle");
       setMessages(data.conversation?.messages ?? []);
     } catch {
-      setError("Não foi possível abrir a conversa.");
+      setError("chatOpenFailed");
     } finally {
       setLoadingHistory(false);
     }
@@ -235,7 +243,7 @@ export function AskAiPanel({
       };
 
       if (!response.ok || !data.ok) {
-        setError(data.error ?? "Falha ao consultar o Humana Analytics.");
+        setError(data.error ?? "chatQueryFailed");
         return;
       }
 
@@ -248,7 +256,7 @@ export function AskAiPanel({
           ...current,
           {
             role: "assistant",
-            content: data.thinking ?? THINKING_PT,
+            content: data.thinking ?? thinkingLabel(activeLocale),
             pending: true,
           },
         ]);
@@ -269,7 +277,7 @@ export function AskAiPanel({
       ]);
       await loadConversations();
     } catch {
-      setError("Não foi possível falar com o Humana Analytics.");
+      setError("chatSpeakFailed");
     } finally {
       setLoading(false);
     }
@@ -286,15 +294,16 @@ export function AskAiPanel({
         (message.pending || isThinkingPlaceholder(message.content))
     )?.content;
 
+  const shownError = error ? localizeKnownCopy(error, activeLocale) : null;
+  const askLabel = loading
+    ? text("chatSending")
+    : awaitingReply
+      ? pendingLabel && !isThinkingPlaceholder(pendingLabel)
+        ? localizeKnownCopy(pendingLabel, activeLocale)
+        : thinkingLabel(activeLocale)
+      : text("chatAsk");
+
   if (variant === "column") {
-    const chatLocale = locale ?? "pt-BR";
-    const text = (key: Parameters<typeof workspaceText>[1]) =>
-      workspaceText(chatLocale, key);
-    const askLabel = loading
-      ? text("chatSending")
-      : awaitingReply
-        ? (pendingLabel ?? thinkingLabel(chatLocale))
-        : text("chatAsk");
 
     return (
       <ColumnChat
@@ -318,7 +327,9 @@ export function AskAiPanel({
         loadingHistory={loadingHistory}
         messages={messages}
         assistantStatus={assistantStatus}
-        error={error}
+        error={shownError}
+        suggestions={suggestions}
+        locale={activeLocale}
       />
     );
   }
@@ -333,16 +344,12 @@ export function AskAiPanel({
           <h1 className="font-display text-2xl font-semibold tracking-tight text-foreground sm:text-3xl">
             Humana Analytics
           </h1>
-          <p className="mt-2 max-w-2xl text-sm text-muted sm:text-base">
-            Pergunte em português ou inglês. A resposta usa só os números das
-            fontes conectadas e cita o período e a origem.
-          </p>
+          <p className="mt-2 max-w-2xl text-sm text-muted sm:text-base">{text("chatPitch")}</p>
         </div>
         <div className="flex flex-col items-start gap-2 sm:items-end">
           <PeriodFilter value={periodId as AnalyticsPeriodId} />
           <p className="text-xs text-muted">
-            Período padrão:{" "}
-            {resolveAnalyticsPeriod(periodId).label || DEFAULT_ANALYTICS_PERIOD}
+            {text("chatDefaultPeriod")}: {periodLabel(activeLocale, periodId)}
           </p>
         </div>
       </div>
@@ -354,13 +361,11 @@ export function AskAiPanel({
             onClick={startNewConversation}
             className="w-full rounded-lg border border-border px-3 py-2 text-sm text-foreground transition-colors hover:border-accent hover:bg-accent-soft"
           >
-            Nova conversa
+            {text("chatNew")}
           </button>
           <ul className="mt-3 max-h-80 space-y-1 overflow-y-auto">
             {conversations.length === 0 ? (
-              <li className="px-2 py-2 text-xs text-muted">
-                Nenhuma conversa ainda.
-              </li>
+              <li className="px-2 py-2 text-xs text-muted">{text("chatEmpty")}</li>
             ) : (
               conversations.map((conversation) => (
                 <li key={conversation.id}>
@@ -376,7 +381,7 @@ export function AskAiPanel({
                   >
                     <span className="block truncate">{conversation.title}</span>
                     {conversation.assistantStatus === ASSISTANT_STATUS_PENDING ? (
-                      <span className="block text-xs text-muted">Pensando…</span>
+                      <span className="block text-xs text-muted">{thinkingLabel(activeLocale)}</span>
                     ) : null}
                   </button>
                 </li>
@@ -390,7 +395,7 @@ export function AskAiPanel({
             htmlFor="ask-ai-question"
             className="block text-sm font-medium text-foreground"
           >
-            O que você quer saber?
+            {text("chatPrompt")}
           </label>
 
           <div className="mt-3 flex flex-col gap-3 sm:flex-row">
@@ -401,7 +406,7 @@ export function AskAiPanel({
               onKeyDown={(event) => {
                 if (event.key === "Enter") void handleAsk();
               }}
-              placeholder="Ex.: De onde veio o tráfego nos últimos 7 dias?"
+              placeholder={text("chatPlaceholder")}
               disabled={busy}
               className="w-full rounded-lg border border-border bg-white px-3 py-2.5 text-sm text-foreground outline-none ring-accent placeholder:text-muted focus:ring-2 disabled:opacity-60"
             />
@@ -411,16 +416,16 @@ export function AskAiPanel({
               disabled={busy}
               className="ha-primary rounded-lg px-4 py-2.5 text-sm font-medium disabled:cursor-not-allowed disabled:opacity-50"
             >
-              {loading ? "Enviando…" : awaitingReply ? (pendingLabel ?? THINKING_PT) : "Perguntar"}
+              {askLabel}
             </button>
           </div>
 
           <div className="mt-5">
             <p className="mb-3 text-xs font-medium uppercase tracking-wide text-muted">
-              Sugestões
+              {text("chatSuggestions")}
             </p>
             <div className="flex flex-wrap gap-2">
-              {humanaAnalyticsSuggestions.map((suggestion) => (
+              {suggestions.map((suggestion) => (
                 <button
                   key={suggestion}
                   type="button"
@@ -436,23 +441,26 @@ export function AskAiPanel({
 
           {error ? (
             <div className="mt-5 rounded-lg border border-[#cccccc] bg-[#f1f1f1] px-4 py-3 text-sm text-[#151515]">
-              {error}
+              {shownError}
             </div>
           ) : null}
 
           <div className="mt-6 space-y-4" aria-live="polite">
             {loadingHistory ? (
-              <p className="text-sm text-muted">Carregando conversa…</p>
+              <p className="text-sm text-muted">{text("chatLoading")}</p>
             ) : null}
             {messages.map((message, index) => {
               const pendingBubble = isPendingBubble(message, assistantStatus);
               return (
                 <article key={`${message.role}-${index}`}>
                   <p className="text-xs font-medium uppercase tracking-wide text-muted">
-                    {message.role === "user" ? "Você" : "Humana Analytics"}
+                    {message.role === "user" ? text("chatYou") : text("chatAssistant")}
                   </p>
                   {message.role === "assistant" ? (
-                    <AssistantBody content={message.content} pending={pendingBubble} />
+                    <AssistantBody
+                      content={displayChatContent(message.content, activeLocale, pendingBubble)}
+                      pending={pendingBubble}
+                    />
                   ) : (
                     <p className="mt-1 whitespace-pre-wrap text-sm leading-relaxed text-foreground">
                       {message.content}
@@ -462,19 +470,19 @@ export function AskAiPanel({
               );
             })}
             {loading ? (
-              <p className="text-sm text-muted">Enviando a pergunta…</p>
+              <p className="text-sm text-muted">{text("chatSendingQuestion")}</p>
             ) : null}
           </div>
 
           {!busy && latestUsage ? (
             <div className="mt-5 rounded-lg border border-border bg-[#f8f8f8] px-3 py-2 text-xs text-muted">
               <p>
-                Modelo: <span className="text-foreground">{latestUsage.model}</span>
+                {text("chatUsageModel")}: <span className="text-foreground">{latestUsage.model}</span>
                 {" · "}
-                Tokens:{" "}
+                {text("chatUsageTokens")}:{" "}
                 <span className="text-foreground">{latestUsage.totalTokens}</span>
                 {" · "}
-                Custo estimado:{" "}
+                {text("chatUsageCost")}:{" "}
                 <span className="text-foreground">
                   ${latestUsage.estimatedCostUsd.toFixed(5)}
                 </span>
@@ -503,8 +511,10 @@ function ColumnChat({
   messages,
   assistantStatus,
   error,
+  suggestions,
+  locale,
 }: {
-  text: (key: Parameters<typeof workspaceText>[1]) => string;
+  text: (key: WorkspaceMessageKey) => string;
   periodId: AnalyticsPeriodId;
   askLabel: string;
   question: string;
@@ -519,14 +529,14 @@ function ColumnChat({
   messages: ChatMessage[];
   assistantStatus: string;
   error: string | null;
+  suggestions: string[];
+  locale: ChatLocale;
 }) {
   const [suggestionPage, setSuggestionPage] = useState(0);
   const pageSize = 3;
-  const suggestionStart = (suggestionPage * pageSize) % humanaAnalyticsSuggestions.length;
-  const suggestions = Array.from({ length: pageSize }, (_, index) => {
-    return humanaAnalyticsSuggestions[
-      (suggestionStart + index) % humanaAnalyticsSuggestions.length
-    ];
+  const suggestionStart = (suggestionPage * pageSize) % suggestions.length;
+  const visibleSuggestions = Array.from({ length: pageSize }, (_, index) => {
+    return suggestions[(suggestionStart + index) % suggestions.length];
   });
 
   return (
@@ -581,7 +591,11 @@ function ColumnChat({
           return (
             <article key={`${message.role}-${index}`} className="text-sm text-foreground">
               <span className="sr-only">{text("chatAssistant")}</span>
-              <AssistantBody content={message.content} pending={pendingBubble} plain />
+              <AssistantBody
+                content={displayChatContent(message.content, locale, pendingBubble)}
+                pending={pendingBubble}
+                plain
+              />
             </article>
           );
         })}
@@ -590,7 +604,7 @@ function ColumnChat({
       <div className="shrink-0 px-3 pb-3 pt-1">
         {messages.length === 0 ? (
           <div className="mb-2 flex flex-col gap-1.5">
-            {suggestions.map((suggestion) => (
+            {visibleSuggestions.map((suggestion) => (
               <button
                 key={suggestion}
                 type="button"
@@ -639,6 +653,11 @@ function ColumnChat({
       </div>
     </div>
   );
+}
+
+function displayChatContent(content: string, locale: ChatLocale, pending: boolean): string {
+  if (pending && isThinkingPlaceholder(content)) return thinkingLabel(locale);
+  return localizeKnownCopy(content, locale);
 }
 
 function isPendingBubble(message: ChatMessage, assistantStatus: string) {

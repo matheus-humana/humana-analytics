@@ -23,17 +23,16 @@ const ALLOWED = new Set<string>(ACCENT_PRESET_IDS);
 
 export const ACCENT_PRESET_OPTIONS: {
   id: AccentPresetId;
-  label: string;
   swatchHex: string;
 }[] = [
-  { id: "default", label: "Padrão (Humana)", swatchHex: "#6074c8" },
-  { id: "blue", label: "Azul", swatchHex: "#2563eb" },
-  { id: "indigo", label: "Indigo", swatchHex: "#4f46e5" },
-  { id: "violet", label: "Violeta", swatchHex: "#9333ea" },
-  { id: "emerald", label: "Esmeralda", swatchHex: "#059669" },
-  { id: "rose", label: "Rosa", swatchHex: "#e11d48" },
-  { id: "amber", label: "Âmbar", swatchHex: "#d97706" },
-  { id: "orange", label: "Laranja", swatchHex: "#ea580c" },
+  { id: "default", swatchHex: "#6074c8" },
+  { id: "blue", swatchHex: "#2563eb" },
+  { id: "indigo", swatchHex: "#4f46e5" },
+  { id: "violet", swatchHex: "#9333ea" },
+  { id: "emerald", swatchHex: "#059669" },
+  { id: "rose", swatchHex: "#e11d48" },
+  { id: "amber", swatchHex: "#d97706" },
+  { id: "orange", swatchHex: "#ea580c" },
 ];
 
 export function getAccentPresetSwatchHex(id: AccentPresetId): string {

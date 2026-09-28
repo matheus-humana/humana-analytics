@@ -146,14 +146,10 @@ async function runGa4Report(
   return (await response.json()) as { rows?: Ga4ReportRow[] };
 }
 
+/** Calendar day. The chart formats the weekday for the active locale. */
 function formatGa4Date(yyyymmdd: string): string {
   if (!/^\d{8}$/.test(yyyymmdd)) return yyyymmdd;
-  const date = new Date(
-    Number(yyyymmdd.slice(0, 4)),
-    Number(yyyymmdd.slice(4, 6)) - 1,
-    Number(yyyymmdd.slice(6, 8))
-  );
-  return date.toLocaleDateString("pt-BR", { weekday: "short" });
+  return `${yyyymmdd.slice(0, 4)}-${yyyymmdd.slice(4, 6)}-${yyyymmdd.slice(6, 8)}`;
 }
 
 function metricNumber(rows: Ga4ReportRow[] | undefined, index = 0): number {

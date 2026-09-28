@@ -2,6 +2,7 @@
 
 import { FreshnessBadge } from "@/components/freshness/freshness-badge";
 import type { ChatLocale } from "@/lib/ai/analytics-bot-contract";
+import { formatCalendarDay, formatCount } from "@/lib/i18n/format";
 import { workspaceText, type WorkspaceMessageKey } from "@/lib/i18n/workspace-copy";
 import { explainBot, explainGeoRule, formatScorePoints } from "@/lib/seo/explain";
 import type { SeoWorkspace } from "@/lib/seo/view";
@@ -241,33 +242,27 @@ function FileRow({
   );
 }
 
+const GEO_RULE_KEYS: Record<string, WorkspaceMessageKey> = {
+  llms_present: "geoRuleLlmsPresent",
+  llms_valid: "geoRuleLlmsValid",
+  robots_ai: "geoRuleRobotsAi",
+  jsonld_organization: "geoRuleJsonldOrg",
+  jsonld_website: "geoRuleJsonldWebsite",
+  jsonld_product: "geoRuleJsonldProduct",
+  jsonld_faq: "geoRuleJsonldFaq",
+  headings: "geoRuleHeadings",
+  readability: "geoRuleReadability",
+};
+
 function ruleName(locale: ChatLocale, id: string): string {
-  const names: Record<string, { "pt-BR": string; en: string }> = {
-    llms_present: { "pt-BR": "/llms.txt existe", en: "/llms.txt exists" },
-    llms_valid: { "pt-BR": "/llms.txt válido", en: "/llms.txt is valid" },
-    robots_ai: { "pt-BR": "Robôs de IA liberados", en: "AI crawlers allowed" },
-    jsonld_organization: { "pt-BR": "JSON-LD Organization", en: "JSON-LD Organization" },
-    jsonld_website: { "pt-BR": "JSON-LD WebSite", en: "JSON-LD WebSite" },
-    jsonld_product: { "pt-BR": "JSON-LD Product ou SoftwareApplication", en: "JSON-LD Product or SoftwareApplication" },
-    jsonld_faq: { "pt-BR": "JSON-LD FAQPage", en: "JSON-LD FAQPage" },
-    headings: { "pt-BR": "Estrutura de títulos", en: "Heading structure" },
-    readability: { "pt-BR": "Legibilidade do texto principal", en: "Main-text readability" },
-  };
-  return names[id]?.[locale] ?? id;
+  const key = GEO_RULE_KEYS[id];
+  return key ? workspaceText(locale, key) : id;
 }
 
 function formatNumber(value: number, locale: ChatLocale): string {
-  return new Intl.NumberFormat(locale === "en" ? "en-US" : "pt-BR").format(value);
+  return formatCount(value, locale);
 }
 
 function formatDay(value: string, locale: ChatLocale): string {
-  const match = /^(\d{4})-(\d{2})-(\d{2})/.exec(value);
-  if (!match) return value;
-  const date = new Date(Date.UTC(Number(match[1]), Number(match[2]) - 1, Number(match[3])));
-  return new Intl.DateTimeFormat(locale === "en" ? "en-US" : "pt-BR", {
-    day: "2-digit",
-    month: "2-digit",
-    year: "numeric",
-    timeZone: "UTC",
-  }).format(date);
+  return formatCalendarDay(value, locale);
 }

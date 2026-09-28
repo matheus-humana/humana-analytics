@@ -3,11 +3,14 @@
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useTransition } from "react";
 
+import { useLocale } from "@/components/i18n/locale-provider";
 import {
-  ANALYTICS_PERIOD_OPTIONS,
+  ANALYTICS_PERIOD_IDS,
   type AnalyticsPeriodId,
   resolveAnalyticsPeriod,
 } from "@/lib/analytics/period";
+import { periodLabel, periodShortLabel } from "@/lib/i18n/period-label";
+import { workspaceText } from "@/lib/i18n/workspace-copy";
 
 type Props = {
   /** Current period from the server (kept in sync with ?period=). */
@@ -15,6 +18,7 @@ type Props = {
 };
 
 export function PeriodFilter({ value }: Props) {
+  const { locale } = useLocale();
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -38,22 +42,22 @@ export function PeriodFilter({ value }: Props) {
         pending ? "opacity-70" : ""
       }`}
       role="group"
-      aria-label="Filtro de período"
+      aria-label={workspaceText(locale, "periodFilter")}
     >
-      {ANALYTICS_PERIOD_OPTIONS.map((option) => {
-        const active = option.id === current;
+      {ANALYTICS_PERIOD_IDS.map((id) => {
+        const active = id === current;
         return (
           <button
-            key={option.id}
+            key={id}
             type="button"
-            onClick={() => select(option.id)}
+            onClick={() => select(id)}
             disabled={pending}
-            title={option.label}
+            title={periodLabel(locale, id)}
             className={`rounded-full px-2 py-1 text-xs font-medium whitespace-nowrap transition-colors ${
               active ? "ha-primary" : "text-muted hover:text-foreground"
             }`}
           >
-            {option.shortLabel}
+            {periodShortLabel(locale, id)}
           </button>
         );
       })}

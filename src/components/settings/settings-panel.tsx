@@ -2,7 +2,9 @@
 
 import { useEffect, useId, useRef } from "react";
 
+import { useLocale } from "@/components/i18n/locale-provider";
 import { AppearanceSettings } from "@/components/settings/appearance-settings";
+import { workspaceText } from "@/lib/i18n/workspace-copy";
 
 type SettingsPanelProps = {
   open: boolean;
@@ -16,6 +18,8 @@ export function SettingsPanel({
   onClose,
   sidebarCollapsed,
 }: SettingsPanelProps) {
+  const { locale } = useLocale();
+  const text = (key: Parameters<typeof workspaceText>[1]) => workspaceText(locale, key);
   const titleId = useId();
   const panelRef = useRef<HTMLDivElement>(null);
 
@@ -44,7 +48,7 @@ export function SettingsPanel({
       <button
         type="button"
         className="absolute inset-0 bg-black/20"
-        aria-label="Fechar settings"
+        aria-label={text("closeSettings")}
         onClick={onClose}
       />
 
@@ -65,15 +69,15 @@ export function SettingsPanel({
             id={titleId}
             className="font-display text-base font-semibold text-foreground"
           >
-            Settings
+            {text("settings")}
           </h2>
           <button
             type="button"
             onClick={onClose}
             className="rounded-md border border-border px-2.5 py-1 text-sm text-muted transition-colors hover:bg-[#f1f1f1] hover:text-foreground"
-            aria-label="Fechar"
+            aria-label={text("close")}
           >
-            Fechar
+            {text("close")}
           </button>
         </div>
 

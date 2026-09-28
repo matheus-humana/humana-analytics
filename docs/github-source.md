@@ -59,6 +59,8 @@ Estrelas, forks, watchers e downloads são contadores atuais. Cada coleta grava 
 
 `vercel.json` agenda `GET /api/github/collect` **de hora em hora**, no minuto 15 (`15 * * * *`). O GitHub libera clones e views com atraso (de horas a 1–2 dias); a coleta horária grava esses dias assim que aparecem na API. Cada coleta faz poucas chamadas e sobrescreve o snapshot do dia, sem duplicar linhas.
 
+No painel, o indicador fica azul quando a última coleta tem até 3 horas e âmbar quando passou disso ou a coleta falhou. O texto diz há quanto tempo foi essa coleta (por exemplo, "Atualizado há 40 min"). Views e clones ainda podem aparecer atrasados na API do GitHub; isso não é falha da coleta.
+
 Na Vercel:
 
 1. Defina `CRON_SECRET` (a plataforma manda esse valor no header; sem ele o cron leva 401).
