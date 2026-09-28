@@ -28,7 +28,12 @@ export const metadata: Metadata = {
   description:
     "Website analytics environment where Marketing can explore data with AI.",
   icons: {
-    icon: "/favicon/favicon.svg",
+    icon: [
+      { url: "/favicon/favicon.ico", sizes: "32x32" },
+      { url: "/favicon/favicon-96x96.png", sizes: "96x96", type: "image/png" },
+      { url: "/favicon/web-app-manifest-192x192.png", sizes: "192x192", type: "image/png" },
+    ],
+    apple: { url: "/favicon/apple-touch-icon.png", sizes: "180x180" },
   },
 };
 
