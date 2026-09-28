@@ -3,6 +3,7 @@ import Google from "next-auth/providers/google";
 
 import { ensureOrganizationMembership } from "@/lib/analytics/default-scope";
 
+import { googleProfileMaySignIn } from "./allowed-domains";
 import { analyticsAuthAdapter } from "./adapter";
 
 const secret =
@@ -38,6 +39,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
   },
   pages: {
     signIn: "/login",
+    error: "/login",
   },
   providers: [
     Google({
@@ -53,8 +55,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
   callbacks: {
     async signIn({ account, profile }) {
       if (account?.provider !== "google") return false;
-      if (!profile?.email || typeof profile.email !== "string") return false;
-      return true;
+      return googleProfileMaySignIn(profile);
     },
     async session({ session, user }) {
       return {

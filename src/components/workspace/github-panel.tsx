@@ -3,6 +3,7 @@
 import { useRouter, useSearchParams } from "next/navigation";
 import { useState } from "react";
 
+import { FreshnessBadge } from "@/components/freshness/freshness-badge";
 import type { ChatLocale } from "@/lib/ai/analytics-bot-contract";
 import { ANALYTICS_PERIODS, type AnalyticsPeriodId } from "@/lib/analytics/period";
 import { workspaceText, type WorkspaceMessageKey } from "@/lib/i18n/workspace-copy";
@@ -42,6 +43,12 @@ export function GithubPanel({
     <div className="space-y-6">
       <div className="flex flex-wrap items-center gap-2">
         <PeriodSwitch periodId={data.periodId} text={text} />
+        <FreshnessBadge
+          cadence="snapshot"
+          observedAt={data.collectedAt}
+          ok={data.status === "active"}
+          locale={locale}
+        />
         <InfoTip text={text("githubIntro")} />
       </div>
 

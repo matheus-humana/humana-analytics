@@ -1,23 +1,19 @@
-import { clarityToolDefinitions, executeClarityTool } from "./clarity-tools";
 import { executeGa4Tool, ga4ToolDefinitions } from "./ga4-tools";
 import { executeGithubTool, githubToolDefinitions } from "./github-tools";
 import { executeSeoTool, seoToolDefinitions } from "./seo-tools";
-import { executeVercelTool, vercelToolDefinitions } from "./vercel-tools";
 
 export const analyticsToolDefinitions = [
   ...ga4ToolDefinitions,
-  ...clarityToolDefinitions,
-  ...vercelToolDefinitions,
   ...githubToolDefinitions,
   ...seoToolDefinitions,
 ];
 
-const CLARITY_TOOLS = new Set([
+const DISABLED_TOOLS = new Set([
   "get_clarity_overview",
   "get_clarity_friction",
+  "get_vercel_overview",
+  "get_vercel_sources",
 ]);
-
-const VERCEL_TOOLS = new Set(["get_vercel_overview", "get_vercel_sources"]);
 
 const GITHUB_TOOLS = new Set([
   "get_github_overview",
@@ -41,14 +37,16 @@ export async function executeAnalyticsTool(
   rawArgs: string,
   defaultPeriod: string
 ): Promise<unknown> {
+  if (DISABLED_TOOLS.has(name)) {
+    return {
+      connected: false,
+      error: "This source is disabled.",
+      instruction:
+        "Microsoft Clarity and Vercel Analytics are not traffic sources. Use Google Analytics 4. Do not invent metrics.",
+    };
+  }
   if (GA4_TOOLS.has(name)) {
     return executeGa4Tool(name, rawArgs, defaultPeriod);
-  }
-  if (CLARITY_TOOLS.has(name)) {
-    return executeClarityTool(name, rawArgs, defaultPeriod);
-  }
-  if (VERCEL_TOOLS.has(name)) {
-    return executeVercelTool(name, rawArgs, defaultPeriod);
   }
   if (GITHUB_TOOLS.has(name)) {
     return executeGithubTool(name, rawArgs, defaultPeriod);

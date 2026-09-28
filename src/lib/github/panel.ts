@@ -47,6 +47,7 @@ export async function loadGithubPanel(
     from: window.from,
     to: window.to,
     today,
+    collectedAt: null,
   };
 
   if (!config.ok) {
@@ -115,6 +116,7 @@ export async function loadGithubPanel(
           .map((repo) => `${repo.repo}: ${repo.message}`)
           .join(" · ")
       : null,
+    collectedAt: status.updatedAt,
     repos,
   };
 }

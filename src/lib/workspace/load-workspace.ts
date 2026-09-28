@@ -1,10 +1,8 @@
 import { asc, eq } from "drizzle-orm";
 
 import { listRecentChatSignals } from "@/lib/ai/conversations";
-import { getClarityConnectionStatus } from "@/lib/analytics/clarity-source";
 import { ensureDefaultOrganization, ensureDefaultProject } from "@/lib/analytics/default-scope";
 import { getGa4ConnectionStatus } from "@/lib/analytics/ga4-source";
-import { getVercelConnectionStatus } from "@/lib/analytics/vercel-source";
 import { readGithubConfig } from "@/lib/github/config";
 import { ensureGithubProjects } from "@/lib/github/projects";
 import { getGithubConnectionStatus } from "@/lib/github/status";
@@ -131,10 +129,8 @@ async function loadConnections(): Promise<ConnectionSnapshot[]> {
     // Status can still come from env. A missing timestamp stays blank.
   }
 
-  const [ga4, clarity, vercel, github, seo] = await Promise.all([
+  const [ga4, github, seo] = await Promise.all([
     safeGa4(),
-    safeClarity(),
-    safeVercel(),
     safeGithub(),
     safeSeo(),
   ]);
@@ -144,8 +140,6 @@ async function loadConnections(): Promise<ConnectionSnapshot[]> {
     { connected: boolean; status: string; detail: string | null; updatedAt?: string | null }
   > = {
     ga4,
-    clarity,
-    vercel,
     github,
     pagespeed: seo.pagespeed,
     crawl: seo.crawl,
@@ -216,24 +210,6 @@ async function safeGa4(): Promise<{ connected: boolean; status: string; detail: 
     if (hasGoogleServiceAccount() && propertyId) {
       return { connected: true, status: "active", detail: null };
     }
-    return { connected: false, status: "not_connected", detail: null };
-  }
-}
-
-async function safeClarity(): Promise<{ connected: boolean; status: string; detail: string | null }> {
-  try {
-    const status = await getClarityConnectionStatus();
-    return { connected: status.connected, status: status.status, detail: null };
-  } catch {
-    return { connected: false, status: "not_connected", detail: null };
-  }
-}
-
-async function safeVercel(): Promise<{ connected: boolean; status: string; detail: string | null }> {
-  try {
-    const status = await getVercelConnectionStatus();
-    return { connected: status.connected, status: status.status, detail: null };
-  } catch {
     return { connected: false, status: "not_connected", detail: null };
   }
 }

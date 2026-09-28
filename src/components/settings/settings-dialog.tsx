@@ -42,20 +42,6 @@ const PROVIDERS: Record<
       en: "Visitors, top pages, and site conversions.",
     },
   },
-  clarity: {
-    name: "Microsoft Clarity",
-    description: {
-      "pt-BR": "Comportamento na página: rolagem, cliques e pontos de atrito.",
-      en: "On-page behavior: scrolling, clicks, and friction points.",
-    },
-  },
-  vercel: {
-    name: "Vercel Analytics",
-    description: {
-      "pt-BR": "Visitantes, pageviews, países e origens do tráfego.",
-      en: "Visitors, pageviews, countries, and traffic sources.",
-    },
-  },
   github: {
     name: "GitHub",
     description: {

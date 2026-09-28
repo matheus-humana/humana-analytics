@@ -85,7 +85,7 @@ export async function getGithubConnectionStatus(options?: {
     }))
   );
   const failures = probes.filter((item) => !item.probe.ok);
-  const updatedAt = failures.length === 0 ? await latestSnapshotAt() : null;
+  const updatedAt = await latestSnapshotAt();
 
   if (failures.length > 0) {
     return {

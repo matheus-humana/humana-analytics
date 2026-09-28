@@ -14,18 +14,6 @@ export const dataSourcesDemo: DataSourceDemo[] = [
     statusLabel: "Not connected",
     actionLabel: "Connect",
   },
-  {
-    id: "clarity",
-    name: "Microsoft Clarity",
-    status: "coming_soon",
-    statusLabel: "Coming soon",
-  },
-  {
-    id: "vercel",
-    name: "Vercel Analytics",
-    status: "coming_soon",
-    statusLabel: "Coming soon",
-  },
 ];
 
 export const ga4ComingSoonMessage =

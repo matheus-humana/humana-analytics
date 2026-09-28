@@ -47,12 +47,12 @@ test("connection status is the line when nothing else happened", () => {
   const log = buildStatusLog(
     [
       ga4,
-      { provider: "clarity", connected: false, status: "not_connected", updatedAt: null },
+      { provider: "github", connected: false, status: "not_connected", updatedAt: null },
     ],
     [],
     "en"
   );
-  assert.equal(log.line, "GA4 · connected · Clarity · disconnected");
+  assert.equal(log.line, "GA4 · connected · GitHub · disconnected");
   assert.equal(log.items.length, 2);
 });
 

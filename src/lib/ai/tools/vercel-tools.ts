@@ -1,3 +1,7 @@
+/**
+ * Not registered with the analytics agent. Vercel Web Analytics is not a product source.
+ * The module stays so the integration can be restored without rewriting it.
+ */
 import { hasVercelCredentials } from "@/lib/analytics/vercel-source";
 import { resolveAnalyticsPeriod } from "@/lib/analytics/period";
 import { fetchVercelDashboard } from "@/lib/vercel/fetch-report";
