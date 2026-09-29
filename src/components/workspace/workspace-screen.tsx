@@ -50,6 +50,7 @@ type Props = {
   traffic: React.ReactNode;
   github: GithubPanelData;
   seo: SeoWorkspace;
+  chatEnabled: boolean;
 };
 
 export function WorkspaceScreen({
@@ -61,6 +62,7 @@ export function WorkspaceScreen({
   traffic,
   github,
   seo,
+  chatEnabled,
 }: Props) {
   const { locale, setLocale: setSharedLocale } = useLocale();
   const storedPrefs = useLocalString(workspacePrefsKey(userId));
@@ -185,6 +187,11 @@ export function WorkspaceScreen({
             trafficSummary={trafficSummary}
             github={github}
             seo={seo}
+            connections={model.connections}
+            chatEnabled={chatEnabled}
+            chatProjectId={
+              (repositoryMode ? selectedRepository?.id : selectedProject?.id) ?? null
+            }
             mobileChatOpen={mobileChatOpen}
             onMobileChatOpen={setMobileChatOpen}
             onChatActivity={(signal) =>

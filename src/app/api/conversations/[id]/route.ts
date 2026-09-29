@@ -19,7 +19,7 @@ export async function GET(_request: Request, context: RouteContext) {
     const conversation = await getOwnedConversation(authResult.user.id, id);
     if (!conversation) {
       return NextResponse.json(
-        { ok: false, error: "Conversa não encontrada." },
+        { ok: false, error: "conversationNotFound" },
         { status: 404 }
       );
     }

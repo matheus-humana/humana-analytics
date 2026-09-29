@@ -19,6 +19,11 @@ import {
   THINKING_EN,
   THINKING_PT,
 } from "./analytics-bot-contract";
+import { workspaceText } from "@/lib/i18n/workspace-copy";
+
+import type { ChatLocale } from "./analytics-bot-contract";
+import { requireProjectAccess } from "@/lib/projects/context-store";
+import { toolNames, type Citation, type ToolCallRecord } from "./tool-trace";
 import type { UsageSummary } from "./usage";
 
 function newId(): string {
@@ -35,6 +40,8 @@ export type PublicMessage = {
   content: string;
   createdAt: string;
   toolsUsed: string[];
+  provider: string | null;
+  usedFallback: boolean;
   usage: {
     model: string;
     promptTokens: number;
@@ -50,7 +57,9 @@ function toPublicMessage(row: typeof messages.$inferSelect): PublicMessage {
     role: row.role,
     content: row.content,
     createdAt: row.createdAt.toISOString(),
-    toolsUsed: row.toolsUsed ?? [],
+    toolsUsed: toolNames(row.toolsUsed),
+    provider: row.provider,
+    usedFallback: row.usedFallback,
     usage: hasUsage
       ? {
           model: row.model ?? "",
@@ -174,6 +183,8 @@ export async function beginUserTurn(input: {
   userId: string;
   conversationId?: string | null;
   question: string;
+  projectId?: string | null;
+  locale?: ChatLocale;
 }): Promise<UserTurn | null> {
   const { organization } = await ensureOrganizationMembership(input.userId);
   const defaultProject = await ensureDefaultProject(organization.id);
@@ -209,12 +220,21 @@ export async function beginUserTurn(input: {
     )[0];
     if (project) organizationId = project.organizationId;
   } else {
+    const requested = input.projectId?.trim();
+    if (requested) {
+      const allowed = await requireProjectAccess(input.userId, requested);
+      if (!allowed) return null;
+      projectId = allowed.id;
+      organizationId = allowed.organizationId;
+    }
     conversationId = newId();
     await db.insert(conversations).values({
       id: conversationId,
       userId: input.userId,
       projectId,
-      title: question.replace(/\s+/g, " ").slice(0, 80) || "Nova conversa",
+      title:
+        question.replace(/\s+/g, " ").slice(0, 80) ||
+        workspaceText(input.locale ?? "pt-BR", "chatNew"),
     });
   }
 
@@ -268,8 +288,12 @@ export async function beginUserTurn(input: {
 export async function saveAssistantTurn(input: {
   conversationId: string;
   content: string;
-  toolsUsed: string[];
+  toolsUsed: ToolCallRecord[] | string[];
   usage: UsageSummary;
+  provider?: string | null;
+  locale?: string | null;
+  citations?: Citation[];
+  usedFallback?: boolean;
 }) {
   await db.insert(messages).values({
     id: newId(),
@@ -277,6 +301,10 @@ export async function saveAssistantTurn(input: {
     role: "assistant",
     content: input.content,
     toolsUsed: input.toolsUsed,
+    provider: input.provider ?? null,
+    locale: input.locale ?? null,
+    citations: input.citations ?? [],
+    usedFallback: input.usedFallback ?? false,
     model: input.usage.model,
     promptTokens: input.usage.promptTokens,
     completionTokens: input.usage.completionTokens,

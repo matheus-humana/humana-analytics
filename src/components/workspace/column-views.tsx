@@ -8,20 +8,23 @@ import { periodLabel } from "@/lib/i18n/period-label";
 import { workspaceText, type WorkspaceMessageKey } from "@/lib/i18n/workspace-copy";
 import type { WorkspaceTab } from "@/lib/workspace/prefs";
 import type { WorkspaceProject } from "@/lib/workspace/load-workspace";
+import type { ConnectionSnapshot } from "@/lib/workspace/status-log";
 
 import {
   IconAnalytics,
   IconChevron,
+  IconConnections,
   IconContext,
+  IconDocs,
 } from "./icons";
 import type { GithubPanelData } from "@/lib/github/types";
 import { formatScorePoints } from "@/lib/seo/explain";
 import type { SeoWorkspace } from "@/lib/seo/view";
 
-import { ComingSoon } from "@/components/ui/coming-soon";
 import { EmptyLine } from "@/components/ui/empty-line";
 import { InfoTip } from "@/components/ui/info-tip";
 
+import { ContextPanel } from "./context-panel";
 import { GithubPanel } from "./github-panel";
 import { GeoPanel } from "./geo-panel";
 import { ProviderIcon } from "./provider-icons";
@@ -63,18 +66,15 @@ export function ColumnHeader({
 export function ContextColumn({
   locale,
   project,
+  connections,
   onCollapse,
 }: {
   locale: ChatLocale;
   project: WorkspaceProject | null;
+  connections: ConnectionSnapshot[];
   onCollapse?: () => void;
 }) {
   const text = (key: WorkspaceMessageKey) => workspaceText(locale, key);
-  const sections: WorkspaceMessageKey[] = [
-    "contextDocuments",
-    "contextCompetitors",
-    "contextAudience",
-  ];
   return (
     <section className="flex h-full min-h-0 flex-col bg-surface">
       <ColumnHeader
@@ -82,28 +82,19 @@ export function ContextColumn({
         onCollapse={onCollapse}
         collapseLabel={`${text("collapseColumn")} ${text("columnContext")}`}
       />
-      <div className="min-h-0 flex-1">
-        <ComingSoon title={text("chatComingSoon")} body={text("contextComingSoonBody")}>
-          <div className="space-y-5 px-3 py-4">
-            <div>
-              <p className="text-xs text-muted">{text("project")}</p>
-              <p className="mt-0.5 text-sm font-medium text-foreground">
-                {project?.name ?? text("projectUnavailable")}
-              </p>
-            </div>
-            {sections.map((key) => (
-              <div key={key} className="space-y-2">
-                <p className="text-sm font-medium text-foreground">{text(key)}</p>
-                <div className="space-y-1.5 rounded-xl border border-secondary p-3">
-                  <div className="h-2.5 w-4/5 rounded-full bg-secondary" />
-                  <div className="h-2.5 w-3/5 rounded-full bg-secondary" />
-                  <div className="h-2.5 w-2/3 rounded-full bg-secondary" />
-                </div>
-              </div>
-            ))}
-          </div>
-        </ComingSoon>
+      <div className="border-b border-secondary px-3 py-3">
+        <p className="text-xs text-muted">{text("project")}</p>
+        <p className="mt-0.5 text-sm font-medium text-foreground">
+          {project?.name ?? text("projectUnavailable")}
+        </p>
       </div>
+      {project ? (
+        <ContextPanel key={project.id} locale={locale} projectId={project.id} connections={connections} />
+      ) : (
+        <div className="px-3 py-4">
+          <EmptyLine title={text("projectUnavailable")} />
+        </div>
+      )}
     </section>
   );
 }
@@ -260,7 +251,18 @@ export function ContextRail({
   const label = `${workspaceText(locale, "expandColumn")} ${workspaceText(locale, "columnContext")}`;
   return (
     <CollapsedRail label={label} onExpand={onExpand}>
-      <IconContext />
+      <span title={workspaceText(locale, "project")} className="text-muted">
+        <IconContext className="h-4 w-4" />
+        <span className="sr-only">{workspaceText(locale, "project")}</span>
+      </span>
+      <span title={workspaceText(locale, "railDocs")} className="text-muted">
+        <IconDocs className="h-4 w-4" />
+        <span className="sr-only">{workspaceText(locale, "railDocs")}</span>
+      </span>
+      <span title={workspaceText(locale, "connections")} className="text-muted">
+        <IconConnections className="h-4 w-4" />
+        <span className="sr-only">{workspaceText(locale, "connections")}</span>
+      </span>
     </CollapsedRail>
   );
 }

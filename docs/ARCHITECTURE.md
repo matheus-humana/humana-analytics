@@ -276,7 +276,11 @@ activeUsers
 
 ### comparePeriods
 
-Compares equivalent periods and calculates changes.
+Compares Google Analytics 4 for the selected period with the immediately previous period of the same length and returns active users, sessions, views, engagement rate, and the server-computed percent change. A null change means the previous value was zero.
+
+### getProjectContext
+
+Returns qualitative project context (site, languages, audience, positioning, goals, competitors, and non-confidential documents). It is never a source of numbers. Documents flagged confidential are omitted.
 
 Example:
 
@@ -351,7 +355,13 @@ AI Agent
 Response
 ```
 
-The response should include the relevant period and, where useful, the source.
+The response should include the relevant period and the source. The server appends a Fontes / Sources block from the tool citations. The model does not write that block.
+
+Native answers stream from `POST /api/ask-ai` as server-sent events. The Analytics Bot bridge still returns JSON and the panel keeps polling. `CHAT_ENGINE=native|bridge` selects the path. Gemini is the primary free provider and Groq is the automatic fallback on 429, 5xx, or timeout. OpenAI remains a selectable native provider.
+
+New conversations are stored on the project selected in the workspace. `messages.tools_used` stores each tool call (name, args, source, period, ok, duration) without raw payloads, plus `provider`, `locale`, `citations`, and `used_fallback`.
+
+Project context lives in `project_profiles`, `project_competitors`, and `project_documents`. Organization members edit it from the Contexto column.
 
 ## 12. Data Collection
 

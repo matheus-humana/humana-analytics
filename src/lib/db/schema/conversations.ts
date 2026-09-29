@@ -1,10 +1,13 @@
 import {
+  boolean,
   doublePrecision,
   index,
   integer,
   jsonb,
   text,
 } from 'drizzle-orm/pg-core';
+
+import type { Citation, ToolCallRecord } from '@/lib/ai/tool-trace';
 
 import { analyticsSchema, timestamptz } from './analytics-schema';
 import { projects } from './projects';
@@ -46,7 +49,11 @@ export const messages = analyticsSchema.table(
       .references(() => conversations.id, { onDelete: 'cascade' }),
     role: text('role').notNull(),
     content: text('content').notNull(),
-    toolsUsed: jsonb('tools_used').$type<string[]>(),
+    toolsUsed: jsonb('tools_used').$type<string[] | ToolCallRecord[]>(),
+    provider: text('provider'),
+    locale: text('locale'),
+    citations: jsonb('citations').$type<Citation[]>(),
+    usedFallback: boolean('used_fallback').notNull().default(false),
     model: text('model'),
     promptTokens: integer('prompt_tokens'),
     completionTokens: integer('completion_tokens'),

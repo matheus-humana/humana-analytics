@@ -3,6 +3,7 @@ import { resolveAnalyticsPeriod } from "@/lib/analytics/period";
 import {
   fetchGa4Dashboard,
   fetchGa4Events,
+  fetchGa4PeriodComparison,
   fetchGa4TrafficSources,
 } from "@/lib/ga4/fetch-report";
 
@@ -76,6 +77,19 @@ export const ga4ToolDefinitions = [
   {
     type: "function" as const,
     function: {
+      name: "compare_periods",
+      description:
+        "Compare Google Analytics 4 active users, sessions, views, and engagement rate for the selected period against the immediately previous period of the same length. Percent changes are already computed. Do not invent numbers.",
+      parameters: {
+        type: "object",
+        properties: { period: PERIOD_PARAMETER },
+        additionalProperties: false,
+      },
+    },
+  },
+  {
+    type: "function" as const,
+    function: {
       name: "get_events",
       description:
         "Google Analytics 4 events and highlighted conversions (contact, sign_up, generate_lead, file_download, app_login) with event counts.",
@@ -119,8 +133,16 @@ export async function executeGa4Tool(
         return {
           source: SOURCE,
           connected: true,
+          periodId: period,
           period: dashboard.periodLabel,
-          ...dashboard.overview,
+          activeUsers: dashboard.overview.activeUsers,
+          newUsers: dashboard.overview.newUsers,
+          engagedSessions: dashboard.overview.engagedSessions,
+          views: dashboard.overview.views,
+          viewsPerActiveUser: dashboard.overview.viewsPerActiveUser,
+          averageEngagementSeconds: dashboard.overview.averageEngagementSeconds,
+          bounceRate: dashboard.overview.bounceRate,
+          eventCount: dashboard.overview.eventCount,
         };
       }
       case "get_top_pages": {
@@ -128,8 +150,9 @@ export async function executeGa4Tool(
         return {
           source: SOURCE,
           connected: true,
+          periodId: period,
           period: dashboard.periodLabel,
-          pages: dashboard.topPages,
+          pages: dashboard.topPages.slice(0, 8),
         };
       }
       case "get_tech_breakdown": {
@@ -144,22 +167,40 @@ export async function executeGa4Tool(
         return {
           source: SOURCE,
           connected: true,
+          periodId: period,
           period: dashboard.periodLabel,
           dimension,
-          items: map[dimension],
+          items: map[dimension].slice(0, 6),
         };
       }
       case "get_traffic_sources": {
         const report = await memoTool(`ga4-sources:${period}`, 30_000, () =>
           fetchGa4TrafficSources(period)
         );
-        return { connected: true, ...report };
+        return {
+          connected: true,
+          periodId: period,
+          source: report.source,
+          period: report.period,
+          channels: report.channels.slice(0, 8),
+        };
       }
+      case "compare_periods":
+        return memoTool(`ga4-compare:${period}`, 30_000, () =>
+          fetchGa4PeriodComparison(period)
+        );
       case "get_events": {
         const report = await memoTool(`ga4-events:${period}`, 30_000, () =>
           fetchGa4Events(period)
         );
-        return { connected: true, ...report };
+        return {
+          connected: true,
+          periodId: period,
+          source: report.source,
+          period: report.period,
+          events: report.events.slice(0, 8),
+          conversions: report.conversions,
+        };
       }
       default:
         return { error: `Unknown tool: ${name}` };
