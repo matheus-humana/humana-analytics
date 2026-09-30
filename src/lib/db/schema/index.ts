@@ -53,6 +53,12 @@ export {
 export { githubRepoDays, githubTrafficDays } from './github-metrics';
 
 export {
+  projectCompetitors,
+  projectDocuments,
+  projectProfiles,
+} from './project-context';
+
+export {
   crawlPages,
   crawlSnapshots,
   pagespeedSnapshots,

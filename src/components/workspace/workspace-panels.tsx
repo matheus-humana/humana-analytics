@@ -25,7 +25,7 @@ import {
 import type { ChatSignal } from "@/lib/workspace/status-log";
 import type { WorkspaceProject } from "@/lib/workspace/load-workspace";
 
-import { ComingSoon } from "@/components/ui/coming-soon";
+import type { ConnectionSnapshot } from "@/lib/workspace/status-log";
 
 import {
   AnalyticsColumn,
@@ -57,6 +57,9 @@ type Props = {
   trafficSummary: TrafficSummary | null;
   github: GithubPanelData;
   seo: SeoWorkspace;
+  connections: ConnectionSnapshot[];
+  chatEnabled: boolean;
+  chatProjectId: string | null;
   onChatActivity: (signal: ChatSignal) => void;
   mobileChatOpen: boolean;
   onMobileChatOpen: (open: boolean) => void;
@@ -112,6 +115,7 @@ function DesktopWorkspace(props: Props) {
     prefs,
     onPrefs,
     project,
+    connections,
     foreignProject,
     trafficSummary,
     seo,
@@ -212,6 +216,7 @@ function DesktopWorkspace(props: Props) {
           <ContextColumn
             locale={locale}
             project={project}
+            connections={connections}
             onCollapse={() => toggle("context")}
           />
         ) : (
@@ -249,7 +254,12 @@ function DesktopWorkspace(props: Props) {
         className="h-full bg-surface"
         style={{ overflow: "hidden" }}
       >
-        <ChatColumn locale={locale} onChatActivity={onChatActivity} />
+        <ChatColumn
+          locale={locale}
+          chatEnabled={props.chatEnabled}
+          projectId={props.chatProjectId}
+          onChatActivity={onChatActivity}
+        />
       </Panel>
     </Group>
   );
@@ -333,6 +343,7 @@ function MobileWorkspace(props: Props) {
     prefs,
     onPrefs,
     project,
+    connections,
     onChatActivity,
     mobileChatOpen,
     onMobileChatOpen,
@@ -377,7 +388,7 @@ function MobileWorkspace(props: Props) {
       </div>
       <div className="min-h-0 flex-1 overflow-hidden">
         {prefs.mobileColumn === "context" ? (
-          <ContextColumn locale={locale} project={project} />
+          <ContextColumn locale={locale} project={project} connections={connections} />
         ) : null}
         {prefs.mobileColumn === "analytics" ? <MainColumn {...props} /> : null}
       </div>
@@ -401,7 +412,12 @@ function MobileWorkspace(props: Props) {
             </button>
           </header>
           <div className="min-h-0 flex-1">
-            <ChatColumn locale={locale} onChatActivity={onChatActivity} />
+            <ChatColumn
+              locale={locale}
+              chatEnabled={props.chatEnabled}
+              projectId={props.chatProjectId}
+              onChatActivity={onChatActivity}
+            />
           </div>
         </div>
       ) : null}
@@ -411,37 +427,56 @@ function MobileWorkspace(props: Props) {
 
 function ChatColumn({
   locale,
+  chatEnabled,
+  projectId,
   onChatActivity,
 }: {
   locale: ChatLocale;
+  chatEnabled: boolean;
+  projectId: string | null;
   onChatActivity: (signal: ChatSignal) => void;
 }) {
+  if (!chatEnabled) {
+    return (
+      <section className="flex h-full min-h-0 flex-col bg-surface">
+        <header className="flex h-11 shrink-0 items-center border-b border-secondary px-3">
+          <h2 className="text-sm font-medium text-foreground">
+            {workspaceText(locale, "columnChat")}
+          </h2>
+        </header>
+        <div className="space-y-2 px-3 py-4">
+          <p className="text-sm font-medium text-foreground">
+            {workspaceText(locale, "chatConfigureTitle")}
+          </p>
+          <p className="text-sm text-muted">{workspaceText(locale, "chatConfigureBody")}</p>
+        </div>
+      </section>
+    );
+  }
+
   return (
     <section className="flex h-full min-h-0 flex-col bg-surface">
-      <ComingSoon
-        title={workspaceText(locale, "chatComingSoon")}
-        body={workspaceText(locale, "chatComingSoonBody")}
+      <Suspense
+        fallback={
+          <p className="px-3 py-3 text-sm text-muted">
+            {workspaceText(locale, "chatLoadingPanel")}
+          </p>
+        }
       >
-        <Suspense
-          fallback={
-            <p className="px-3 py-3 text-sm text-muted">
-              {workspaceText(locale, "chatLoadingPanel")}
-            </p>
+        <AskAiPanel
+          variant="column"
+          locale={locale}
+          projectId={projectId}
+          chatEnabled
+          onActivity={(kind) =>
+            onChatActivity({
+              id: `session-${kind}-${Date.now()}`,
+              kind,
+              at: new Date().toISOString(),
+            })
           }
-        >
-          <AskAiPanel
-            variant="column"
-            locale={locale}
-            onActivity={(kind) =>
-              onChatActivity({
-                id: `session-${kind}-${Date.now()}`,
-                kind,
-                at: new Date().toISOString(),
-              })
-            }
-          />
-        </Suspense>
-      </ComingSoon>
+        />
+      </Suspense>
     </section>
   );
 }

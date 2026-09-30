@@ -40,6 +40,9 @@ type ChatMessage = {
   toolsUsed?: string[];
   usage?: UsageInfo | null;
   pending?: boolean;
+  streaming?: boolean;
+  usedFallback?: boolean;
+  provider?: string | null;
 };
 
 type ConversationSummary = {
@@ -57,10 +60,14 @@ type ConversationDetail = {
 export function AskAiPanel({
   variant = "page",
   locale,
+  projectId = null,
+  chatEnabled = false,
   onActivity,
 }: {
   variant?: "page" | "column";
   locale?: ChatLocale;
+  projectId?: string | null;
+  chatEnabled?: boolean;
   onActivity?: (kind: "question" | "reply") => void;
 } = {}) {
   const { locale: contextLocale } = useLocale();
@@ -82,10 +89,12 @@ export function AskAiPanel({
   const [assistantStatus, setAssistantStatus] = useState("idle");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [streaming, setStreaming] = useState(false);
   const [loadingHistory, setLoadingHistory] = useState(false);
+  const abortRef = useRef<AbortController | null>(null);
 
   const awaitingReply = assistantStatus === ASSISTANT_STATUS_PENDING;
-  const busy = loading || awaitingReply;
+  const busy = loading || streaming || awaitingReply;
 
   async function loadConversations() {
     const response = await fetch("/api/conversations", { cache: "no-store" });
@@ -106,6 +115,7 @@ export function AskAiPanel({
     let cancelled = false;
 
     async function load() {
+      if (!chatEnabled) return;
       const response = await fetch("/api/conversations", { cache: "no-store" });
       if (cancelled) return;
       if (response.status === 401) {
@@ -125,7 +135,7 @@ export function AskAiPanel({
     return () => {
       cancelled = true;
     };
-  }, [router]);
+  }, [router, chatEnabled]);
 
   useEffect(() => {
     if (!awaitingReply || !conversationId) return;
@@ -208,6 +218,12 @@ export function AskAiPanel({
     setQuestion("");
   }
 
+  function stopStreaming() {
+    abortRef.current?.abort();
+    setStreaming(false);
+    setLoading(false);
+  }
+
   async function handleAsk(nextQuestion?: string) {
     const trimmed = (nextQuestion ?? question).trim();
     if (!trimmed || busy) return;
@@ -216,21 +232,58 @@ export function AskAiPanel({
     setLoading(true);
     setError(null);
     setMessages((current) => [...current, { role: "user", content: trimmed }]);
+    const controller = new AbortController();
+    abortRef.current = controller;
 
     try {
       const response = await fetch("/api/ask-ai", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
+        signal: controller.signal,
         body: JSON.stringify({
           question: trimmed,
           period: periodId,
           conversationId,
+          locale: activeLocale,
+          projectId,
         }),
       });
       if (response.status === 401) {
         router.push("/login");
         return;
       }
+      const contentType = response.headers.get("content-type") ?? "";
+      if (contentType.includes("text/event-stream") && response.body) {
+        setLoading(false);
+        setStreaming(true);
+        onActivityRef.current?.("question");
+        await readEventStream(response.body, {
+          onDelta: (textChunk) => {
+            setMessages((current) => appendDelta(current, textChunk));
+          },
+          onReset: () => {
+            setMessages((current) => clearStreamingDraft(current));
+          },
+          onDone: (data) => {
+            if (data.conversationId) setConversationId(data.conversationId);
+            setAssistantStatus("idle");
+            onActivityRef.current?.("reply");
+            setMessages((current) =>
+              finishStream(current, {
+                content: data.answer ?? "",
+                toolsUsed: data.toolsUsed ?? [],
+                usage: data.usage ?? null,
+                usedFallback: data.usedFallback,
+                provider: data.provider,
+              })
+            );
+          },
+          onError: (message) => setError(message),
+        });
+        await loadConversations();
+        return;
+      }
+
       const data = (await response.json()) as {
         ok: boolean;
         pending?: boolean;
@@ -240,6 +293,8 @@ export function AskAiPanel({
         usage?: UsageInfo;
         conversationId?: string;
         thinking?: string;
+        usedFallback?: boolean;
+        provider?: string | null;
       };
 
       if (!response.ok || !data.ok) {
@@ -273,13 +328,18 @@ export function AskAiPanel({
           content: data.answer ?? "",
           toolsUsed: data.toolsUsed ?? [],
           usage: data.usage ?? null,
+          usedFallback: data.usedFallback,
+          provider: data.provider,
         },
       ]);
       await loadConversations();
-    } catch {
+    } catch (error) {
+      if (error instanceof DOMException && error.name === "AbortError") return;
       setError("chatSpeakFailed");
     } finally {
       setLoading(false);
+      setStreaming(false);
+      abortRef.current = null;
     }
   }
 
@@ -303,8 +363,16 @@ export function AskAiPanel({
         : thinkingLabel(activeLocale)
       : text("chatAsk");
 
-  if (variant === "column") {
+  if (!chatEnabled) {
+    return (
+      <div className="px-3 py-4">
+        <p className="text-sm font-medium text-foreground">{text("chatConfigureTitle")}</p>
+        <p className="mt-1 text-sm text-muted">{text("chatConfigureBody")}</p>
+      </div>
+    );
+  }
 
+  if (variant === "column") {
     return (
       <ColumnChat
         text={text}
@@ -313,6 +381,8 @@ export function AskAiPanel({
         question={question}
         setQuestion={setQuestion}
         busy={busy}
+        streaming={streaming}
+        onStop={stopStreaming}
         onAsk={(value) => void handleAsk(value)}
         onNew={startNewConversation}
         conversationId={conversationId}
@@ -412,11 +482,11 @@ export function AskAiPanel({
             />
             <button
               type="button"
-              onClick={() => void handleAsk()}
-              disabled={busy}
+              onClick={() => (streaming ? stopStreaming() : void handleAsk())}
+              disabled={busy && !streaming}
               className="ha-primary rounded-lg px-4 py-2.5 text-sm font-medium disabled:cursor-not-allowed disabled:opacity-50"
             >
-              {askLabel}
+              {streaming ? text("chatStop") : askLabel}
             </button>
           </div>
 
@@ -460,6 +530,8 @@ export function AskAiPanel({
                     <AssistantBody
                       content={displayChatContent(message.content, activeLocale, pendingBubble)}
                       pending={pendingBubble}
+                      note={fallbackNote(message, text)}
+                      usageLine={usageLine(message, text)}
                     />
                   ) : (
                     <p className="mt-1 whitespace-pre-wrap text-sm leading-relaxed text-foreground">
@@ -513,6 +585,8 @@ function ColumnChat({
   error,
   suggestions,
   locale,
+  streaming,
+  onStop,
 }: {
   text: (key: WorkspaceMessageKey) => string;
   periodId: AnalyticsPeriodId;
@@ -531,6 +605,8 @@ function ColumnChat({
   error: string | null;
   suggestions: string[];
   locale: ChatLocale;
+  streaming: boolean;
+  onStop: () => void;
 }) {
   const [suggestionPage, setSuggestionPage] = useState(0);
   const pageSize = 3;
@@ -594,6 +670,8 @@ function ColumnChat({
               <AssistantBody
                 content={displayChatContent(message.content, locale, pendingBubble)}
                 pending={pendingBubble}
+                note={fallbackNote(message, text)}
+                usageLine={usageLine(message, text)}
                 plain
               />
             </article>
@@ -641,13 +719,17 @@ function ColumnChat({
           />
           <button
             type="button"
-            onClick={() => onAsk()}
-            disabled={busy || !question.trim()}
-            aria-label={askLabel}
-            title={askLabel}
+            onClick={() => (streaming ? onStop() : onAsk())}
+            disabled={!streaming && (busy || !question.trim())}
+            aria-label={streaming ? text("chatStop") : askLabel}
+            title={streaming ? text("chatStop") : askLabel}
             className="ha-primary flex h-8 w-8 shrink-0 items-center justify-center rounded-full disabled:cursor-not-allowed disabled:opacity-40"
           >
-            <IconArrowUp className={`h-4 w-4 ${busy ? "animate-pulse" : ""}`} />
+            {streaming ? (
+              <span className="block h-2.5 w-2.5 rounded-[2px] bg-current" />
+            ) : (
+              <IconArrowUp className={`h-4 w-4 ${busy ? "animate-pulse" : ""}`} />
+            )}
           </button>
         </div>
       </div>
@@ -669,13 +751,110 @@ function isPendingBubble(message: ChatMessage, assistantStatus: string) {
   );
 }
 
+function fallbackNote(
+  message: ChatMessage,
+  text: (key: WorkspaceMessageKey) => string
+): string | null {
+  if (!message.usedFallback) return null;
+  return text("chatFallbackNote").replace("{provider}", message.provider ?? "");
+}
+
+function usageLine(
+  message: ChatMessage,
+  text: (key: WorkspaceMessageKey) => string
+): string | null {
+  if (!message.usage) return null;
+  return `${text("chatUsageModel")}: ${message.usage.model} · ${text("chatUsageCost")}: $${message.usage.estimatedCostUsd.toFixed(2)}`;
+}
+
+function appendDelta(current: ChatMessage[], textChunk: string): ChatMessage[] {
+  const next = [...current];
+  const last = next[next.length - 1];
+  if (last?.role === "assistant" && last.streaming) {
+    next[next.length - 1] = { ...last, content: last.content + textChunk };
+    return next;
+  }
+  next.push({ role: "assistant", content: textChunk, streaming: true });
+  return next;
+}
+
+function clearStreamingDraft(current: ChatMessage[]): ChatMessage[] {
+  const next = [...current];
+  const last = next[next.length - 1];
+  if (last?.role === "assistant" && last.streaming) next.pop();
+  return next;
+}
+
+function finishStream(
+  current: ChatMessage[],
+  message: Omit<ChatMessage, "role">
+): ChatMessage[] {
+  const next = clearStreamingDraft(current);
+  next.push({ role: "assistant", ...message, streaming: false });
+  return next;
+}
+
+async function readEventStream(
+  body: ReadableStream<Uint8Array>,
+  handlers: {
+    onDelta: (text: string) => void;
+    onReset: () => void;
+    onDone: (data: {
+      answer?: string;
+      conversationId?: string;
+      toolsUsed?: string[];
+      usage?: UsageInfo | null;
+      usedFallback?: boolean;
+      provider?: string | null;
+    }) => void;
+    onError: (message: string) => void;
+  }
+) {
+  const reader = body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = "";
+  while (true) {
+    const { value, done } = await reader.read();
+    if (done) break;
+    buffer += decoder.decode(value, { stream: true });
+    const chunks = buffer.split("\n\n");
+    buffer = chunks.pop() ?? "";
+    for (const chunk of chunks) {
+      const line = chunk
+        .split("\n")
+        .map((item) => item.trim())
+        .find((item) => item.startsWith("data:"));
+      if (!line) continue;
+      const data = JSON.parse(line.slice(5).trim()) as {
+        type?: string;
+        text?: string;
+        error?: string;
+        answer?: string;
+        conversationId?: string;
+        toolsUsed?: string[];
+        usage?: UsageInfo | null;
+        usedFallback?: boolean;
+        provider?: string | null;
+      };
+      if (data.type === "delta") handlers.onDelta(data.text ?? "");
+      else if (data.type === "reset") handlers.onReset();
+      else if (data.type === "done") handlers.onDone(data);
+      else if (data.type === "error") handlers.onError(data.error ?? "chatQueryFailed");
+    }
+  }
+}
+
 function AssistantBody({
   content,
   pending,
+  note,
+  usageLine: usage,
   plain = false,
 }: {
   content: string;
   pending: boolean;
+  note?: string | null;
+  usageLine?: string | null;
   plain?: boolean;
 }) {
   if (pending) {
@@ -690,6 +869,8 @@ function AssistantBody({
           {text}
         </p>
       ) : null}
+      {note ? <p className="text-xs text-muted">{note}</p> : null}
+      {usage ? <p className="text-xs text-muted">{usage}</p> : null}
       {images.map((src) => (
         // Bot attachment hosts are not known at build time, so this stays a plain image.
         // eslint-disable-next-line @next/next/no-img-element

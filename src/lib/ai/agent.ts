@@ -1,54 +1,91 @@
-import OpenAI from "openai";
-import type {
-  ChatCompletionMessageParam,
-  ChatCompletionTool,
-} from "openai/resources/chat/completions";
+import type { ChatCompletionMessageParam } from "openai/resources/chat/completions";
+import { APIUserAbortError } from "openai";
 
 import { getGa4ConnectionStatus } from "@/lib/analytics/ga4-source";
 import { resolveAnalyticsPeriod } from "@/lib/analytics/period";
 import { getGithubConnectionStatus } from "@/lib/github/status";
+import { workspaceText } from "@/lib/i18n/workspace-copy";
 import { getSeoConnectionStatus } from "@/lib/seo/status";
 
-import type { StoredTurn } from "./conversations";
-import { buildHumanaAnalyticsPrompt } from "./prompts";
+import type { ChatLocale, EngineSelection, ProviderId } from "./analytics-bot-contract";
+import { currentEngine } from "./engine";
+import { finalizeAnswer } from "./grounding";
+import { buildHumanaAnalyticsPrompt, type ConnectedSources } from "./prompts";
+import {
+  completeChat,
+  modelForProvider,
+  shouldFallback,
+  type ChatCompletionResult,
+  type ToolCallDelta,
+} from "./providers";
 import {
   analyticsToolDefinitions,
   executeAnalyticsTool,
+  type ToolRunContext,
 } from "./tools";
+import {
+  disconnectedSource,
+  prepareToolResult,
+  readCitation,
+  resultOk,
+  safeToolArgs,
+  type Citation,
+  type ToolCallRecord,
+} from "./tool-trace";
 import {
   addUsage,
   emptyUsage,
-  getOpenAiModel,
   logUsage,
   summarizeUsage,
-  type TokenUsage,
   type UsageSummary,
 } from "./usage";
-import { workspaceCopy } from "@/lib/i18n/workspace-copy";
+import type { StoredTurn } from "./conversations";
 
-const MAX_TOOL_ROUNDS = 4;
-const MAX_OUTPUT_TOKENS = 700;
+const MAX_TOOL_ROUNDS = 3;
 
-function getClient() {
-  const apiKey = process.env.OPENAI_API_KEY?.trim();
-  if (!apiKey) {
-    throw new Error(workspaceCopy["pt-BR"].openaiMissing);
+export class ChatAbortedError extends Error {
+  partial: string;
+
+  constructor(partial: string) {
+    super("aborted");
+    this.name = "ChatAbortedError";
+    this.partial = partial;
   }
-  return new OpenAI({ apiKey });
 }
 
-function usageFromResponse(response: {
-  usage?: {
-    prompt_tokens?: number;
-    completion_tokens?: number;
-    total_tokens?: number;
-  } | null;
-}): TokenUsage {
-  return {
-    promptTokens: response.usage?.prompt_tokens ?? 0,
-    completionTokens: response.usage?.completion_tokens ?? 0,
-    totalTokens: response.usage?.total_tokens ?? 0,
-  };
+export type AskAiResult = {
+  answer: string;
+  toolsUsed: ToolCallRecord[];
+  usage: UsageSummary;
+  citations: Citation[];
+  provider: ProviderId;
+  usedFallback: boolean;
+  locale: ChatLocale;
+};
+
+type Completer = (input: {
+  provider: ProviderId;
+  model: string;
+  apiKey: string;
+  messages: ChatCompletionMessageParam[];
+  tools: typeof analyticsToolDefinitions;
+  signal?: AbortSignal;
+  onDelta?: (text: string) => void;
+}) => Promise<ChatCompletionResult>;
+
+type ExecuteTool = (
+  name: string,
+  rawArgs: string,
+  defaultPeriod: string,
+  toolContext?: ToolRunContext
+) => Promise<unknown>;
+
+function providerKey(id: ProviderId, override?: Partial<Record<ProviderId, string>>): string {
+  const fromOverride = override?.[id]?.trim();
+  if (fromOverride) return fromOverride;
+  if (id === "gemini") return process.env.GEMINI_API_KEY?.trim() ?? "";
+  if (id === "groq") return process.env.GROQ_API_KEY?.trim() ?? "";
+  return process.env.OPENAI_API_KEY?.trim() ?? "";
 }
 
 async function connectedSources() {
@@ -66,29 +103,36 @@ async function connectedSources() {
   };
 }
 
-export type AskAiResult = {
-  answer: string;
-  toolsUsed: string[];
-  usage: UsageSummary;
-};
+function abortIfNeeded(signal: AbortSignal | undefined, partial: string) {
+  if (signal?.aborted) throw new ChatAbortedError(partial);
+}
 
-export async function runAskAiAgent(input: {
+async function runWithProvider(input: {
+  provider: ProviderId;
+  apiKey: string;
+  locale: ChatLocale;
   question: string;
-  period?: string | null;
+  periodId: string;
+  periodLabel: string;
   history?: StoredTurn[];
+  sources: { ga4: boolean; github: boolean; seo?: boolean; geo?: boolean };
+  projectId: string | null;
+  signal?: AbortSignal;
+  onDelta?: (text: string) => void;
+  onToolRound?: () => void;
+  complete: Completer;
+  executeTool: ExecuteTool;
+  usedFallback: boolean;
 }): Promise<AskAiResult> {
-  const period = resolveAnalyticsPeriod(input.period);
-  const client = getClient();
-  const model = getOpenAiModel();
-  const tools = analyticsToolDefinitions as unknown as ChatCompletionTool[];
-  const sources = await connectedSources();
-
+  const model = modelForProvider(input.provider);
+  const tools = analyticsToolDefinitions;
   const messages: ChatCompletionMessageParam[] = [
     {
       role: "system",
       content: buildHumanaAnalyticsPrompt({
-        periodLabel: period.label,
-        sources,
+        periodLabel: input.periodLabel,
+        sources: input.sources,
+        locale: input.locale,
       }),
     },
     ...(input.history ?? []).map((turn) => ({
@@ -99,63 +143,191 @@ export async function runAskAiAgent(input: {
   ];
 
   let usage = emptyUsage();
-  const toolsUsed: string[] = [];
+  const toolsUsed: ToolCallRecord[] = [];
+  const citations: Citation[] = [];
+  const disconnected: string[] = [];
+  let streamed = "";
 
   for (let round = 0; round < MAX_TOOL_ROUNDS; round += 1) {
-    const response = await client.chat.completions.create({
-      model,
-      messages,
-      tools,
-      tool_choice: "auto",
-      temperature: 0.2,
-      max_tokens: MAX_OUTPUT_TOKENS,
-    });
-
-    usage = addUsage(usage, usageFromResponse(response));
-    const message = response.choices[0]?.message;
-    if (!message) {
-      throw new Error(workspaceCopy["pt-BR"].openaiEmpty);
+    abortIfNeeded(input.signal, streamed);
+    let response: ChatCompletionResult;
+    try {
+      response = await input.complete({
+        provider: input.provider,
+        model,
+        apiKey: input.apiKey,
+        messages,
+        tools,
+        signal: input.signal,
+        onDelta: (text) => {
+          streamed += text;
+          input.onDelta?.(text);
+        },
+      });
+    } catch (error) {
+      if (error instanceof APIUserAbortError || input.signal?.aborted) {
+        throw new ChatAbortedError(streamed);
+      }
+      throw error;
     }
 
-    messages.push(message);
+    usage = addUsage(usage, response.usage);
+    if (response.toolCalls.length > 0) {
+      streamed = "";
+      input.onToolRound?.();
+    }
 
-    const toolCalls = message.tool_calls;
-    if (!toolCalls || toolCalls.length === 0) {
-      const answer = message.content?.trim();
-      if (!answer) {
-        throw new Error(workspaceCopy["pt-BR"].openaiBlank);
+    if (response.toolCalls.length === 0) {
+      const draft = response.content || streamed;
+      if (!draft.trim()) {
+        throw new Error("providerBlank");
       }
-      const summary = summarizeUsage(model, usage);
+      if (!streamed && response.content) input.onDelta?.(response.content);
+      const answer = finalizeAnswer({
+        draft,
+        locale: input.locale,
+        calls: toolsUsed,
+        citations,
+        disconnectedSources: disconnected,
+      });
+      const summary = summarizeUsage(model, usage, input.provider);
       logUsage(summary, toolsUsed.length);
       return {
         answer,
         toolsUsed,
         usage: summary,
+        citations,
+        provider: input.provider,
+        usedFallback: input.usedFallback,
+        locale: input.locale,
       };
     }
 
-    for (const call of toolCalls) {
-      if (call.type !== "function") continue;
-      toolsUsed.push(call.function.name);
-      const result = await executeAnalyticsTool(
-        call.function.name,
-        call.function.arguments,
-        period.id
-      );
+    messages.push({
+      role: "assistant",
+      content: response.content || null,
+      tool_calls: response.toolCalls.map((call) => ({
+        id: call.id || `call_${call.name}`,
+        type: "function" as const,
+        function: { name: call.name, arguments: call.arguments },
+      })),
+    });
+
+    for (const call of response.toolCalls) {
+      abortIfNeeded(input.signal, streamed);
+      const started = Date.now();
+      const retrievedAt = new Date().toISOString();
+      const raw = await input.executeTool(call.name, call.arguments, input.periodId, {
+        projectId: input.projectId,
+      });
+      const prepared = prepareToolResult(raw, retrievedAt);
+      const citation = readCitation(prepared);
+      if (citation) citations.push(citation);
+      const source = disconnectedSource(raw);
+      if (source) disconnected.push(source);
+      toolsUsed.push({
+        name: call.name,
+        args: safeToolArgs(call.arguments),
+        source: citation?.source ?? null,
+        period: citation?.period ?? null,
+        ok: resultOk(raw),
+        durationMs: Date.now() - started,
+      });
       messages.push({
         role: "tool",
-        tool_call_id: call.id,
-        content: JSON.stringify(result),
+        tool_call_id: call.id || `call_${call.name}`,
+        content: JSON.stringify(prepared),
       });
     }
   }
 
-  const summary = summarizeUsage(model, usage);
+  const summary = summarizeUsage(model, usage, input.provider);
   logUsage(summary, toolsUsed.length);
+  const answer = finalizeAnswer({
+    draft: workspaceText(input.locale, "agentLimit"),
+    locale: input.locale,
+    calls: toolsUsed,
+    citations,
+    disconnectedSources: disconnected,
+  });
   return {
-    answer:
-      workspaceCopy["pt-BR"].agentLimit,
+    answer,
     toolsUsed,
     usage: summary,
+    citations,
+    provider: input.provider,
+    usedFallback: input.usedFallback,
+    locale: input.locale,
   };
 }
+
+export async function runAskAiAgent(input: {
+  question: string;
+  period?: string | null;
+  history?: StoredTurn[];
+  locale: ChatLocale;
+  projectId: string | null;
+  onDelta?: (text: string) => void;
+  onToolRound?: () => void;
+  signal?: AbortSignal;
+  sources?: ConnectedSources;
+  selection?: EngineSelection;
+  complete?: Completer;
+  executeTool?: ExecuteTool;
+  keys?: Partial<Record<ProviderId, string>>;
+}): Promise<AskAiResult> {
+  const period = resolveAnalyticsPeriod(input.period);
+  const selection = input.selection ?? currentEngine();
+  const providers = [selection.primary, selection.fallback].filter(
+    (provider): provider is ProviderId => Boolean(provider)
+  );
+  if (providers.length === 0) {
+    throw new Error("providerKeyMissing");
+  }
+
+  const sources = input.sources ?? (await connectedSources());
+  const complete = input.complete ?? completeChat;
+  const executeTool = input.executeTool ?? executeAnalyticsTool;
+  let emitted = false;
+  let lastError: unknown;
+
+  for (let index = 0; index < providers.length; index += 1) {
+    const provider = providers[index];
+    const apiKey = providerKey(provider, input.keys);
+    if (!apiKey) {
+      lastError = new Error("providerKeyMissing");
+      continue;
+    }
+    try {
+      return await runWithProvider({
+        provider,
+        apiKey,
+        locale: input.locale,
+        question: input.question,
+        periodId: period.id,
+        periodLabel: period.label,
+        history: input.history,
+        sources,
+        projectId: input.projectId,
+        signal: input.signal,
+        onDelta: (text) => {
+          emitted = true;
+          input.onDelta?.(text);
+        },
+        onToolRound: input.onToolRound,
+        complete,
+        executeTool,
+        usedFallback: index > 0,
+      });
+    } catch (error) {
+      if (error instanceof ChatAbortedError) throw error;
+      lastError = error;
+      if (!emitted && index < providers.length - 1 && shouldFallback(error)) continue;
+      throw error;
+    }
+  }
+
+  throw lastError instanceof Error ? lastError : new Error("providerKeyMissing");
+}
+
+export type { ToolCallDelta };

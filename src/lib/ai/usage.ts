@@ -47,14 +47,19 @@ export function addUsage(a: TokenUsage, b: TokenUsage): TokenUsage {
   };
 }
 
+const FREE_PROVIDERS = new Set(["gemini", "groq"]);
+
 export function summarizeUsage(
   model: string,
-  usage: TokenUsage
+  usage: TokenUsage,
+  provider?: string | null
 ): UsageSummary {
+  const estimatedCostUsd =
+    provider && FREE_PROVIDERS.has(provider) ? 0 : estimateCostUsd(model, usage);
   return {
     ...usage,
     model,
-    estimatedCostUsd: estimateCostUsd(model, usage),
+    estimatedCostUsd,
   };
 }
 

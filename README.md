@@ -184,13 +184,35 @@ Initial stack:
 * Tailwind CSS
 * PostgreSQL
 * Drizzle ORM
-* OpenAI API (optional when the Analytics Bot bridge is configured)
+* Google Gemini (free tier, primary chat engine) with Groq fallback
+* OpenAI API (optional native provider)
+* Analytics Bot webhook (optional bridge)
 
 The application will initially use the Next.js server environment for backend functionality rather than introducing a separate backend service.
 
+## Chat engine
+
+The chat column is enabled only when a working engine is configured. Otherwise it shows a configure state and does not estimate metrics.
+
+`CHAT_ENGINE=native` answers in the app. The primary provider is `AI_PROVIDER_PRIMARY` (default `gemini`) and `AI_PROVIDER_FALLBACK` (default the next configured provider, usually Groq) is used automatically on HTTP 429, 5xx, or timeout. Gemini and Groq are called through their OpenAI-compatible endpoints with the existing `openai` SDK, so tool calls and streaming share one path. A new SDK was not added. The default Gemini model is `gemini-3.5-flash-lite` (`GEMINI_MODEL`), the current stable Flash-Lite id. Groq defaults to `GROQ_MODEL=openai/gpt-oss-120b`. OpenAI stays available with `AI_PROVIDER_PRIMARY=openai`.
+
+Free Gemini and Groq models are recorded at $0. When the fallback provider answers, the panel shows a short note. Answers stream into the panel, with a Stop button. `CHAT_RATE_LIMIT_PER_HOUR` (default 30, `0` disables) limits questions per user.
+
+`CHAT_ENGINE=bridge` keeps the Analytics Bot webhook. If `CHAT_ENGINE` is unset, a configured webhook still wins, then a native provider, so existing bridge deployments keep their current behavior.
+
+The server builds the Fontes / Sources block from tool citations (`source`, `period`, `retrievedAt`). The model does not write it. A numeric answer with no successful quantitative tool is replaced by a safe message in the user's language. Disconnected sources return an explicit message. `compare_periods` compares GA4 for the selected period with the previous period of the same length. `get_project_context` is qualitative only.
+
+Apply `pnpm db:analytics:migrate` for `messages.provider`, `messages.locale`, `messages.citations`, `messages.used_fallback`, and the project context tables (`project_profiles`, `project_competitors`, `project_documents`). `tools_used` stays jsonb and now stores each call's name, args, source, period, ok, and duration, without raw payloads. Older rows that stored tool names only are still readable.
+
+A Gemini key comes from [Google AI Studio](https://aistudio.google.com/apikey). A Groq key comes from [Groq console](https://console.groq.com/keys).
+
+## Project context
+
+The Contexto column stores site, languages, audience, positioning, goals, competitors, and documents (link or pasted text, 20,000 character cap, confidential flag). Organization members can edit it through `/api/projects/[projectId]/context` and the competitor and document routes. Inputs pass through `redactSensitive`. Emails and phone numbers are rejected. Confidential documents are never sent to the model. PDF upload is out of scope.
+
 ## Analytics Bot bridge
 
-Humana Analytics can answer without an in-app LLM key. When `ANALYTICS_BOT_WEBHOOK_URL` is set, Ask AI stores the user message, marks the conversation pending (`Pensando…` / `Thinking…`), and POSTs the question to the external Grok / Analytics Bot. The bot calls back `POST /api/analytics-bot/reply`, which appends the assistant message in Postgres. The chat UI polls until that reply replaces the pending bubble. OpenAI is used only when the webhook URL is empty and `OPENAI_API_KEY` is set. If neither is set, the UI shows a configuration error and does not invent metrics.
+Humana Analytics can answer without an in-app LLM key. With `CHAT_ENGINE=bridge` (or when `CHAT_ENGINE` is unset and `ANALYTICS_BOT_WEBHOOK_URL` is set), Ask AI stores the user message, marks the conversation pending (`Pensando…` / `Thinking…`), and POSTs the question to the external Grok / Analytics Bot. The bot calls back `POST /api/analytics-bot/reply`, which appends the assistant message in Postgres. The chat UI polls until that reply replaces the pending bubble. The bridge path does not stream. If no engine is configured, the UI shows a configuration state and does not invent metrics.
 
 Apply `pnpm db:analytics:migrate` so `conversations.assistant_status` and `messages.reply_to_message_id` exist.
 

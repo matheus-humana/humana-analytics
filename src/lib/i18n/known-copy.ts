@@ -22,14 +22,26 @@ const STORED_ERRORS = [
   "chatOpenFailed",
   "chatQueryFailed",
   "chatSpeakFailed",
+  "couldNotFetchData",
+  "questionRequired",
+  "questionTooLong",
+  "conversationNotFound",
+  "providerBlank",
+  "providerEmpty",
+  "providerKeyMissing",
+  "chatStopped",
 ] as const satisfies readonly WorkspaceMessageKey[];
 
 /** Maps a stored Portuguese UI sentence, or a dictionary key, to the active locale. */
 export function localizeKnownCopy(message: string, locale: ChatLocale): string {
   if (isWorkspaceMessageKey(message)) return workspaceText(locale, message);
-  const portuguese = workspaceCopy["pt-BR"];
   for (const key of STORED_ERRORS) {
-    if (message === portuguese[key]) return workspaceText(locale, key);
+    if (
+      message === workspaceCopy["pt-BR"][key] ||
+      message === workspaceCopy.en[key]
+    ) {
+      return workspaceText(locale, key);
+    }
   }
   return message;
 }

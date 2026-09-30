@@ -1,12 +1,19 @@
+import { executeContextTool, contextToolDefinitions } from "./context-tools";
 import { executeGa4Tool, ga4ToolDefinitions } from "./ga4-tools";
 import { executeGithubTool, githubToolDefinitions } from "./github-tools";
 import { executeSeoTool, seoToolDefinitions } from "./seo-tools";
+import { prepareToolResult } from "../tool-trace";
 
 export const analyticsToolDefinitions = [
   ...ga4ToolDefinitions,
   ...githubToolDefinitions,
   ...seoToolDefinitions,
+  ...contextToolDefinitions,
 ];
+
+export type ToolRunContext = {
+  projectId: string | null;
+};
 
 // Clarity and Vercel clients were removed. These names stay refused so a
 // model cannot treat them as traffic sources.
@@ -32,32 +39,39 @@ const GA4_TOOLS = new Set([
   "get_tech_breakdown",
   "get_traffic_sources",
   "get_events",
+  "compare_periods",
 ]);
 
 export async function executeAnalyticsTool(
   name: string,
   rawArgs: string,
-  defaultPeriod: string
+  defaultPeriod: string,
+  toolContext?: ToolRunContext
 ): Promise<unknown> {
+  const retrievedAt = new Date().toISOString();
+  let result: unknown;
   if (DISABLED_TOOLS.has(name)) {
-    return {
+    result = {
+      source: "Google Analytics 4",
       connected: false,
       error: "This source is disabled.",
       instruction:
         "Microsoft Clarity and Vercel Analytics are not traffic sources. Use Google Analytics 4. Do not invent metrics.",
     };
+  } else if (name === "get_project_context") {
+    result = await executeContextTool(toolContext?.projectId ?? null);
+  } else if (GA4_TOOLS.has(name)) {
+    result = await executeGa4Tool(name, rawArgs, defaultPeriod);
+  } else if (GITHUB_TOOLS.has(name)) {
+    result = await executeGithubTool(name, rawArgs, defaultPeriod);
+  } else if (SEO_TOOLS.has(name)) {
+    result = await executeSeoTool(name, rawArgs, defaultPeriod);
+  } else {
+    result = {
+      source: "unknown",
+      error: `Unknown tool: ${name}`,
+      instruction: "Do not invent metrics.",
+    };
   }
-  if (GA4_TOOLS.has(name)) {
-    return executeGa4Tool(name, rawArgs, defaultPeriod);
-  }
-  if (GITHUB_TOOLS.has(name)) {
-    return executeGithubTool(name, rawArgs, defaultPeriod);
-  }
-  if (SEO_TOOLS.has(name)) {
-    return executeSeoTool(name, rawArgs, defaultPeriod);
-  }
-  return {
-    error: `Unknown tool: ${name}`,
-    instruction: "Do not invent metrics.",
-  };
+  return prepareToolResult(result, retrievedAt);
 }

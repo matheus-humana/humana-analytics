@@ -50,6 +50,7 @@ export async function executeSeoTool(
       return {
         source: SOURCE,
         connected: true,
+        periodId: period,
         siteUrl: summary.siteUrl,
         note: summary.note,
         pagespeed: summary.pagespeed,
@@ -61,6 +62,7 @@ export async function executeSeoTool(
       return {
         source: SOURCE,
         connected: true,
+        periodId: period,
         siteUrl: summary.siteUrl,
         note: summary.note,
         crawl: summary.crawl,

@@ -20,6 +20,32 @@ export function IconChevron({
   );
 }
 
+export function IconDocs({ className = "h-5 w-5" }: IconProps) {
+  return (
+    <svg viewBox="0 0 24 24" className={className} aria-hidden>
+      <path
+        d="M7 3.5h7.5L19 8v12.5H7V3.5Z"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.8"
+        strokeLinejoin="round"
+      />
+      <path d="M14 3.5V8h5M9.5 12.5h5M9.5 16h5" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+export function IconConnections({ className = "h-5 w-5" }: IconProps) {
+  return (
+    <svg viewBox="0 0 24 24" className={className} aria-hidden>
+      <circle cx="6" cy="12" r="2.2" fill="none" stroke="currentColor" strokeWidth="1.8" />
+      <circle cx="18" cy="7" r="2.2" fill="none" stroke="currentColor" strokeWidth="1.8" />
+      <circle cx="18" cy="17" r="2.2" fill="none" stroke="currentColor" strokeWidth="1.8" />
+      <path d="M8 11.2 16 8M8 12.8 16 16" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+    </svg>
+  );
+}
+
 export function IconContext({ className = "h-5 w-5" }: IconProps) {
   return (
     <svg viewBox="0 0 24 24" className={className} aria-hidden>
