@@ -7,7 +7,7 @@ export const THINKING_EN = "Thinking…";
 export const ANALYTICS_BOT_SOURCE = "analytics-bot";
 
 export const MISSING_ENGINE_MESSAGE =
-  "Humana Analytics não tem um motor de resposta configurado. Defina ANALYTICS_BOT_WEBHOOK_URL (Analytics Bot) ou OPENAI_API_KEY. Nenhuma métrica foi consultada nem estimada.";
+  "Humana Analytics não tem um motor de resposta configurado. Defina CHAT_ENGINE=native com GEMINI_API_KEY (ou GROQ_API_KEY ou OPENAI_API_KEY), ou CHAT_ENGINE=bridge com ANALYTICS_BOT_WEBHOOK_URL. Nenhuma métrica foi consultada nem estimada.";
 
 export const WEBHOOK_REJECTED_MESSAGE =
   "O Analytics Bot recusou a pergunta. Nenhuma métrica foi inventada.";
@@ -20,7 +20,25 @@ export const WEBHOOK_TIMEOUT_MESSAGE =
 
 export type ChatLocale = "pt-BR" | "en";
 
-export type ReplyEngine = "webhook" | "openai" | "none";
+export type ReplyEngine = "webhook" | "openai" | "native" | "none";
+
+export type ProviderId = "gemini" | "groq" | "openai";
+
+export type EngineSelection = {
+  engine: ReplyEngine;
+  primary: ProviderId | null;
+  fallback: ProviderId | null;
+};
+
+export type ChatEngineEnv = {
+  webhookUrl?: string | null;
+  openAiKey?: string | null;
+  chatEngine?: string | null;
+  geminiKey?: string | null;
+  groqKey?: string | null;
+  primary?: string | null;
+  fallback?: string | null;
+};
 
 export type OutboundPayload = {
   conversationId: string;
@@ -78,13 +96,86 @@ export function inferChatLocale(text: string, explicit?: string | null): ChatLoc
   return "pt-BR";
 }
 
-export function selectReplyEngine(env: {
-  webhookUrl?: string | null;
-  openAiKey?: string | null;
-}): ReplyEngine {
-  if (env.webhookUrl?.trim()) return "webhook";
-  if (env.openAiKey?.trim()) return "openai";
-  return "none";
+function trimmed(value?: string | null): string {
+  return value?.trim() ?? "";
+}
+
+function normalizeProvider(value?: string | null): ProviderId | null {
+  const text = trimmed(value).toLowerCase();
+  if (text === "gemini" || text === "groq" || text === "openai") return text;
+  return null;
+}
+
+function hasProviderKey(id: ProviderId, env: ChatEngineEnv): boolean {
+  if (id === "gemini") return Boolean(trimmed(env.geminiKey));
+  if (id === "groq") return Boolean(trimmed(env.groqKey));
+  return Boolean(trimmed(env.openAiKey));
+}
+
+function resolveNative(
+  env: ChatEngineEnv
+): { primary: ProviderId; fallback: ProviderId | null } | null {
+  const available = (["gemini", "groq", "openai"] as const).filter((id) =>
+    hasProviderKey(id, env)
+  );
+  if (available.length === 0) return null;
+
+  const requestedPrimary = normalizeProvider(env.primary);
+  const primary =
+    requestedPrimary && hasProviderKey(requestedPrimary, env)
+      ? requestedPrimary
+      : available[0];
+
+  const requestedFallback = normalizeProvider(env.fallback);
+  if (
+    requestedFallback &&
+    requestedFallback !== primary &&
+    hasProviderKey(requestedFallback, env)
+  ) {
+    return { primary, fallback: requestedFallback };
+  }
+  if (trimmed(env.fallback)) return { primary, fallback: null };
+
+  const next = available.find((id) => id !== primary) ?? null;
+  return { primary, fallback: next };
+}
+
+function nativeSelection(
+  native: { primary: ProviderId; fallback: ProviderId | null }
+): EngineSelection {
+  return {
+    engine: native.primary === "openai" && !native.fallback ? "openai" : "native",
+    primary: native.primary,
+    fallback: native.fallback,
+  };
+}
+
+/**
+ * CHAT_ENGINE=bridge uses the Analytics Bot webhook.
+ * CHAT_ENGINE=native uses AI_PROVIDER_PRIMARY (default Gemini) and
+ * AI_PROVIDER_FALLBACK (default the next configured provider, usually Groq).
+ * Unset CHAT_ENGINE keeps the previous order: webhook, then a configured provider.
+ */
+export function resolveChatEngine(env: ChatEngineEnv): EngineSelection {
+  const mode = trimmed(env.chatEngine).toLowerCase();
+  const webhook = Boolean(trimmed(env.webhookUrl));
+  const native = resolveNative(env);
+
+  if (mode === "bridge") {
+    return { engine: webhook ? "webhook" : "none", primary: null, fallback: null };
+  }
+  if (mode === "native") {
+    return native
+      ? nativeSelection(native)
+      : { engine: "none", primary: null, fallback: null };
+  }
+  if (webhook) return { engine: "webhook", primary: null, fallback: null };
+  if (!native) return { engine: "none", primary: null, fallback: null };
+  return nativeSelection(native);
+}
+
+export function selectReplyEngine(env: ChatEngineEnv): ReplyEngine {
+  return resolveChatEngine(env).engine;
 }
 
 export function buildOutboundHeaders(

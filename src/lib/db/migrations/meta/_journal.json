@@ -57,6 +57,13 @@
       "when": 1790520468965,
       "tag": "0007_motionless_rogue",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1790704767273,
+      "tag": "0008_chat_context",
+      "breakpoints": true
     }
   ]
 }

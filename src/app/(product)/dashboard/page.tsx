@@ -14,6 +14,7 @@ import { githubPeriodWindow, utcDay } from "@/lib/github/dates";
 import { utcDay as seoUtcDay, periodWindow } from "@/lib/seo/dates";
 import { loadSeoWorkspace } from "@/lib/seo/panel";
 import { emptySeoWorkspace } from "@/lib/seo/view";
+import { isChatEnabled } from "@/lib/ai/engine";
 import { loadWorkspaceModel } from "@/lib/workspace/load-workspace";
 
 type PageProps = {
@@ -66,6 +67,7 @@ export default async function DashboardPage({ searchParams }: PageProps) {
       traffic={<WorkspaceTraffic payload={traffic} />}
       github={github}
       seo={seo}
+      chatEnabled={isChatEnabled()}
     />
   );
 }

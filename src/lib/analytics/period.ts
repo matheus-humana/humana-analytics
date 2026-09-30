@@ -77,6 +77,37 @@ export function resolveAnalyticsPeriod(
   return ANALYTICS_PERIODS[DEFAULT_ANALYTICS_PERIOD];
 }
 
+const PERIOD_LENGTH_DAYS: Record<AnalyticsPeriodId, number> = {
+  "24h": 1,
+  "3d": 3,
+  "7d": 7,
+  "28d": 28,
+  "90d": 90,
+};
+
+/** The equal-length window immediately before the selected period. */
+export function previousEquivalentRange(periodId: AnalyticsPeriodId): {
+  startDate: string;
+  endDate: string;
+} {
+  if (periodId === "24h") {
+    return { startDate: "yesterday", endDate: "yesterday" };
+  }
+  const days = PERIOD_LENGTH_DAYS[periodId];
+  return {
+    startDate: `${days * 2}daysAgo`,
+    endDate: `${days + 1}daysAgo`,
+  };
+}
+
+/** Server-side change. Null when the previous value is zero. */
+export function percentChange(current: number, previous: number): number | null {
+  if (!Number.isFinite(current) || !Number.isFinite(previous) || previous === 0) {
+    return null;
+  }
+  return Number((((current - previous) / previous) * 100).toFixed(1));
+}
+
 export const ANALYTICS_PERIOD_OPTIONS = ANALYTICS_PERIOD_IDS.map(
   (id) => ANALYTICS_PERIODS[id]
 );

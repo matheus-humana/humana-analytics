@@ -90,6 +90,7 @@ export async function executeGithubTool(
     const shared = {
       source: SOURCE,
       connected: true as const,
+      periodId: period,
       period: "period" in report ? report.period : period,
       from: "from" in report ? report.from : null,
       to: "to" in report ? report.to : null,
@@ -129,7 +130,7 @@ export async function executeGithubTool(
           recordedDays: repo.recordedDays,
           previousViews: repo.previousViews,
           previousClones: repo.previousClones,
-          daily: repo.daily,
+          daily: repo.daily.slice(0, 8),
         })),
       };
     }

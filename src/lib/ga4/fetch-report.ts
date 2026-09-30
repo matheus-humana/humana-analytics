@@ -8,7 +8,11 @@ import {
   hasGoogleServiceAccount,
 } from "@/lib/google/service-account";
 import { refreshAccessToken } from "@/lib/oauth/google";
-import { resolveAnalyticsPeriod } from "@/lib/analytics/period";
+import {
+  percentChange,
+  previousEquivalentRange,
+  resolveAnalyticsPeriod,
+} from "@/lib/analytics/period";
 import { eq } from "drizzle-orm";
 
 type Ga4MetricRow = {
@@ -387,6 +391,60 @@ export async function fetchGa4Dashboard(
     operatingSystems: namedCounts(operatingSystems.rows),
     platforms: namedCounts(platforms.rows),
     screenResolutions: namedCounts(screenResolutions.rows),
+  };
+}
+
+export async function fetchGa4PeriodComparison(periodInput?: string | null) {
+  const current = resolveAnalyticsPeriod(periodInput);
+  const previous = previousEquivalentRange(current.id);
+  const { accessToken, propertyId } = await openGa4Report(current.id);
+  const metrics = [
+    { name: "activeUsers" },
+    { name: "sessions" },
+    { name: "screenPageViews" },
+    { name: "engagementRate" },
+  ];
+  const [currentReport, previousReport] = await Promise.all([
+    runGa4Report(propertyId, accessToken, {
+      dateRanges: [current.ga4],
+      metrics,
+    }),
+    runGa4Report(propertyId, accessToken, {
+      dateRanges: [previous],
+      metrics,
+    }),
+  ]);
+
+  const read = (rows: Ga4ReportRow[] | undefined) => ({
+    activeUsers: metricNumber(rows, 0),
+    sessions: metricNumber(rows, 1),
+    screenPageViews: metricNumber(rows, 2),
+    engagementRate: Number(metricNumber(rows, 3).toFixed(4)),
+  });
+  const currentMetrics = read(currentReport.rows);
+  const previousMetrics = read(previousReport.rows);
+
+  return {
+    source: "Google Analytics 4" as const,
+    connected: true as const,
+    periodId: current.id,
+    comparison: true as const,
+    current: { ...current.ga4, ...currentMetrics },
+    previous: { ...previous, ...previousMetrics },
+    changePercent: {
+      activeUsers: percentChange(currentMetrics.activeUsers, previousMetrics.activeUsers),
+      sessions: percentChange(currentMetrics.sessions, previousMetrics.sessions),
+      screenPageViews: percentChange(
+        currentMetrics.screenPageViews,
+        previousMetrics.screenPageViews
+      ),
+      engagementRate: percentChange(
+        currentMetrics.engagementRate,
+        previousMetrics.engagementRate
+      ),
+    },
+    instruction:
+      "Percent changes are computed from these two GA4 responses. Null means the previous value was 0. Do not invent a percent or any other number.",
   };
 }
 
