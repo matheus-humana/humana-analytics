@@ -18,6 +18,15 @@ export type ToolCallDelta = {
   id: string;
   name: string;
   arguments: string;
+  /** Gemini 3 rejects the next round unless `extra_content.google.thought_signature` is sent back. */
+  extraContent?: Record<string, unknown>;
+};
+
+type StreamedToolCall = {
+  index?: number;
+  id?: string;
+  function?: { name?: string; arguments?: string };
+  extra_content?: Record<string, unknown>;
 };
 
 export type ChatCompletionResult = {
@@ -76,6 +85,18 @@ function usageFromChunk(usage: {
 }
 
 /**
+ * OpenAI and Groq stream fragments keyed by `index`. Gemini omits `index`
+ * and sends each call whole, so a new id starts a new call.
+ */
+export function toolCallIndex(acc: Map<number, ToolCallDelta>, call: StreamedToolCall): number {
+  if (typeof call.index === "number") return call.index;
+  if (acc.size === 0) return 0;
+  const last = acc.size - 1;
+  if (call.id && acc.get(last)?.id && acc.get(last)?.id !== call.id) return acc.size;
+  return last;
+}
+
+/**
  * One Chat Completions call. Gemini and Groq are used through their
  * OpenAI-compatible endpoints, so tool calls and streaming stay on the
  * client the app already depends on.
@@ -116,12 +137,13 @@ export async function completeChat(input: {
     const delta = chunk.choices[0]?.delta;
     if (delta?.tool_calls) {
       sawTool = true;
-      for (const call of delta.tool_calls) {
-        const index = call.index ?? 0;
+      for (const call of delta.tool_calls as StreamedToolCall[]) {
+        const index = toolCallIndex(toolAcc, call);
         const current = toolAcc.get(index) ?? { id: "", name: "", arguments: "" };
         if (call.id) current.id = call.id;
         if (call.function?.name) current.name += call.function.name;
         if (call.function?.arguments) current.arguments += call.function.arguments;
+        if (call.extra_content) current.extraContent = call.extra_content;
         toolAcc.set(index, current);
       }
     }

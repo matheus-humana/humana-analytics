@@ -210,6 +210,7 @@ async function runWithProvider(input: {
         id: call.id || `call_${call.name}`,
         type: "function" as const,
         function: { name: call.name, arguments: call.arguments },
+        ...(call.extraContent ? { extra_content: call.extraContent } : {}),
       })),
     });
 
