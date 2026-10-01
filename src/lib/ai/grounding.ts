@@ -22,6 +22,19 @@ export function stripModelSources(answer: string): string {
   return answer.replace(/\n+#{0,3}\s*(?:fontes|sources)\b[\s\S]*$/i, "").trim();
 }
 
+const SPECIAL_SPACE = /[\u00A0\u2007\u2009\u202F]/g;
+const SPACED_THOUSANDS = /\d{1,3}(?:[\u00A0\u2007\u2009\u202F]\d{3})+(?!\d)/g;
+
+/** The chat renders plain text: drop bold/heading markers and use the locale's thousands separator. */
+export function tidyModelText(text: string, locale: ChatLocale): string {
+  const separator = locale === "en" ? "," : ".";
+  return text
+    .replace(SPACED_THOUSANDS, (digits) => digits.replace(SPECIAL_SPACE, separator))
+    .replace(SPECIAL_SPACE, " ")
+    .replace(/\*\*/g, "")
+    .replace(/^#{1,6}\s+/gm, "");
+}
+
 export function hasQuantitativeSuccess(calls: ToolCallRecord[]): boolean {
   return calls.some((call) => call.ok && !QUALITATIVE_TOOLS.has(call.name));
 }
@@ -135,7 +148,7 @@ export function finalizeAnswer(input: {
   citations: Citation[];
   disconnectedSources: string[];
 }): string {
-  const draft = stripModelSources(input.draft);
+  const draft = tidyModelText(stripModelSources(input.draft), input.locale);
   const grounded = hasQuantitativeSuccess(input.calls);
   const disconnected = [...new Set(input.disconnectedSources.filter(Boolean))];
   let body = draft;

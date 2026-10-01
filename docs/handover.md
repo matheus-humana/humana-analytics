@@ -67,12 +67,45 @@ O passo a passo para o Google Cloud está em `docs/gcp-oauth-migration.md`.
 
 A conta Google da empresa não conseguiu criar projeto no Google Cloud (erro 403 no AI Studio). Um administrador do Workspace precisa liberar a criação de projetos, ou criar o projeto e dar acesso à equipe.
 
-## Acessos a transferir
+## Checklist de transferência
 
-- **GitHub:** repositório do Humana Analytics e do site.
-- **Vercel:** pelo menos um membro da equipe como Owner do time.
-- **GA4:** equipe como Administrator no nível da conta.
-- **Microsoft Clarity:** equipe como Admin do projeto.
+Acesso ao GA4 e ao Clarity serve para usar as ferramentas no navegador (analytics.google.com e clarity.microsoft.com), sem instalar nada. Esse acesso não dá controle sobre o Humana Analytics: o app lê o GA4 por uma service account, não pelo login de ninguém.
+
+Acessos às ferramentas:
+
+- [ ] **GA4:** equipe como Administrator no nível da conta, entrando com o mesmo e-mail que recebeu o convite.
+- [ ] **Microsoft Clarity:** equipe como Admin do projeto, com o convite por e-mail aceito. O Clarity não está ligado ao app; serve só para uso direto.
+- [ ] **Não remover a service account** da lista de usuários do GA4 (Admin → Gerenciamento de acesso). Sem ela, o painel e o chat param de receber dados do GA4.
+
+Acessos ao app:
+
+- [ ] **GitHub:** repositório do Humana Analytics e do site, de preferência já transferido para a organização da empresa.
+- [ ] **Vercel:** pelo menos um membro da equipe como Owner do time `humanalabs-projects`.
+- [ ] **Google Cloud:** equipe como Owner ou Editor do projeto que tem a service account e o login com Google. Sem isso, ninguém troca a chave nem ajusta o login.
+- [ ] **Banco de dados:** acesso ao painel do provedor do Postgres usado em `DATABASE_URL`.
+- [ ] **Segredos locais:** valores do `.env.local` e o JSON da service account entregues por um gerenciador de senhas, nunca por chat ou e-mail.
+
+Credenciais pessoais a recriar em contas da empresa (ordem segura na seção anterior):
+
+- [ ] `GITHUB_TOKEN`, gerado por alguém da equipe com acesso aos repositórios.
+- [ ] `GEMINI_API_KEY` e `GROQ_API_KEY`.
+- [ ] `TAVILY_API_KEY`.
+- [ ] `PAGESPEED_API_KEY`, se usada.
+- [ ] Login com Google e service account, seguindo `docs/gcp-oauth-migration.md`.
+
+## Avaliação do chat
+
+`pnpm eval:chat` faz 30 perguntas reais ao modelo, com as ferramentas respondendo dados fixos (`src/lib/ai/evals/`). Nenhuma chamada vai ao GA4, ao banco ou ao Tavily. Cada resposta é conferida: ferramentas e período usados, texto esperado, texto simples sem Markdown, e todo número presente nos dados.
+
+```bash
+pnpm eval:chat                      # Gemini
+pnpm eval:chat --provider groq      # Groq
+pnpm eval:chat --only traffic-      # só os casos que começam com "traffic-"
+```
+
+Referência em 01/10/2026: Gemini 30/30, Groq 26/30. Rodem antes e depois de mexer em prompt, ferramentas ou modelo; uma mudança só entra se não baixar a nota.
+
+Uma rodada completa no Groq gasta quase toda a cota diária gratuita (200 mil tokens), que é a mesma chave usada como reserva do chat em produção. Usem `--only` ou rodem fora do horário de uso.
 
 ## Pontos conhecidos
 

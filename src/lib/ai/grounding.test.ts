@@ -6,11 +6,18 @@ import {
   containsMetric,
   selectWebCitations,
   stripModelSources,
+  tidyModelText,
 } from "./grounding.ts";
 import { buildHumanaAnalyticsPrompt } from "./prompts.ts";
 import { redactSensitive } from "./redact.ts";
 import { attachCitation, prepareToolResult } from "./tool-trace.ts";
 import { notConnected } from "./tools/tool-messages.ts";
+
+test("tidyModelText drops bold markers and fixes narrow-space thousands", () => {
+  const raw = "## Resumo\nTivemos **1\u202F284 usuários** em 14\u00A0dias e 2 e 5 sessões.";
+  assert.equal(tidyModelText(raw, "pt-BR"), "Resumo\nTivemos 1.284 usuários em 14 dias e 2 e 5 sessões.");
+  assert.equal(tidyModelText("**12\u202F345\u202F678** views", "en"), "12,345,678 views");
+});
 
 test("redactSensitive removes tokens, emails, and GA4 property paths", () => {
   const raw =

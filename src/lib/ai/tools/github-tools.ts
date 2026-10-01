@@ -12,7 +12,7 @@ export const githubToolDefinitions = [
     function: {
       name: "get_github_overview",
       description:
-        "GitHub repository snapshot: stars, forks, watchers, release-asset downloads, and the latest 14-day view and clone totals. Counters are the value recorded on that day. Uniques are GitHub's 14-day window, not a sum of daily uniques.",
+        "GitHub repository snapshot: stars, forks, watchers, release-asset downloads, and the latest 14-day view and clone totals. Counters are all-time totals recorded on that day; never describe them as gained during the period. Uniques are GitHub's 14-day window, not a sum of daily uniques.",
       parameters: {
         type: "object",
         properties: { period: PERIOD_PARAMETER },
@@ -51,7 +51,7 @@ export const githubToolDefinitions = [
     function: {
       name: "get_github_downloads",
       description:
-        "GitHub release asset download_count values from the latest snapshot in the period. This is not the source-zip download button; GitHub does not publish that count.",
+        "GitHub release asset download_count values from the latest snapshot in the period. They are all-time totals, not downloads during the period. This is not the source-zip download button; GitHub does not publish that count.",
       parameters: {
         type: "object",
         properties: { period: PERIOD_PARAMETER },
