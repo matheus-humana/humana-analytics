@@ -12,6 +12,7 @@ import type { ChatLocale, EngineSelection, ProviderId } from "./analytics-bot-co
 import { currentEngine } from "./engine";
 import { finalizeAnswer, selectWebCitations } from "./grounding";
 import { buildHumanaAnalyticsPrompt, type ConnectedSources } from "./prompts";
+import { routeQuestion, type Route, type SpecialistId } from "./specialists";
 import {
   completeChat,
   modelForProvider,
@@ -64,6 +65,8 @@ export type AskAiResult = {
   provider: ProviderId;
   usedFallback: boolean;
   locale: ChatLocale;
+  /** Specialists that handled the turn; empty for the general agent. */
+  specialists: SpecialistId[];
 };
 
 type Completer = (input: {
@@ -120,6 +123,7 @@ async function runWithProvider(input: {
   periodLabel: string;
   history?: StoredTurn[];
   sources: ConnectedSources;
+  route: Route;
   projectId: string | null;
   signal?: AbortSignal;
   onDelta?: (text: string) => void;
@@ -129,7 +133,7 @@ async function runWithProvider(input: {
   usedFallback: boolean;
 }): Promise<AskAiResult> {
   const model = modelForProvider(input.provider);
-  const tools = chatToolDefinitions({ web: input.sources.web });
+  const tools = chatToolDefinitions({ web: input.sources.web, only: input.route.tools });
   const messages: ChatCompletionMessageParam[] = [
     {
       role: "system",
@@ -137,6 +141,7 @@ async function runWithProvider(input: {
         periodLabel: input.periodLabel,
         sources: input.sources,
         locale: input.locale,
+        focus: input.route.specialists,
       }),
     },
     ...(input.history ?? []).map((turn) => ({
@@ -205,6 +210,7 @@ async function runWithProvider(input: {
         provider: input.provider,
         usedFallback: input.usedFallback,
         locale: input.locale,
+        specialists: input.route.specialists,
       };
     }
 
@@ -264,6 +270,7 @@ async function runWithProvider(input: {
     provider: input.provider,
     usedFallback: input.usedFallback,
     locale: input.locale,
+    specialists: input.route.specialists,
   };
 }
 
@@ -281,6 +288,8 @@ export async function runAskAiAgent(input: {
   complete?: Completer;
   executeTool?: ExecuteTool;
   keys?: Partial<Record<ProviderId, string>>;
+  /** false sends every question to the general agent. Defaults to CHAT_SPECIALISTS !== "off". */
+  specialists?: boolean;
 }): Promise<AskAiResult> {
   const period = resolveAnalyticsPeriod(input.period);
   const selection = input.selection ?? currentEngine();
@@ -292,6 +301,10 @@ export async function runAskAiAgent(input: {
   }
 
   const sources = input.sources ?? (await connectedSources());
+  const useSpecialists = input.specialists ?? process.env.CHAT_SPECIALISTS?.trim() !== "off";
+  const route = useSpecialists
+    ? routeQuestion(input.question, input.history)
+    : { specialists: [], tools: null };
   const complete = input.complete ?? completeChat;
   const executeTool = input.executeTool ?? executeAnalyticsTool;
   let emitted = false;
@@ -314,6 +327,7 @@ export async function runAskAiAgent(input: {
         periodLabel: period.label,
         history: input.history,
         sources,
+        route,
         projectId: input.projectId,
         signal: input.signal,
         onDelta: (text) => {

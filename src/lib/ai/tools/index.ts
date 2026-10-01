@@ -12,10 +12,13 @@ export const analyticsToolDefinitions = [
   ...contextToolDefinitions,
 ];
 
-export function chatToolDefinitions(options: { web?: boolean }) {
-  return options.web
+/** `only` limits the list to a specialist's tools; null or omitted keeps all of them. */
+export function chatToolDefinitions(options: { web?: boolean; only?: Set<string> | null }) {
+  const all = options.web
     ? [...analyticsToolDefinitions, ...webToolDefinitions]
     : [...analyticsToolDefinitions];
+  const only = options.only;
+  return only ? all.filter((tool) => only.has(tool.function.name)) : all;
 }
 
 export type ChatToolDefinition = ReturnType<typeof chatToolDefinitions>[number];

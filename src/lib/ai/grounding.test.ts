@@ -17,6 +17,8 @@ test("tidyModelText drops bold markers and fixes narrow-space thousands", () => 
   const raw = "## Resumo\nTivemos **1\u202F284 usuários** em 14\u00A0dias e 2 e 5 sessões.";
   assert.equal(tidyModelText(raw, "pt-BR"), "Resumo\nTivemos 1.284 usuários em 14 dias e 2 e 5 sessões.");
   assert.equal(tidyModelText("**12\u202F345\u202F678** views", "en"), "12,345,678 views");
+  assert.equal(tidyModelText("Hoje (24h) ou 3d, 28d e 90d.", "pt-BR"), "Hoje (24 horas) ou 3 dias, 28 dias e 90 dias.");
+  assert.equal(tidyModelText("Use 7d or 24h; G4d stays.", "en"), "Use 7 days or 24 hours; G4d stays.");
 });
 
 test("redactSensitive removes tokens, emails, and GA4 property paths", () => {
@@ -92,6 +94,10 @@ test("the server writes the sources block and drops a model-written one", () => 
 test("metrics without a quantitative tool are replaced", () => {
   assert.equal(containsMetric("cerca de 1200 usuários"), true);
   assert.equal(containsMetric("nos últimos 7 dias"), false);
+  assert.equal(containsMetric("14 dias não está disponível; posso usar 7 ou 28 dias"), false);
+  assert.equal(containsMetric("the last 7, 28 or 90 days"), false);
+  assert.equal(containsMetric("7 e 1200 usuários"), true);
+  assert.equal(containsMetric("Ontem não está disponível no Google Analytics 4 nem no GA4."), false);
   const answer = finalizeAnswer({
     draft: "Tivemos 1200 usuários.",
     locale: "pt-BR",

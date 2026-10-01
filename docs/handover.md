@@ -103,9 +103,24 @@ pnpm eval:chat --provider groq      # Groq
 pnpm eval:chat --only traffic-      # só os casos que começam com "traffic-"
 ```
 
-Referência em 01/10/2026: Gemini 30/30, Groq 26/30. Rodem antes e depois de mexer em prompt, ferramentas ou modelo; uma mudança só entra se não baixar a nota.
+Referência em 01/10/2026: Gemini 30/30, Groq 26/30 (antes dos especialistas). `--general` desliga o roteador para comparar. Rodem antes e depois de mexer em prompt, ferramentas ou modelo; uma mudança só entra se não baixar a nota.
 
 Uma rodada completa no Groq gasta quase toda a cota diária gratuita (200 mil tokens), que é a mesma chave usada como reserva do chat em produção. Usem `--only` ou rodem fora do horário de uso.
+
+## Especialistas do chat
+
+Cada pergunta passa por um roteador (`src/lib/ai/specialists.ts`) que escolhe quem responde, por palavras-chave e sem chamada extra ao modelo:
+
+- **Tráfego:** ferramentas do GA4.
+- **SEO/GEO:** PageSpeed e crawl do site.
+- **GitHub:** ferramentas do repositório.
+- **Pesquisa:** só a busca na web.
+
+Cada especialista recebe só as próprias ferramentas e as regras da sua área. A busca na web e o contexto do projeto ficam sempre disponíveis. Uma pergunta que toca mais de uma área recebe as ferramentas de todas elas. Perguntas gerais ("resumo", "como estamos") ou sem área reconhecida vão para o agente geral, com tudo. Uma pergunta de continuação sem palavras de área ("e em 90 dias?") herda a área da pergunta anterior.
+
+Na bateria, o Gemini manteve a nota gastando cerca de 26% menos tokens. O teste `specialists.test.ts` garante que toda pergunta da bateria alcança as ferramentas de que precisa; ao adicionar uma ferramenta ou palavra-chave, rodem `pnpm test`.
+
+Para desligar em produção sem deploy de código: `CHAT_SPECIALISTS=off` na Vercel, e publicar de novo.
 
 ## Pontos conhecidos
 

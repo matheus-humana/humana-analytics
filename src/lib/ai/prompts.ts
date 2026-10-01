@@ -1,3 +1,5 @@
+import { specialistLabels, type SpecialistId } from "./specialists";
+
 export type ConnectedSources = {
   ga4: boolean;
   github: boolean;
@@ -10,8 +12,16 @@ export function buildHumanaAnalyticsPrompt(input: {
   periodLabel: string;
   sources: ConnectedSources;
   locale?: "pt-BR" | "en";
+  /** Specialists handling this turn. Empty or omitted is the general agent with every rule. */
+  focus?: SpecialistId[];
 }): string {
   const { periodLabel, sources } = input;
+  const focus = input.focus ?? [];
+  const covers = (id: SpecialistId) => focus.length === 0 || focus.includes(id);
+  const focusLine =
+    focus.length > 0
+      ? `\nThis turn is handled by the specialist for ${specialistLabels(focus).join(" and ")}. Your tools cover only that area. If the question also needs another area, answer your part and say the user can ask about the other area directly.`
+      : "";
   const localeLine =
     input.locale === "en"
       ? "The interface locale is English. Reply in English when the question language is unclear."
@@ -42,12 +52,9 @@ Reply in the same language as the user's message: Brazilian Portuguese for Portu
 ${localeLine}
 Use ONLY numbers returned by tools. Never invent, estimate, recall, or round from memory.
 Every answer that includes a Humana number must cite the period and the source (Google Analytics 4, GitHub, PageSpeed Insights, or the site crawl).
-Do not write a Sources or Fontes section. The server appends citations from the tool results.
-compare_periods compares Google Analytics 4 for the selected period with the previous period of the same length. Use only the numbers it returns.
-get_project_context is qualitative. It is never a source of numbers. Do not quote digits from it. Confidential documents are omitted; do not guess their contents.
-PageSpeed category scores are 0–100 from stored snapshots. Core Web Vitals labeled field-url or field-origin are CrUX; lab is Lighthouse. The GEO score is 0–10 from the checklist. AI referral sessions and active users come from Google Analytics 4. If a score or count is null, say it was not measured. Do not invent scores, finding counts, or AI traffic.
-GitHub views and clones come from daily snapshots. Sum only the daily counts the tool returns. Never add daily unique views or unique clones across days. Unique totals are the tool's 14-day fields. Stars, forks, watchers and release downloads are counters recorded on a day, not a period sum. Do not mention who starred or forked the repository.
-Traffic numbers come from Google Analytics 4 only. Do not use Microsoft Clarity or Vercel Analytics, and do not say those products supplied a number.
+Do not write a Sources or Fontes section. The server appends citations from the tool results.${focusLine}
+${covers("traffic") ? "compare_periods compares Google Analytics 4 for the selected period with the previous period of the same length. Use only the numbers it returns.\n" : ""}get_project_context is qualitative. It is never a source of numbers. Do not quote digits from it. Confidential documents are omitted; do not guess their contents.
+${covers("seo") ? "PageSpeed category scores are 0–100 from stored snapshots. Core Web Vitals labeled field-url or field-origin are CrUX; lab is Lighthouse. The GEO score is 0–10 from the checklist. AI referral sessions and active users come from Google Analytics 4. If a score or count is null, say it was not measured. Do not invent scores, finding counts, or AI traffic.\n" : ""}${covers("github") ? "GitHub views and clones come from daily snapshots. Sum only the daily counts the tool returns. Never add daily unique views or unique clones across days. Unique totals are the tool's 14-day fields. Stars, forks, watchers and release downloads are counters recorded on a day, not a period sum. Do not mention who starred or forked the repository.\n" : ""}Traffic numbers come from Google Analytics 4 only. Do not use Microsoft Clarity or Vercel Analytics, and do not say those products supplied a number.
 ${connectionLine}
 ${webLines}
 The chat has no period selector. Read the period from the user's message and pass it as the tool "period" argument on every analytics tool call.

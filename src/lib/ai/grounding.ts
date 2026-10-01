@@ -7,10 +7,11 @@ import type { Citation, ToolCallRecord } from "./tool-trace";
 
 const QUALITATIVE_TOOLS = new Set(["get_project_context"]);
 const PERIOD_PHRASE =
-  /\b\d+\s*(?:h|hr|hrs|hour|hours|hora|horas|d|day|days|dia|dias|week|weeks|semana|semanas)\b/gi;
+  /\b\d+(?:\s*(?:,|ou|e|or|and|a|to)\s*\d+)*\s*(?:h|hr|hrs|hour|hours|hora|horas|d|day|days|dia|dias|week|weeks|semana|semanas)\b/gi;
 
 export function containsMetric(text: string): boolean {
   const stripped = text
+    .replace(/\b(?:google\s+)?analytics\s+4\b|\bga4\b/gi, " ")
     .replace(PERIOD_PHRASE, " ")
     .replace(/\b20\d{2}\b/g, " ")
     .replace(/\b\d{4}-\d{2}-\d{2}(?:T[\d:.Z+-]+)?\b/g, " ")
@@ -25,10 +26,14 @@ export function stripModelSources(answer: string): string {
 const SPECIAL_SPACE = /[\u00A0\u2007\u2009\u202F]/g;
 const SPACED_THOUSANDS = /\d{1,3}(?:[\u00A0\u2007\u2009\u202F]\d{3})+(?!\d)/g;
 
-/** The chat renders plain text: drop bold/heading markers and use the locale's thousands separator. */
+const PERIOD_CODE = /\b(24)h\b|\b(3|7|28|90)d\b/g;
+
+/** The chat renders plain text: drop bold/heading markers, spell out period codes, and use the locale's thousands separator. */
 export function tidyModelText(text: string, locale: ChatLocale): string {
   const separator = locale === "en" ? "," : ".";
+  const [hours, days] = locale === "en" ? ["hours", "days"] : ["horas", "dias"];
   return text
+    .replace(PERIOD_CODE, (_, h: string | undefined, d: string | undefined) => (h ? `${h} ${hours}` : `${d} ${days}`))
     .replace(SPACED_THOUSANDS, (digits) => digits.replace(SPECIAL_SPACE, separator))
     .replace(SPECIAL_SPACE, " ")
     .replace(/\*\*/g, "")
