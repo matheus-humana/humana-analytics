@@ -1,7 +1,12 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { finalizeAnswer, containsMetric, stripModelSources } from "./grounding.ts";
+import {
+  finalizeAnswer,
+  containsMetric,
+  selectWebCitations,
+  stripModelSources,
+} from "./grounding.ts";
 import { buildHumanaAnalyticsPrompt } from "./prompts.ts";
 import { redactSensitive } from "./redact.ts";
 import { attachCitation, prepareToolResult } from "./tool-trace.ts";
@@ -162,4 +167,49 @@ test("tool results stay compact and keep the citation", () => {
     }).citation.period,
     "7d"
   );
+});
+
+const firstSearch = "2026-10-01T14:00:00.000Z";
+const secondSearch = "2026-10-01T14:00:01.000Z";
+const webPage = (source: string, url: string, retrievedAt = secondSearch) => ({
+  source,
+  url,
+  period: null,
+  retrievedAt,
+});
+
+test("only web pages the answer names stay in the sources", () => {
+  const ga4 = { source: "Google Analytics 4", period: "7d", retrievedAt: firstSearch };
+  const kept = selectWebCitations(
+    [
+      ga4,
+      webPage("How AI Regulation Changed in 2025 | Promptfoo", "https://www.promptfoo.dev/blog/ai", firstSearch),
+      webPage("Organization markup | Google Search Central | Documentation | Google for Developers", "https://developers.google.com/search/org"),
+      webPage("Design Guidelines | Open Health Stack | Google for Developers", "https://developers.google.com/open-health"),
+      webPage("Core Web Vitals", "https://www.debugbear.com/docs/cwv"),
+      webPage("LCP", "https://web.dev/articles/lcp"),
+      webPage("Lucky Orange blog", "https://www.luckyorange.com/blog/cwv"),
+    ],
+    "Segundo o Google Search Central, o web.dev, a DebugBear e a Lucky Orange, use JSON-LD. Documentation varies."
+  );
+
+  assert.deepEqual(
+    kept.map((citation) => ("url" in citation ? new URL(citation.url).hostname : citation.source)),
+    ["Google Analytics 4", "developers.google.com", "www.debugbear.com", "web.dev", "www.luckyorange.com"]
+  );
+});
+
+test("when the answer names no site, the top three results of the last search stay", () => {
+  const kept = selectWebCitations(
+    [
+      webPage("Old", "https://old.example/a", firstSearch),
+      ...["a", "b", "c", "d"].map((name) => webPage(name, `https://${name}.example/x`)),
+    ],
+    "Use JSON-LD."
+  );
+  assert.deepEqual(kept.map((citation) => citation.url), [
+    "https://a.example/x",
+    "https://b.example/x",
+    "https://c.example/x",
+  ]);
 });

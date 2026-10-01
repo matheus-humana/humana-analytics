@@ -2,6 +2,7 @@ import { executeContextTool, contextToolDefinitions } from "./context-tools";
 import { executeGa4Tool, ga4ToolDefinitions } from "./ga4-tools";
 import { executeGithubTool, githubToolDefinitions } from "./github-tools";
 import { executeSeoTool, seoToolDefinitions } from "./seo-tools";
+import { executeWebTool, webToolDefinitions } from "./web-tools";
 import { prepareToolResult } from "../tool-trace";
 
 export const analyticsToolDefinitions = [
@@ -10,6 +11,14 @@ export const analyticsToolDefinitions = [
   ...seoToolDefinitions,
   ...contextToolDefinitions,
 ];
+
+export function chatToolDefinitions(options: { web?: boolean }) {
+  return options.web
+    ? [...analyticsToolDefinitions, ...webToolDefinitions]
+    : [...analyticsToolDefinitions];
+}
+
+export type ChatToolDefinition = ReturnType<typeof chatToolDefinitions>[number];
 
 export type ToolRunContext = {
   projectId: string | null;
@@ -66,6 +75,8 @@ export async function executeAnalyticsTool(
     result = await executeGithubTool(name, rawArgs, defaultPeriod);
   } else if (SEO_TOOLS.has(name)) {
     result = await executeSeoTool(name, rawArgs, defaultPeriod);
+  } else if (name === "search_web") {
+    result = await executeWebTool(rawArgs);
   } else {
     result = {
       source: "unknown",

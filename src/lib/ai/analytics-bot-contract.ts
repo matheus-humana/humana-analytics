@@ -106,7 +106,7 @@ function normalizeProvider(value?: string | null): ProviderId | null {
   return null;
 }
 
-function hasProviderKey(id: ProviderId, env: ChatEngineEnv): boolean {
+export function hasProviderKey(id: ProviderId, env: ChatEngineEnv): boolean {
   if (id === "gemini") return Boolean(trimmed(env.geminiKey));
   if (id === "groq") return Boolean(trimmed(env.groqKey));
   return Boolean(trimmed(env.openAiKey));
@@ -172,6 +172,27 @@ export function resolveChatEngine(env: ChatEngineEnv): EngineSelection {
   if (webhook) return { engine: "webhook", primary: null, fallback: null };
   if (!native) return { engine: "none", primary: null, fallback: null };
   return nativeSelection(native);
+}
+
+/**
+ * Puts the model picked in the chat first. The previous primary becomes the
+ * fallback. Unknown or keyless providers and the webhook bridge are left as is.
+ */
+export function preferProvider(
+  selection: EngineSelection,
+  requested: string | null | undefined,
+  env: ChatEngineEnv
+): EngineSelection {
+  const provider = normalizeProvider(requested);
+  if (!provider || !hasProviderKey(provider, env)) return selection;
+  if (selection.engine !== "native" && selection.engine !== "openai") return selection;
+  if (provider === selection.primary) return selection;
+  const fallback = selection.primary ?? selection.fallback;
+  return {
+    engine: "native",
+    primary: provider,
+    fallback: fallback === provider ? null : fallback,
+  };
 }
 
 export function selectReplyEngine(env: ChatEngineEnv): ReplyEngine {

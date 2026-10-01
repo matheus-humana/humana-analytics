@@ -9,6 +9,7 @@ import {
 import {
   inferChatLocale,
   MISSING_ENGINE_MESSAGE,
+  preferProvider,
   thinkingLabel,
   type ChatLocale,
 } from "@/lib/ai/analytics-bot-contract";
@@ -18,7 +19,7 @@ import {
   markConversationPending,
   saveAssistantTurn,
 } from "@/lib/ai/conversations";
-import { currentEngine } from "@/lib/ai/engine";
+import { currentEngine, readChatEnv } from "@/lib/ai/engine";
 import { checkChatRateLimit } from "@/lib/ai/rate-limit";
 import { redactSensitive } from "@/lib/ai/redact";
 import { toolNames } from "@/lib/ai/tool-trace";
@@ -55,6 +56,7 @@ export async function POST(request: NextRequest) {
       conversationId?: string;
       locale?: string;
       projectId?: string;
+      provider?: string;
     };
 
     const question = body.question?.trim() ?? "";
@@ -159,6 +161,7 @@ export async function POST(request: NextRequest) {
       });
     }
 
+    const selection = preferProvider(engine, body.provider, readChatEnv());
     const encoder = new TextEncoder();
     const stream = new ReadableStream({
       async start(controller) {
@@ -173,9 +176,9 @@ export async function POST(request: NextRequest) {
             locale,
             projectId: turn.projectId,
             signal: request.signal,
-            selection: engine,
+            selection,
             onDelta: (text) => send({ type: "delta", text }),
-            onToolRound: () => send({ type: "reset" }),
+            onToolRound: (tools) => send({ type: "reset", tools }),
           });
           await saveAssistantTurn({
             conversationId: turn.conversationId,
@@ -204,7 +207,7 @@ export async function POST(request: NextRequest) {
                 content: error.partial,
                 toolsUsed: [],
                 usage: summarizeUsage("stopped", emptyUsage()),
-                provider: engine.primary,
+                provider: selection.primary,
                 locale,
                 citations: [],
                 usedFallback: false,

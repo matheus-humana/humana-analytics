@@ -4,6 +4,8 @@ export type Citation = {
   source: string;
   period: string | null;
   retrievedAt: string;
+  /** Set for web pages; `source` is then the page title. */
+  url?: string;
 };
 
 export type ToolCallRecord = {
@@ -18,6 +20,8 @@ export type ToolCallRecord = {
 const ARRAY_LIMIT = 8;
 const STRING_LIMIT = 280;
 const ARG_KEYS = ["period", "dimension"] as const;
+/** Web search clips snippets at the source; cutting a URL would break the link. */
+const UNCLIPPED_KEYS = new Set(["url", "snippet"]);
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return Boolean(value) && typeof value === "object" && !Array.isArray(value);
@@ -75,6 +79,22 @@ export function readCitation(result: unknown): Citation | null {
   return { source, period, retrievedAt };
 }
 
+/** One citation per web page for search results, otherwise the tool's single citation. */
+export function readCitations(result: unknown): Citation[] {
+  const citation = readCitation(result);
+  if (!citation) return [];
+  if (!isRecord(result) || result.web !== true || !Array.isArray(result.results)) {
+    return [citation];
+  }
+  const pages: Citation[] = [];
+  for (const item of result.results) {
+    if (!isRecord(item) || typeof item.url !== "string") continue;
+    const title = typeof item.title === "string" && item.title ? item.title : item.url;
+    pages.push({ source: title, period: null, retrievedAt: citation.retrievedAt, url: item.url });
+  }
+  return pages;
+}
+
 export function resultOk(result: unknown): boolean {
   if (!isRecord(result)) return false;
   if (result.connected === false) return false;
@@ -106,7 +126,7 @@ function compactValue(value: unknown): unknown {
   if (!isRecord(value)) return value;
   const next: Record<string, unknown> = {};
   for (const [key, child] of Object.entries(value)) {
-    next[key] = compactValue(child);
+    next[key] = UNCLIPPED_KEYS.has(key) && typeof child === "string" ? child : compactValue(child);
   }
   return next;
 }

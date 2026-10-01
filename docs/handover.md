@@ -78,4 +78,5 @@ A conta Google da empresa não conseguiu criar projeto no Google Cloud (erro 403
 
 - **Tráfego do GitHub:** a API entrega os dados com alguns dias de atraso. Repositórios públicos recebem clones automáticos de robôs, e "Download ZIP" não é contado.
 - **Chat com Gemini 3:** as chamadas de ferramenta precisam devolver `extra_content.google.thought_signature` na rodada seguinte. Isso já está implementado em `src/lib/ai/providers.ts` e `src/lib/ai/agent.ts`, com testes em `agent.test.ts`. Não removam.
+- **Busca na web no chat:** usa o Tavily (`src/lib/web/search.ts` e `src/lib/ai/tools/web-tools.ts`). Fica desligada até existir `TAVILY_API_KEY` na Vercel. A chave gratuita dá 1.000 buscas por mês e deve ser criada numa conta da empresa em https://app.tavily.com. `WEB_SEARCH_KEYLESS=true` serve só para testar localmente. O estado aparece em Configurações → Modelos de IA.
 - **Login restrito:** só entram e-mails `@humana.ai` e `@humana-ai.com`, a menos que `AUTH_ALLOWED_DOMAINS` diga outra coisa.

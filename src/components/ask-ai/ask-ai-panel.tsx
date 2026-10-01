@@ -1,25 +1,25 @@
 "use client";
 
-import { useRouter, useSearchParams } from "next/navigation";
+import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 
-import { PeriodFilter } from "@/components/analytics/period-filter";
+import { ModelPicker, type ChatModel } from "@/components/ai/model-picker";
+import { ChatHistoryPanel } from "@/components/ask-ai/chat-history-panel";
+import { ThinkingIndicator, thinkingText } from "@/components/ask-ai/thinking-indicator";
 import { useLocale } from "@/components/i18n/locale-provider";
-import { Dropdown } from "@/components/ui/dropdown";
-import { IconArrowUp } from "@/components/workspace/icons";
+import { IconArrowUp, IconClock, IconPlus } from "@/components/workspace/icons";
 import {
   ASSISTANT_STATUS_PENDING,
   isThinkingPlaceholder,
   splitAssistantContent,
   thinkingLabel,
   type ChatLocale,
+  type ProviderId,
 } from "@/lib/ai/analytics-bot-contract";
-import {
-  resolveAnalyticsPeriod,
-  type AnalyticsPeriodId,
-} from "@/lib/analytics/period";
+import { linkSegments } from "@/lib/ai/link-segments";
+import { PROVIDER_NAMES } from "@/lib/ai/model-label";
+import { toolSources, type ThinkingSource } from "@/lib/ai/thinking-stage";
 import { localizeKnownCopy } from "@/lib/i18n/known-copy";
-import { periodLabel } from "@/lib/i18n/period-label";
 import {
   chatSuggestionKeys,
   workspaceText,
@@ -44,6 +44,8 @@ type ChatMessage = {
   usedFallback?: boolean;
   provider?: string | null;
 };
+
+const MODEL_STORAGE_KEY = "ha-chat-model";
 
 type ConversationSummary = {
   id: string;
@@ -75,13 +77,13 @@ export function AskAiPanel({
   const text = (key: WorkspaceMessageKey) => workspaceText(activeLocale, key);
   const suggestions = chatSuggestionKeys.map((key) => text(key));
   const router = useRouter();
-  const searchParams = useSearchParams();
   const onActivityRef = useRef(onActivity);
   useEffect(() => {
     onActivityRef.current = onActivity;
   }, [onActivity]);
-  const periodId = resolveAnalyticsPeriod(searchParams.get("period")).id;
 
+  const [models, setModels] = useState<ChatModel[]>([]);
+  const [model, setModel] = useState<ProviderId | null>(null);
   const [question, setQuestion] = useState("");
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [conversations, setConversations] = useState<ConversationSummary[]>([]);
@@ -91,6 +93,7 @@ export function AskAiPanel({
   const [loading, setLoading] = useState(false);
   const [streaming, setStreaming] = useState(false);
   const [loadingHistory, setLoadingHistory] = useState(false);
+  const [thinking, setThinking] = useState<ThinkingSource[] | null>(null);
   const abortRef = useRef<AbortController | null>(null);
 
   const awaitingReply = assistantStatus === ASSISTANT_STATUS_PENDING;
@@ -136,6 +139,41 @@ export function AskAiPanel({
       cancelled = true;
     };
   }, [router, chatEnabled]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadModels() {
+      if (!chatEnabled) return;
+      const response = await fetch("/api/ai/models", { cache: "no-store" });
+      if (cancelled || !response.ok) return;
+      const data = (await response.json()) as {
+        ok?: boolean;
+        selectable?: boolean;
+        models?: ChatModel[];
+      };
+      if (cancelled || !data.ok || !data.selectable) return;
+      const list = data.models ?? [];
+      const usable = list.filter((item) => item.configured);
+      const stored = window.localStorage.getItem(MODEL_STORAGE_KEY);
+      const initial =
+        usable.find((item) => item.provider === stored) ??
+        usable.find((item) => item.role === "primary") ??
+        usable[0];
+      setModels(list);
+      setModel(initial?.provider ?? null);
+    }
+
+    void loadModels();
+    return () => {
+      cancelled = true;
+    };
+  }, [chatEnabled]);
+
+  function chooseModel(provider: ProviderId) {
+    setModel(provider);
+    window.localStorage.setItem(MODEL_STORAGE_KEY, provider);
+  }
 
   useEffect(() => {
     if (!awaitingReply || !conversationId) return;
@@ -222,6 +260,7 @@ export function AskAiPanel({
     abortRef.current?.abort();
     setStreaming(false);
     setLoading(false);
+    setThinking(null);
   }
 
   async function handleAsk(nextQuestion?: string) {
@@ -230,6 +269,7 @@ export function AskAiPanel({
 
     setQuestion("");
     setLoading(true);
+    setThinking([]);
     setError(null);
     setMessages((current) => [...current, { role: "user", content: trimmed }]);
     const controller = new AbortController();
@@ -242,10 +282,10 @@ export function AskAiPanel({
         signal: controller.signal,
         body: JSON.stringify({
           question: trimmed,
-          period: periodId,
           conversationId,
           locale: activeLocale,
           projectId,
+          provider: model ?? undefined,
         }),
       });
       if (response.status === 401) {
@@ -259,12 +299,15 @@ export function AskAiPanel({
         onActivityRef.current?.("question");
         await readEventStream(response.body, {
           onDelta: (textChunk) => {
+            setThinking(null);
             setMessages((current) => appendDelta(current, textChunk));
           },
-          onReset: () => {
+          onReset: (tools) => {
+            setThinking(toolSources(tools));
             setMessages((current) => clearStreamingDraft(current));
           },
           onDone: (data) => {
+            setThinking(null);
             if (data.conversationId) setConversationId(data.conversationId);
             setAssistantStatus("idle");
             onActivityRef.current?.("reply");
@@ -278,7 +321,10 @@ export function AskAiPanel({
               })
             );
           },
-          onError: (message) => setError(message),
+          onError: (message) => {
+            setThinking(null);
+            setError(message);
+          },
         });
         await loadConversations();
         return;
@@ -339,13 +385,11 @@ export function AskAiPanel({
     } finally {
       setLoading(false);
       setStreaming(false);
+      setThinking(null);
       abortRef.current = null;
     }
   }
 
-  const latestUsage = [...messages]
-    .reverse()
-    .find((message) => message.role === "assistant" && message.usage)?.usage;
   const pendingLabel = [...messages]
     .reverse()
     .find(
@@ -376,7 +420,9 @@ export function AskAiPanel({
     return (
       <ColumnChat
         text={text}
-        periodId={periodId as AnalyticsPeriodId}
+        models={models}
+        model={model}
+        onModelChange={chooseModel}
         askLabel={askLabel}
         question={question}
         setQuestion={setQuestion}
@@ -396,6 +442,7 @@ export function AskAiPanel({
         }}
         loadingHistory={loadingHistory}
         messages={messages}
+        thinking={thinking}
         assistantStatus={assistantStatus}
         error={shownError}
         suggestions={suggestions}
@@ -415,12 +462,6 @@ export function AskAiPanel({
             Humana Analytics
           </h1>
           <p className="mt-2 max-w-2xl text-sm text-muted sm:text-base">{text("chatPitch")}</p>
-        </div>
-        <div className="flex flex-col items-start gap-2 sm:items-end">
-          <PeriodFilter value={periodId as AnalyticsPeriodId} />
-          <p className="text-xs text-muted">
-            {text("chatDefaultPeriod")}: {periodLabel(activeLocale, periodId)}
-          </p>
         </div>
       </div>
 
@@ -480,6 +521,14 @@ export function AskAiPanel({
               disabled={busy}
               className="w-full rounded-lg border border-border bg-white px-3 py-2.5 text-sm text-foreground outline-none ring-accent placeholder:text-muted focus:ring-2 disabled:opacity-60"
             />
+            <ModelPicker
+              models={models}
+              value={model}
+              onChange={chooseModel}
+              disabled={busy}
+              label={text("chatModel")}
+              missingKeyLabel={text("chatModelMissingKey")}
+            />
             <button
               type="button"
               onClick={() => (streaming ? stopStreaming() : void handleAsk())}
@@ -531,7 +580,6 @@ export function AskAiPanel({
                       content={displayChatContent(message.content, activeLocale, pendingBubble)}
                       pending={pendingBubble}
                       note={fallbackNote(message, text)}
-                      usageLine={usageLine(message, text)}
                     />
                   ) : (
                     <p className="mt-1 whitespace-pre-wrap text-sm leading-relaxed text-foreground">
@@ -541,26 +589,14 @@ export function AskAiPanel({
                 </article>
               );
             })}
-            {loading ? (
-              <p className="text-sm text-muted">{text("chatSendingQuestion")}</p>
+            {thinking ? (
+              <ThinkingIndicator
+                sources={thinking}
+                model={model}
+                label={thinkingText(thinking, text)}
+              />
             ) : null}
           </div>
-
-          {!busy && latestUsage ? (
-            <div className="mt-5 rounded-lg border border-border bg-[#f8f8f8] px-3 py-2 text-xs text-muted">
-              <p>
-                {text("chatUsageModel")}: <span className="text-foreground">{latestUsage.model}</span>
-                {" · "}
-                {text("chatUsageTokens")}:{" "}
-                <span className="text-foreground">{latestUsage.totalTokens}</span>
-                {" · "}
-                {text("chatUsageCost")}:{" "}
-                <span className="text-foreground">
-                  ${latestUsage.estimatedCostUsd.toFixed(5)}
-                </span>
-              </p>
-            </div>
-          ) : null}
         </section>
       </div>
     </div>
@@ -569,7 +605,9 @@ export function AskAiPanel({
 
 function ColumnChat({
   text,
-  periodId,
+  models,
+  model,
+  onModelChange,
   askLabel,
   question,
   setQuestion,
@@ -581,6 +619,7 @@ function ColumnChat({
   onOpen,
   loadingHistory,
   messages,
+  thinking,
   assistantStatus,
   error,
   suggestions,
@@ -589,7 +628,9 @@ function ColumnChat({
   onStop,
 }: {
   text: (key: WorkspaceMessageKey) => string;
-  periodId: AnalyticsPeriodId;
+  models: ChatModel[];
+  model: ProviderId | null;
+  onModelChange: (provider: ProviderId) => void;
   askLabel: string;
   question: string;
   setQuestion: (value: string) => void;
@@ -601,6 +642,7 @@ function ColumnChat({
   onOpen: (id: string) => void;
   loadingHistory: boolean;
   messages: ChatMessage[];
+  thinking: ThinkingSource[] | null;
   assistantStatus: string;
   error: string | null;
   suggestions: string[];
@@ -609,6 +651,7 @@ function ColumnChat({
   onStop: () => void;
 }) {
   const [suggestionPage, setSuggestionPage] = useState(0);
+  const [historyOpen, setHistoryOpen] = useState(false);
   const pageSize = 3;
   const suggestionStart = (suggestionPage * pageSize) % suggestions.length;
   const visibleSuggestions = Array.from({ length: pageSize }, (_, index) => {
@@ -616,39 +659,46 @@ function ColumnChat({
   });
 
   return (
-    <div className="flex h-full min-h-0 flex-col bg-surface">
-      <header className="flex h-11 shrink-0 items-center justify-between gap-2 border-b border-secondary px-3">
+    <div className="relative flex h-full min-h-0 flex-col bg-surface">
+      {historyOpen ? (
+        <ChatHistoryPanel
+          conversations={conversations}
+          activeId={conversationId}
+          locale={locale}
+          text={text}
+          onOpen={onOpen}
+          onNew={onNew}
+          onClose={() => setHistoryOpen(false)}
+        />
+      ) : null}
+      <header className="flex h-11 shrink-0 items-center gap-2 border-b border-secondary px-3">
         <h2 className="shrink-0 text-sm font-medium text-foreground">
           {text("columnChat")}
         </h2>
-        <div className="min-w-0 overflow-x-auto">
-          <PeriodFilter value={periodId} />
+        <div className="ml-auto flex min-w-0 items-center gap-1">
+          <button
+            type="button"
+            onClick={() => setHistoryOpen(true)}
+            aria-label={text("chatHistory")}
+            aria-haspopup="dialog"
+            aria-expanded={historyOpen}
+            title={text("chatHistory")}
+            className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-muted transition-colors hover:bg-secondary hover:text-foreground"
+          >
+            <IconClock className="h-4 w-4" />
+          </button>
+          <button
+            type="button"
+            onClick={onNew}
+            aria-label={text("chatNew")}
+            title={text("chatNew")}
+            className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-muted transition-colors hover:bg-secondary hover:text-foreground"
+          >
+            <IconPlus className="h-4 w-4" />
+          </button>
         </div>
       </header>
-      <div className="flex shrink-0 items-center gap-2 px-3 py-2">
-        <button
-          type="button"
-          onClick={onNew}
-          className="shrink-0 text-xs text-foreground underline-offset-2 hover:underline"
-        >
-          {text("chatNew")}
-        </button>
-        <Dropdown
-          value={conversationId ?? ""}
-          onChange={onOpen}
-          ariaLabel={text("chatNew")}
-          size="sm"
-          className="min-w-0 flex-1 text-xs"
-          options={[
-            { value: "", label: text("chatEmpty") },
-            ...conversations.map((conversation) => ({
-              value: conversation.id,
-              label: conversation.title,
-            })),
-          ]}
-        />
-      </div>
-      <div className="min-h-0 flex-1 space-y-4 overflow-y-auto px-3 py-2" aria-live="polite">
+      <div className="min-h-0 flex-1 space-y-4 overflow-y-auto px-3 py-3" aria-live="polite">
         {loadingHistory ? (
           <p className="text-sm text-muted">{text("chatLoading")}</p>
         ) : null}
@@ -671,12 +721,14 @@ function ColumnChat({
                 content={displayChatContent(message.content, locale, pendingBubble)}
                 pending={pendingBubble}
                 note={fallbackNote(message, text)}
-                usageLine={usageLine(message, text)}
                 plain
               />
             </article>
           );
         })}
+        {thinking ? (
+          <ThinkingIndicator sources={thinking} model={model} label={thinkingText(thinking, text)} />
+        ) : null}
         {error ? <p className="text-sm text-foreground">{error}</p> : null}
       </div>
       <div className="shrink-0 px-3 pb-3 pt-1">
@@ -705,32 +757,46 @@ function ColumnChat({
         <label htmlFor="ask-ai-question" className="sr-only">
           {text("chatPrompt")}
         </label>
-        <div className="flex items-end gap-2 rounded-2xl border border-border bg-white px-3 py-2">
-          <input
+        <div className="rounded-2xl border border-border bg-white px-3 pb-2 pt-2.5 shadow-sm shadow-black/5 transition-colors focus-within:border-foreground/25">
+          <textarea
             id="ask-ai-question"
+            rows={2}
             value={question}
             onChange={(event) => setQuestion(event.target.value)}
             onKeyDown={(event) => {
-              if (event.key === "Enter") onAsk();
+              if (event.key === "Enter" && !event.shiftKey) {
+                event.preventDefault();
+                onAsk();
+              }
             }}
             placeholder={text("chatPlaceholder")}
             disabled={busy}
-            className="w-full bg-transparent py-1 text-sm text-foreground outline-none placeholder:text-muted disabled:opacity-60"
+            className="block max-h-40 min-h-10 w-full resize-none bg-transparent text-sm leading-relaxed text-foreground outline-none [field-sizing:content] placeholder:text-muted disabled:opacity-60"
           />
-          <button
-            type="button"
-            onClick={() => (streaming ? onStop() : onAsk())}
-            disabled={!streaming && (busy || !question.trim())}
-            aria-label={streaming ? text("chatStop") : askLabel}
-            title={streaming ? text("chatStop") : askLabel}
-            className="ha-primary flex h-8 w-8 shrink-0 items-center justify-center rounded-full disabled:cursor-not-allowed disabled:opacity-40"
-          >
-            {streaming ? (
-              <span className="block h-2.5 w-2.5 rounded-[2px] bg-current" />
-            ) : (
-              <IconArrowUp className={`h-4 w-4 ${busy ? "animate-pulse" : ""}`} />
-            )}
-          </button>
+          <div className="mt-1.5 flex items-center justify-end gap-1.5">
+            <ModelPicker
+              models={models}
+              value={model}
+              onChange={onModelChange}
+              disabled={busy}
+              label={text("chatModel")}
+              missingKeyLabel={text("chatModelMissingKey")}
+            />
+            <button
+              type="button"
+              onClick={() => (streaming ? onStop() : onAsk())}
+              disabled={!streaming && (busy || !question.trim())}
+              aria-label={streaming ? text("chatStop") : askLabel}
+              title={streaming ? text("chatStop") : askLabel}
+              className="ha-primary flex h-8 w-8 shrink-0 items-center justify-center rounded-full disabled:cursor-not-allowed disabled:opacity-40"
+            >
+              {streaming ? (
+                <span className="block h-2.5 w-2.5 rounded-[2px] bg-current" />
+              ) : (
+                <IconArrowUp className={`h-4 w-4 ${busy ? "animate-pulse" : ""}`} />
+              )}
+            </button>
+          </div>
         </div>
       </div>
     </div>
@@ -756,15 +822,9 @@ function fallbackNote(
   text: (key: WorkspaceMessageKey) => string
 ): string | null {
   if (!message.usedFallback) return null;
-  return text("chatFallbackNote").replace("{provider}", message.provider ?? "");
-}
-
-function usageLine(
-  message: ChatMessage,
-  text: (key: WorkspaceMessageKey) => string
-): string | null {
-  if (!message.usage) return null;
-  return `${text("chatUsageModel")}: ${message.usage.model} · ${text("chatUsageCost")}: $${message.usage.estimatedCostUsd.toFixed(2)}`;
+  const provider = message.provider ?? "";
+  const name = provider in PROVIDER_NAMES ? PROVIDER_NAMES[provider as ProviderId] : provider;
+  return text("chatFallbackNote").replace("{provider}", name);
 }
 
 function appendDelta(current: ChatMessage[], textChunk: string): ChatMessage[] {
@@ -798,7 +858,7 @@ async function readEventStream(
   body: ReadableStream<Uint8Array>,
   handlers: {
     onDelta: (text: string) => void;
-    onReset: () => void;
+    onReset: (tools: string[]) => void;
     onDone: (data: {
       answer?: string;
       conversationId?: string;
@@ -828,6 +888,7 @@ async function readEventStream(
       const data = JSON.parse(line.slice(5).trim()) as {
         type?: string;
         text?: string;
+        tools?: string[];
         error?: string;
         answer?: string;
         conversationId?: string;
@@ -837,7 +898,7 @@ async function readEventStream(
         provider?: string | null;
       };
       if (data.type === "delta") handlers.onDelta(data.text ?? "");
-      else if (data.type === "reset") handlers.onReset();
+      else if (data.type === "reset") handlers.onReset(data.tools ?? []);
       else if (data.type === "done") handlers.onDone(data);
       else if (data.type === "error") handlers.onError(data.error ?? "chatQueryFailed");
     }
@@ -848,29 +909,44 @@ function AssistantBody({
   content,
   pending,
   note,
-  usageLine: usage,
   plain = false,
 }: {
   content: string;
   pending: boolean;
   note?: string | null;
-  usageLine?: string | null;
   plain?: boolean;
 }) {
   if (pending) {
-    return <p className={`${plain ? "" : "mt-1"} text-sm italic text-muted`}>{content}</p>;
+    return (
+      <div className={plain ? "" : "mt-1"}>
+        <ThinkingIndicator sources={[]} model={null} label={content} />
+      </div>
+    );
   }
 
   const { text, images } = splitAssistantContent(content);
   return (
     <div className={plain ? "space-y-2" : "mt-1 space-y-2"}>
       {text ? (
-        <p className="whitespace-pre-wrap text-sm leading-relaxed text-foreground">
-          {text}
+        <p className="whitespace-pre-wrap break-words text-sm leading-relaxed text-foreground">
+          {linkSegments(text).map((segment, index) =>
+            segment.kind === "link" ? (
+              <a
+                key={index}
+                href={segment.value}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-accent underline underline-offset-2 hover:opacity-80"
+              >
+                {segment.value}
+              </a>
+            ) : (
+              segment.value
+            )
+          )}
         </p>
       ) : null}
       {note ? <p className="text-xs text-muted">{note}</p> : null}
-      {usage ? <p className="text-xs text-muted">{usage}</p> : null}
       {images.map((src) => (
         // Bot attachment hosts are not known at build time, so this stays a plain image.
         // eslint-disable-next-line @next/next/no-img-element

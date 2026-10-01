@@ -3,7 +3,13 @@ import test from "node:test";
 
 import { APIConnectionTimeoutError, APIError, APIUserAbortError } from "openai";
 
-import { resolveChatEngine, selectReplyEngine } from "./analytics-bot-contract.ts";
+import {
+  preferProvider,
+  resolveChatEngine,
+  selectReplyEngine,
+} from "./analytics-bot-contract.ts";
+import { chatModelOptions } from "./engine.ts";
+import { modelDisplayName } from "./model-label.ts";
 import { shouldFallback } from "./providers.ts";
 import { summarizeUsage, emptyUsage } from "./usage.ts";
 
@@ -46,6 +52,53 @@ test("CHAT_ENGINE selects the native Gemini engine and Groq fallback", () => {
 
   const missing = resolveChatEngine({ chatEngine: "native" });
   assert.equal(missing.engine, "none");
+});
+
+test("the model picked in the chat goes first and the default becomes the fallback", () => {
+  const env = {
+    chatEngine: "native",
+    geminiKey: "gem-test",
+    groqKey: "gsk-test",
+    primary: "gemini",
+    fallback: "groq",
+  };
+  const engine = resolveChatEngine(env);
+
+  assert.deepEqual(preferProvider(engine, "groq", env), {
+    engine: "native",
+    primary: "groq",
+    fallback: "gemini",
+  });
+  assert.deepEqual(preferProvider(engine, "gemini", env), engine);
+  assert.deepEqual(preferProvider(engine, "openai", env), engine);
+  assert.deepEqual(preferProvider(engine, "anything", env), engine);
+  assert.deepEqual(preferProvider(engine, undefined, env), engine);
+
+  const bridgeEnv = { chatEngine: "bridge", webhookUrl: "https://bot.example/hook", groqKey: "gsk" };
+  const bridge = resolveChatEngine(bridgeEnv);
+  assert.deepEqual(preferProvider(bridge, "groq", bridgeEnv), bridge);
+});
+
+test("chat model options list Gemini and Groq with their role and key state", () => {
+  const options = chatModelOptions({
+    chatEngine: "native",
+    geminiKey: "gem-test",
+    primary: "gemini",
+  });
+  assert.equal(options.selectable, true);
+  assert.deepEqual(
+    options.models.map(({ provider, configured, role }) => ({ provider, configured, role })),
+    [
+      { provider: "gemini", configured: true, role: "primary" },
+      { provider: "groq", configured: false, role: null },
+    ]
+  );
+  assert.equal(chatModelOptions({ chatEngine: "bridge", webhookUrl: "https://x" }).selectable, false);
+});
+
+test("model ids become readable names", () => {
+  assert.equal(modelDisplayName("gemini-3.5-flash-lite"), "Gemini 3.5 Flash Lite");
+  assert.equal(modelDisplayName("openai/gpt-oss-120b"), "GPT OSS 120B");
 });
 
 test("fallback runs for rate limit, server errors, and timeouts", () => {

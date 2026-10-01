@@ -6,10 +6,11 @@ import { resolveAnalyticsPeriod } from "@/lib/analytics/period";
 import { getGithubConnectionStatus } from "@/lib/github/status";
 import { workspaceText } from "@/lib/i18n/workspace-copy";
 import { getSeoConnectionStatus } from "@/lib/seo/status";
+import { readWebSearchConfig } from "@/lib/web/search";
 
 import type { ChatLocale, EngineSelection, ProviderId } from "./analytics-bot-contract";
 import { currentEngine } from "./engine";
-import { finalizeAnswer } from "./grounding";
+import { finalizeAnswer, selectWebCitations } from "./grounding";
 import { buildHumanaAnalyticsPrompt, type ConnectedSources } from "./prompts";
 import {
   completeChat,
@@ -19,14 +20,16 @@ import {
   type ToolCallDelta,
 } from "./providers";
 import {
-  analyticsToolDefinitions,
+  chatToolDefinitions,
   executeAnalyticsTool,
+  type ChatToolDefinition,
   type ToolRunContext,
 } from "./tools";
+import { WEB_SOURCE } from "./tools/web-tools";
 import {
   disconnectedSource,
   prepareToolResult,
-  readCitation,
+  readCitations,
   resultOk,
   safeToolArgs,
   type Citation,
@@ -68,7 +71,7 @@ type Completer = (input: {
   model: string;
   apiKey: string;
   messages: ChatCompletionMessageParam[];
-  tools: typeof analyticsToolDefinitions;
+  tools: ChatToolDefinition[];
   signal?: AbortSignal;
   onDelta?: (text: string) => void;
 }) => Promise<ChatCompletionResult>;
@@ -100,6 +103,7 @@ async function connectedSources() {
     github: github.connected,
     seo: Boolean(seo?.pagespeed.connected),
     geo: Boolean(seo?.crawl.connected),
+    web: readWebSearchConfig().ok,
   };
 }
 
@@ -115,17 +119,17 @@ async function runWithProvider(input: {
   periodId: string;
   periodLabel: string;
   history?: StoredTurn[];
-  sources: { ga4: boolean; github: boolean; seo?: boolean; geo?: boolean };
+  sources: ConnectedSources;
   projectId: string | null;
   signal?: AbortSignal;
   onDelta?: (text: string) => void;
-  onToolRound?: () => void;
+  onToolRound?: (tools: string[]) => void;
   complete: Completer;
   executeTool: ExecuteTool;
   usedFallback: boolean;
 }): Promise<AskAiResult> {
   const model = modelForProvider(input.provider);
-  const tools = analyticsToolDefinitions;
+  const tools = chatToolDefinitions({ web: input.sources.web });
   const messages: ChatCompletionMessageParam[] = [
     {
       role: "system",
@@ -174,7 +178,7 @@ async function runWithProvider(input: {
     usage = addUsage(usage, response.usage);
     if (response.toolCalls.length > 0) {
       streamed = "";
-      input.onToolRound?.();
+      input.onToolRound?.(response.toolCalls.map((call) => call.name));
     }
 
     if (response.toolCalls.length === 0) {
@@ -183,11 +187,12 @@ async function runWithProvider(input: {
         throw new Error("providerBlank");
       }
       if (!streamed && response.content) input.onDelta?.(response.content);
+      const used = selectWebCitations(citations, draft);
       const answer = finalizeAnswer({
         draft,
         locale: input.locale,
         calls: toolsUsed,
-        citations,
+        citations: used,
         disconnectedSources: disconnected,
       });
       const summary = summarizeUsage(model, usage, input.provider);
@@ -196,7 +201,7 @@ async function runWithProvider(input: {
         answer,
         toolsUsed,
         usage: summary,
-        citations,
+        citations: used,
         provider: input.provider,
         usedFallback: input.usedFallback,
         locale: input.locale,
@@ -222,15 +227,15 @@ async function runWithProvider(input: {
         projectId: input.projectId,
       });
       const prepared = prepareToolResult(raw, retrievedAt);
-      const citation = readCitation(prepared);
-      if (citation) citations.push(citation);
+      const found = readCitations(prepared);
+      citations.push(...found);
       const source = disconnectedSource(raw);
       if (source) disconnected.push(source);
       toolsUsed.push({
         name: call.name,
         args: safeToolArgs(call.arguments),
-        source: citation?.source ?? null,
-        period: citation?.period ?? null,
+        source: found[0]?.url ? WEB_SOURCE : (found[0]?.source ?? null),
+        period: found[0]?.period ?? null,
         ok: resultOk(raw),
         durationMs: Date.now() - started,
       });
@@ -269,7 +274,7 @@ export async function runAskAiAgent(input: {
   locale: ChatLocale;
   projectId: string | null;
   onDelta?: (text: string) => void;
-  onToolRound?: () => void;
+  onToolRound?: (tools: string[]) => void;
   signal?: AbortSignal;
   sources?: ConnectedSources;
   selection?: EngineSelection;

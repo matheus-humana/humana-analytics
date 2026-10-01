@@ -114,6 +114,66 @@ test("the Gemini thought signature goes back with the tool call on the next roun
   assert.deepEqual(echoed, signature);
 });
 
+test("web search is offered only when enabled and its pages become linked sources", async () => {
+  const offered: string[][] = [];
+  const result = await runAskAiAgent({
+    question: "Quais são as boas práticas de Core Web Vitals?",
+    locale: "pt-BR",
+    projectId: "proj_1",
+    sources: { ...sources, web: true },
+    selection: { engine: "native", primary: "gemini", fallback: null },
+    keys: { gemini: "gem-key" },
+    complete: async (input) => {
+      offered.push(input.tools.map((tool) => tool.function.name));
+      if (!input.messages.some((message) => message.role === "tool")) {
+        return {
+          content: "",
+          toolCalls: [{ id: "call_1", name: "search_web", arguments: "{\"query\":\"core web vitals\"}" }],
+          usage: emptyUsage(),
+        };
+      }
+      return { content: "Segundo o web.dev, o LCP bom é até 2,5 s.", toolCalls: [], usage: emptyUsage() };
+    },
+    executeTool: async () => ({
+      source: "Web search",
+      connected: true,
+      web: true,
+      query: "core web vitals",
+      results: [
+        { title: "Web Vitals", url: "https://web.dev/articles/vitals", snippet: "LCP 2.5 s", publishedDate: null },
+        { title: "Web Vitals", url: "https://web.dev/articles/vitals", snippet: "dup", publishedDate: null },
+      ],
+    }),
+  });
+
+  assert.equal(offered[0]?.includes("search_web"), true);
+  assert.equal(result.toolsUsed[0]?.source, "Web search");
+  assert.match(result.answer, /2,5 s/);
+  assert.match(result.answer, /- Web Vitals — https:\/\/web\.dev\/articles\/vitals/);
+  assert.equal(result.answer.match(/web\.dev\/articles\/vitals/g)?.length, 1);
+  assert.equal(result.citations[0]?.url, "https://web.dev/articles/vitals");
+});
+
+test("web search stays hidden when it is not configured", async () => {
+  let offered: string[] = [];
+  await runAskAiAgent({
+    question: "Hi",
+    locale: "en",
+    projectId: null,
+    sources,
+    selection: { engine: "native", primary: "gemini", fallback: null },
+    keys: { gemini: "gem-key" },
+    complete: async (input) => {
+      offered = input.tools.map((tool) => tool.function.name);
+      return { content: "Hello.", toolCalls: [], usage: emptyUsage() };
+    },
+    executeTool: async () => ({}),
+  });
+
+  assert.equal(offered.includes("search_web"), false);
+  assert.equal(offered.includes("get_overview"), true);
+});
+
 test("tool calls without an index stay separate when the id changes", () => {
   const acc = new Map<number, ToolCallDelta>();
   const first = toolCallIndex(acc, { id: "call_1", function: { name: "get_overview" } });

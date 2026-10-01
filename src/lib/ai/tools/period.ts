@@ -2,7 +2,7 @@ export const PERIOD_PARAMETER = {
   type: "string",
   enum: ["24h", "3d", "7d", "28d", "90d"],
   description:
-    "Canonical product period. Omit this to use the interface default.",
+    "Period named in the user's question: 24h (today), 3d, 7d, 28d, or 90d. Omit only when the question names no period; the default is the last 7 days.",
 } as const;
 
 export function parseToolArgs(rawArgs: string): {

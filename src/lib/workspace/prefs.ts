@@ -1,43 +1,34 @@
-export const WORKSPACE_PANEL_IDS = [
-  "context",
-  "analytics",
-  "chat",
-] as const;
+export const WORKSPACE_PANEL_IDS = ["analytics", "chat"] as const;
 
 export type WorkspacePanelId = (typeof WORKSPACE_PANEL_IDS)[number];
 
 export type CollapsiblePanelId = Exclude<WorkspacePanelId, "chat">;
 
-export const COLLAPSIBLE_PANEL_IDS: readonly CollapsiblePanelId[] = ["context", "analytics"];
+export const COLLAPSIBLE_PANEL_IDS: readonly CollapsiblePanelId[] = ["analytics"];
 
 export type WorkspaceTab = "traffic" | "seo" | "geo";
 
 export type WorkspaceMode = "project" | "repository";
-
-export type MobileColumn = CollapsiblePanelId;
 
 export type WorkspacePrefs = {
   open: Record<CollapsiblePanelId, boolean>;
   layout: Record<WorkspacePanelId, number> | null;
   tab: WorkspaceTab;
   mode: WorkspaceMode;
-  mobileColumn: MobileColumn;
   projectId: string | null;
   repositoryId: string | null;
 };
 
 export const DEFAULT_WORKSPACE_PREFS: WorkspacePrefs = {
-  open: { context: true, analytics: true },
+  open: { analytics: true },
   layout: null,
   tab: "traffic",
   mode: "project",
-  mobileColumn: "analytics",
   projectId: null,
   repositoryId: null,
 };
 
 const TABS = new Set<WorkspaceTab>(["traffic", "seo", "geo"]);
-const MOBILE = new Set<MobileColumn>(["context", "analytics"]);
 
 export function workspacePrefsKey(userId: string): string {
   return `ha-workspace:${userId}`;
@@ -80,7 +71,6 @@ export function parseWorkspacePrefs(raw: string | null): WorkspacePrefs {
 
   return {
     open: {
-      context: openRecord.context !== false,
       analytics: openRecord.analytics !== false,
     },
     layout: parseLayout(record.layout),
@@ -88,11 +78,6 @@ export function parseWorkspacePrefs(raw: string | null): WorkspacePrefs {
       ? (record.tab as WorkspaceTab)
       : "traffic",
     mode: record.mode === "repository" ? "repository" : "project",
-    mobileColumn:
-      typeof record.mobileColumn === "string" &&
-      MOBILE.has(record.mobileColumn as MobileColumn)
-        ? (record.mobileColumn as MobileColumn)
-        : "analytics",
     projectId: readId(record.projectId),
     repositoryId: readId(record.repositoryId),
   };

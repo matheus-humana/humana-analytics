@@ -18,22 +18,13 @@ import {
   COLLAPSIBLE_PANEL_IDS,
   WORKSPACE_PANEL_IDS,
   type CollapsiblePanelId,
-  type MobileColumn,
   type WorkspacePrefs,
   type WorkspaceTab,
 } from "@/lib/workspace/prefs";
 import type { ChatSignal } from "@/lib/workspace/status-log";
 import type { WorkspaceProject } from "@/lib/workspace/load-workspace";
 
-import type { ConnectionSnapshot } from "@/lib/workspace/status-log";
-
-import {
-  AnalyticsColumn,
-  AnalyticsRail,
-  ContextColumn,
-  ContextRail,
-  RepositoryColumn,
-} from "./column-views";
+import { AnalyticsColumn, AnalyticsRail, RepositoryColumn } from "./column-views";
 import { IconChat } from "./icons";
 import type { GithubPanelData } from "@/lib/github/types";
 import type { SeoWorkspace } from "@/lib/seo/view";
@@ -50,14 +41,12 @@ type Props = {
   mobile: boolean;
   prefs: WorkspacePrefs;
   onPrefs: (partial: Partial<WorkspacePrefs>) => void;
-  project: WorkspaceProject | null;
   repository: WorkspaceProject | null;
   foreignProject: boolean;
   traffic: React.ReactNode;
   trafficSummary: TrafficSummary | null;
   github: GithubPanelData;
   seo: SeoWorkspace;
-  connections: ConnectionSnapshot[];
   chatEnabled: boolean;
   chatProjectId: string | null;
   onChatActivity: (signal: ChatSignal) => void;
@@ -114,15 +103,12 @@ function DesktopWorkspace(props: Props) {
     locale,
     prefs,
     onPrefs,
-    project,
-    connections,
     foreignProject,
     trafficSummary,
     seo,
     onChatActivity,
   } = props;
   const groupRef = useGroupRef();
-  const contextRef = usePanelRef();
   const analyticsRef = usePanelRef();
   const layoutBeforeToggle = useRef<Layout | null>(null);
   const groupElementRef = useRef<HTMLDivElement | null>(null);
@@ -140,7 +126,6 @@ function DesktopWorkspace(props: Props) {
 
   useEffect(() => {
     const refs = {
-      context: contextRef,
       analytics: analyticsRef,
     };
     for (const id of COLLAPSIBLE_PANEL_IDS) {
@@ -154,7 +139,7 @@ function DesktopWorkspace(props: Props) {
   }, []);
 
   function toggle(id: CollapsiblePanelId) {
-    const handle = id === "context" ? contextRef.current : analyticsRef.current;
+    const handle = analyticsRef.current;
     const previousOpen = prefs.open;
     const opening = !previousOpen[id];
     layoutBeforeToggle.current = groupRef.current?.getLayout() ?? null;
@@ -202,29 +187,6 @@ function DesktopWorkspace(props: Props) {
       }}
     >
       <Panel
-        id="context"
-        panelRef={contextRef}
-        collapsible
-        collapsedSize={COLLAPSED_PX}
-        collapsedThreshold={140}
-        minSize={mins.context}
-        onResize={onResize("context")}
-        className="h-full bg-surface"
-        style={{ overflow: "hidden" }}
-      >
-        {prefs.open.context ? (
-          <ContextColumn
-            locale={locale}
-            project={project}
-            connections={connections}
-            onCollapse={() => toggle("context")}
-          />
-        ) : (
-          <ContextRail locale={locale} onExpand={() => toggle("context")} />
-        )}
-      </Panel>
-      <PanelSeparator label={text("resizeColumns")} />
-      <Panel
         id="analytics"
         panelRef={analyticsRef}
         collapsible
@@ -267,11 +229,10 @@ function DesktopWorkspace(props: Props) {
 
 function minimumsFor(width: number) {
   if (width >= 1280) {
-    return { context: 240, analytics: 420, chat: 360 };
+    return { analytics: 420, chat: 360 };
   }
   const scale = Math.max(0.62, width / 1280);
   return {
-    context: Math.round(240 * scale),
     analytics: Math.max(240, Math.round(420 * scale)),
     chat: Math.max(220, Math.round(360 * scale)),
   };
@@ -338,59 +299,14 @@ function rebalanceLayout(
 }
 
 function MobileWorkspace(props: Props) {
-  const {
-    locale,
-    prefs,
-    onPrefs,
-    project,
-    connections,
-    onChatActivity,
-    mobileChatOpen,
-    onMobileChatOpen,
-  } = props;
+  const { locale, onChatActivity, mobileChatOpen, onMobileChatOpen } = props;
   const text = (key: Parameters<typeof workspaceText>[1]) =>
     workspaceText(locale, key);
-  const columns: Array<{ id: MobileColumn; label: string }> = [
-    { id: "context", label: text("columnContext") },
-    {
-      id: "analytics",
-      label: text(prefs.mode === "repository" ? "modeRepository" : "columnAnalytics"),
-    },
-  ];
 
   return (
     <div className="relative flex h-full min-h-0 flex-col">
-      <div
-        className="flex shrink-0 gap-1 border-b border-border bg-surface px-3 py-2"
-        role="tablist"
-        aria-label={text("mobileColumns")}
-      >
-        {columns.map((column) => {
-          const selected = prefs.mobileColumn === column.id && !mobileChatOpen;
-          return (
-            <button
-              key={column.id}
-              type="button"
-              role="tab"
-              aria-selected={selected}
-              onClick={() => {
-                onMobileChatOpen(false);
-                onPrefs({ mobileColumn: column.id });
-              }}
-              className={`rounded-full px-3 py-1.5 text-sm font-medium ${
-                selected ? "ha-primary" : "text-muted hover:text-foreground"
-              }`}
-            >
-              {column.label}
-            </button>
-          );
-        })}
-      </div>
       <div className="min-h-0 flex-1 overflow-hidden">
-        {prefs.mobileColumn === "context" ? (
-          <ContextColumn locale={locale} project={project} connections={connections} />
-        ) : null}
-        {prefs.mobileColumn === "analytics" ? <MainColumn {...props} /> : null}
+        <MainColumn {...props} />
       </div>
       <button
         type="button"

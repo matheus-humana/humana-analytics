@@ -56,7 +56,7 @@ export function dedupeCitations(citations: Citation[]): Citation[] {
   const unique: Citation[] = [];
   for (const citation of citations) {
     if (!citation.source || citation.source === "unknown") continue;
-    const key = `${citation.source}\u0000${citation.period ?? ""}`;
+    const key = citation.url ?? `${citation.source}\u0000${citation.period ?? ""}`;
     if (seen.has(key)) continue;
     seen.add(key);
     unique.push(citation);
@@ -64,10 +64,64 @@ export function dedupeCitations(citations: Citation[]): Citation[] {
   return unique;
 }
 
+const GENERIC_SITE_SEGMENTS = new Set([
+  "documentation",
+  "docs",
+  "blog",
+  "articles",
+  "article",
+  "guide",
+  "home",
+  "news",
+]);
+const WEB_FALLBACK_COUNT = 3;
+
+function squash(value: string): string {
+  return value.toLowerCase().normalize("NFD").replace(/[^a-z0-9]/g, "");
+}
+
+function siteNames(citation: Citation): string[] {
+  const names: string[] = [];
+  try {
+    const host = new URL(citation.url ?? "").hostname.replace(/^www\./, "");
+    names.push(squash(host));
+    const labels = host.split(".");
+    if (labels.length === 2 && labels[0].length >= 5) names.push(squash(labels[0]));
+  } catch {
+    return names;
+  }
+  for (const segment of citation.source.split(/\s+[|–—-]\s+/).slice(1)) {
+    const name = squash(segment);
+    if (name.length >= 4 && !GENERIC_SITE_SEGMENTS.has(name)) names.push(name);
+  }
+  return names;
+}
+
+/**
+ * Keep the web pages the answer names (by site name or domain). When it names
+ * none, keep the top results of the last search.
+ */
+export function selectWebCitations(citations: Citation[], answer: string): Citation[] {
+  const web = citations.filter((citation) => citation.url);
+  if (web.length === 0) return citations;
+  const text = squash(answer);
+  const named = new Set(
+    web.filter((citation) => siteNames(citation).some((name) => text.includes(name)))
+  );
+  if (named.size === 0) {
+    const lastSearch = web[web.length - 1].retrievedAt;
+    for (const citation of web.filter((item) => item.retrievedAt === lastSearch).slice(0, WEB_FALLBACK_COUNT)) {
+      named.add(citation);
+    }
+  }
+  return citations.filter((citation) => !citation.url || named.has(citation));
+}
+
 export function buildSourcesBlock(citations: Citation[], locale: ChatLocale): string {
   const unique = dedupeCitations(citations);
   if (unique.length === 0) return "";
   const lines = unique.map((citation) => {
+    if (citation.url) return `- ${citation.source} — ${citation.url}`;
     const period = formatPeriod(citation.period, locale);
     return `- ${sourceLabel(citation.source, locale)} · ${period} · ${citation.retrievedAt}`;
   });
@@ -102,5 +156,6 @@ export function finalizeAnswer(input: {
     }
   }
 
-  return `${body}${buildSourcesBlock(input.citations, input.locale)}`.trim();
+  const citations = selectWebCitations(input.citations, draft);
+  return `${body}${buildSourcesBlock(citations, input.locale)}`.trim();
 }

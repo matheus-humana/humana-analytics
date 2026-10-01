@@ -3,6 +3,7 @@
 import { useEffect, useId, useRef } from "react";
 
 import { useLocale } from "@/components/i18n/locale-provider";
+import { AiModelsSettings } from "@/components/settings/ai-models-settings";
 import { AppearanceSettings } from "@/components/settings/appearance-settings";
 import { workspaceText } from "@/lib/i18n/workspace-copy";
 
@@ -83,6 +84,7 @@ export function SettingsPanel({
 
         <div className="max-h-[min(70vh,28rem)] overflow-y-auto p-4">
           <AppearanceSettings compact />
+          <AiModelsSettings />
         </div>
       </div>
     </div>

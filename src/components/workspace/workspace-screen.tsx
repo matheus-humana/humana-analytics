@@ -180,14 +180,12 @@ export function WorkspaceScreen({
             mobile={mobile}
             prefs={prefs}
             onPrefs={updatePrefs}
-            project={selectedProject}
             repository={selectedRepository}
             foreignProject={foreignProject}
             traffic={traffic}
             trafficSummary={trafficSummary}
             github={github}
             seo={seo}
-            connections={model.connections}
             chatEnabled={chatEnabled}
             chatProjectId={
               (repositoryMode ? selectedRepository?.id : selectedProject?.id) ?? null
