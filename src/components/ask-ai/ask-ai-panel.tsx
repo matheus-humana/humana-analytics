@@ -3,7 +3,6 @@
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 
-import { ModelPicker, type ChatModel } from "@/components/ai/model-picker";
 import { ChatHistoryPanel } from "@/components/ask-ai/chat-history-panel";
 import { ThinkingIndicator, thinkingText } from "@/components/ask-ai/thinking-indicator";
 import { useLocale } from "@/components/i18n/locale-provider";
@@ -45,8 +44,6 @@ type ChatMessage = {
   provider?: string | null;
 };
 
-const MODEL_STORAGE_KEY = "ha-chat-model";
-
 type ConversationSummary = {
   id: string;
   title: string;
@@ -82,8 +79,6 @@ export function AskAiPanel({
     onActivityRef.current = onActivity;
   }, [onActivity]);
 
-  const [models, setModels] = useState<ChatModel[]>([]);
-  const [model, setModel] = useState<ProviderId | null>(null);
   const [question, setQuestion] = useState("");
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [conversations, setConversations] = useState<ConversationSummary[]>([]);
@@ -139,41 +134,6 @@ export function AskAiPanel({
       cancelled = true;
     };
   }, [router, chatEnabled]);
-
-  useEffect(() => {
-    let cancelled = false;
-
-    async function loadModels() {
-      if (!chatEnabled) return;
-      const response = await fetch("/api/ai/models", { cache: "no-store" });
-      if (cancelled || !response.ok) return;
-      const data = (await response.json()) as {
-        ok?: boolean;
-        selectable?: boolean;
-        models?: ChatModel[];
-      };
-      if (cancelled || !data.ok || !data.selectable) return;
-      const list = data.models ?? [];
-      const usable = list.filter((item) => item.configured);
-      const stored = window.localStorage.getItem(MODEL_STORAGE_KEY);
-      const initial =
-        usable.find((item) => item.provider === stored) ??
-        usable.find((item) => item.role === "primary") ??
-        usable[0];
-      setModels(list);
-      setModel(initial?.provider ?? null);
-    }
-
-    void loadModels();
-    return () => {
-      cancelled = true;
-    };
-  }, [chatEnabled]);
-
-  function chooseModel(provider: ProviderId) {
-    setModel(provider);
-    window.localStorage.setItem(MODEL_STORAGE_KEY, provider);
-  }
 
   useEffect(() => {
     if (!awaitingReply || !conversationId) return;
@@ -285,7 +245,6 @@ export function AskAiPanel({
           conversationId,
           locale: activeLocale,
           projectId,
-          provider: model ?? undefined,
         }),
       });
       if (response.status === 401) {
@@ -420,9 +379,6 @@ export function AskAiPanel({
     return (
       <ColumnChat
         text={text}
-        models={models}
-        model={model}
-        onModelChange={chooseModel}
         askLabel={askLabel}
         question={question}
         setQuestion={setQuestion}
@@ -521,14 +477,6 @@ export function AskAiPanel({
               disabled={busy}
               className="w-full rounded-lg border border-border bg-white px-3 py-2.5 text-sm text-foreground outline-none ring-accent placeholder:text-muted focus:ring-2 disabled:opacity-60"
             />
-            <ModelPicker
-              models={models}
-              value={model}
-              onChange={chooseModel}
-              disabled={busy}
-              label={text("chatModel")}
-              missingKeyLabel={text("chatModelMissingKey")}
-            />
             <button
               type="button"
               onClick={() => (streaming ? stopStreaming() : void handleAsk())}
@@ -590,11 +538,7 @@ export function AskAiPanel({
               );
             })}
             {thinking ? (
-              <ThinkingIndicator
-                sources={thinking}
-                model={model}
-                label={thinkingText(thinking, text)}
-              />
+              <ThinkingIndicator label={thinkingText(thinking, text)} />
             ) : null}
           </div>
         </section>
@@ -605,9 +549,6 @@ export function AskAiPanel({
 
 function ColumnChat({
   text,
-  models,
-  model,
-  onModelChange,
   askLabel,
   question,
   setQuestion,
@@ -628,9 +569,6 @@ function ColumnChat({
   onStop,
 }: {
   text: (key: WorkspaceMessageKey) => string;
-  models: ChatModel[];
-  model: ProviderId | null;
-  onModelChange: (provider: ProviderId) => void;
   askLabel: string;
   question: string;
   setQuestion: (value: string) => void;
@@ -727,7 +665,7 @@ function ColumnChat({
           );
         })}
         {thinking ? (
-          <ThinkingIndicator sources={thinking} model={model} label={thinkingText(thinking, text)} />
+          <ThinkingIndicator label={thinkingText(thinking, text)} />
         ) : null}
         {error ? <p className="text-sm text-foreground">{error}</p> : null}
       </div>
@@ -774,14 +712,6 @@ function ColumnChat({
             className="block max-h-40 min-h-10 w-full resize-none bg-transparent text-sm leading-relaxed text-foreground outline-none [field-sizing:content] placeholder:text-muted disabled:opacity-60"
           />
           <div className="mt-1.5 flex items-center justify-end gap-1.5">
-            <ModelPicker
-              models={models}
-              value={model}
-              onChange={onModelChange}
-              disabled={busy}
-              label={text("chatModel")}
-              missingKeyLabel={text("chatModelMissingKey")}
-            />
             <button
               type="button"
               onClick={() => (streaming ? onStop() : onAsk())}
@@ -919,7 +849,7 @@ function AssistantBody({
   if (pending) {
     return (
       <div className={plain ? "" : "mt-1"}>
-        <ThinkingIndicator sources={[]} model={null} label={content} />
+        <ThinkingIndicator label={content} />
       </div>
     );
   }

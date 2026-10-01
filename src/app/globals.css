@@ -148,11 +148,11 @@ h4,
 @keyframes ha-think-breathe {
   0%,
   100% {
-    transform: scale(0.82) rotate(0deg);
-    opacity: 0.75;
+    transform: scale(0.88);
+    opacity: 0.55;
   }
   50% {
-    transform: scale(1.05) rotate(45deg);
+    transform: scale(1.06);
     opacity: 1;
   }
 }
@@ -165,17 +165,6 @@ h4,
   100% {
     transform: scale(1.35);
     opacity: 0;
-  }
-}
-
-@keyframes ha-think-hop {
-  0%,
-  60%,
-  100% {
-    transform: translateY(0);
-  }
-  30% {
-    transform: translateY(-3px);
   }
 }
 
@@ -201,17 +190,13 @@ h4,
   }
 }
 
-.ha-think-spark {
+.ha-think-mark {
   animation: ha-think-breathe 1.8s ease-in-out infinite;
 }
 
 .ha-think-halo {
   background: color-mix(in srgb, var(--accent) 35%, transparent);
   animation: ha-think-halo 1.8s ease-out infinite;
-}
-
-.ha-think-hop {
-  animation: ha-think-hop 1.2s ease-in-out infinite;
 }
 
 .ha-think-dot {
@@ -236,9 +221,8 @@ h4,
 
 @media (prefers-reduced-motion: reduce) {
   .ha-live-dot,
-  .ha-think-spark,
+  .ha-think-mark,
   .ha-think-halo,
-  .ha-think-hop,
   .ha-think-dot,
   .ha-think-text {
     animation: none;

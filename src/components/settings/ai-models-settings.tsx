@@ -2,12 +2,19 @@
 
 import { useEffect, useState } from "react";
 
-import type { ChatModel } from "@/components/ai/model-picker";
 import { ProviderIcon } from "@/components/ai/provider-icon";
 import { useLocale } from "@/components/i18n/locale-provider";
 import { IconSearch } from "@/components/workspace/icons";
+import type { ProviderId } from "@/lib/ai/analytics-bot-contract";
 import { modelDisplayName, PROVIDER_HOSTS, PROVIDER_NAMES } from "@/lib/ai/model-label";
 import { workspaceText, type WorkspaceMessageKey } from "@/lib/i18n/workspace-copy";
+
+type ChatModel = {
+  provider: ProviderId;
+  model: string;
+  configured: boolean;
+  role: "primary" | "fallback" | null;
+};
 
 type WebSearchMode = "key" | "keyless" | "off";
 
