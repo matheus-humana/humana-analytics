@@ -180,6 +180,7 @@ export function WorkspaceScreen({
             mobile={mobile}
             prefs={prefs}
             onPrefs={updatePrefs}
+            project={selectedProject}
             repository={selectedRepository}
             foreignProject={foreignProject}
             traffic={traffic}

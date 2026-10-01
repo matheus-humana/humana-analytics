@@ -8,12 +8,18 @@ import { periodLabel } from "@/lib/i18n/period-label";
 import { workspaceText, type WorkspaceMessageKey } from "@/lib/i18n/workspace-copy";
 import type { WorkspaceTab } from "@/lib/workspace/prefs";
 import type { WorkspaceProject } from "@/lib/workspace/load-workspace";
-
-import { IconAnalytics, IconChevron } from "./icons";
+import {
+  IconAnalytics,
+  IconChevron,
+  IconConnections,
+  IconContext,
+  IconDocs,
+} from "./icons";
 import type { GithubPanelData } from "@/lib/github/types";
 import { formatScorePoints } from "@/lib/seo/explain";
 import type { SeoWorkspace } from "@/lib/seo/view";
 
+import { ComingSoon } from "@/components/ui/coming-soon";
 import { EmptyLine } from "@/components/ui/empty-line";
 import { InfoTip } from "@/components/ui/info-tip";
 
@@ -52,6 +58,55 @@ export function ColumnHeader({
         </button>
       ) : null}
     </header>
+  );
+}
+
+const CONTEXT_SECTIONS: WorkspaceMessageKey[] = [
+  "contextDocuments",
+  "contextCompetitors",
+  "contextAudience",
+];
+
+export function ContextColumn({
+  locale,
+  project,
+  onCollapse,
+}: {
+  locale: ChatLocale;
+  project: WorkspaceProject | null;
+  onCollapse?: () => void;
+}) {
+  const text = (key: WorkspaceMessageKey) => workspaceText(locale, key);
+  return (
+    <section className="flex h-full min-h-0 flex-col bg-surface">
+      <ColumnHeader
+        title={text("columnContext")}
+        onCollapse={onCollapse}
+        collapseLabel={`${text("collapseColumn")} ${text("columnContext")}`}
+      />
+      <div className="min-h-0 flex-1">
+        <ComingSoon title={text("chatComingSoon")} body={text("contextComingSoonBody")}>
+          <div className="space-y-5 px-3 py-4">
+            <div>
+              <p className="text-xs text-muted">{text("project")}</p>
+              <p className="mt-0.5 text-sm font-medium text-foreground">
+                {project?.name ?? text("projectUnavailable")}
+              </p>
+            </div>
+            {CONTEXT_SECTIONS.map((key) => (
+              <div key={key} className="space-y-2">
+                <p className="text-sm font-medium text-foreground">{text(key)}</p>
+                <div className="space-y-1.5 rounded-xl border border-secondary p-3">
+                  <div className="h-2.5 w-4/5 rounded-full bg-secondary" />
+                  <div className="h-2.5 w-3/5 rounded-full bg-secondary" />
+                  <div className="h-2.5 w-2/3 rounded-full bg-secondary" />
+                </div>
+              </div>
+            ))}
+          </div>
+        </ComingSoon>
+      </div>
+    </section>
   );
 }
 
@@ -194,6 +249,32 @@ export function CollapsedRail({
       <IconChevron direction="right" className="h-4 w-4 shrink-0" />
       {children}
     </button>
+  );
+}
+
+export function ContextRail({
+  locale,
+  onExpand,
+}: {
+  locale: ChatLocale;
+  onExpand: () => void;
+}) {
+  const label = `${workspaceText(locale, "expandColumn")} ${workspaceText(locale, "columnContext")}`;
+  return (
+    <CollapsedRail label={label} onExpand={onExpand}>
+      <span title={workspaceText(locale, "project")} className="text-muted">
+        <IconContext className="h-4 w-4" />
+        <span className="sr-only">{workspaceText(locale, "project")}</span>
+      </span>
+      <span title={workspaceText(locale, "railDocs")} className="text-muted">
+        <IconDocs className="h-4 w-4" />
+        <span className="sr-only">{workspaceText(locale, "railDocs")}</span>
+      </span>
+      <span title={workspaceText(locale, "connections")} className="text-muted">
+        <IconConnections className="h-4 w-4" />
+        <span className="sr-only">{workspaceText(locale, "connections")}</span>
+      </span>
+    </CollapsedRail>
   );
 }
 

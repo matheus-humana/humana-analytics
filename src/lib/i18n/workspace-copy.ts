@@ -43,7 +43,9 @@ export const workspaceCopy = {
     chatComingSoon: "Em breve",
     chatComingSoonBody: "O chat com IA sobre os seus dados está sendo preparado.",
     contextComingSoonBody:
-      "Documentos, concorrentes e público do projeto, para a IA usar nas análises.",
+        "Documentos, concorrentes e público do projeto, para a IA usar nas análises.",
+    columnContext: "Contexto",
+    mobileColumns: "Colunas",
     contextDocuments: "Documentos",
     contextCompetitors: "Concorrentes",
     contextAudience: "Público-alvo",
@@ -491,7 +493,9 @@ export const workspaceCopy = {
     chatComingSoon: "Coming soon",
     chatComingSoonBody: "AI chat about your data is being prepared.",
     contextComingSoonBody:
-      "Project documents, competitors, and audience for the AI to use in its analysis.",
+        "Project documents, competitors, and audience for the AI to use in its analysis.",
+    columnContext: "Context",
+    mobileColumns: "Columns",
     contextDocuments: "Documents",
     contextCompetitors: "Competitors",
     contextAudience: "Audience",
